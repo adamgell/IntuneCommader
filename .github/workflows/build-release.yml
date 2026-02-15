@@ -1,0 +1,41 @@
+name: Build Release Executable
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup .NET 8
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '8.0.x'
+        
+    - name: Restore dependencies
+      run: dotnet restore
+      
+    - name: Build solution
+      run: dotnet build --configuration Release --no-restore
+      
+    - name: Publish Windows x64 executable
+      run: |
+        dotnet publish src/IntuneManager.Desktop/IntuneManager.Desktop.csproj `
+          --configuration Release `
+          --runtime win-x64 `
+          --self-contained true `
+          --output ./publish `
+          -p:PublishSingleFile=true `
+          -p:IncludeNativeLibrariesForSelfExtract=true
+      
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: IntuneManager-win-x64
+        path: ./publish/IntuneManager.Desktop.exe
+        retention-days: 30
