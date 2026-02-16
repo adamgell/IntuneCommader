@@ -9,9 +9,9 @@ This project is a ground-up remake of [Micke-K/IntuneManagement](https://github.
 
 ### Goals
 - **Multi-cloud support:** Commercial, GCC, GCC-High, DoD tenants
-- **Multi-tenant:** Easy switching between tenant environments
+- **Multi-tenant:** Easy switching between tenant environments with profile management
 - **Native performance:** Compiled .NET code eliminates PowerShell threading issues
-- **Cross-platform:** Linux and macOS support
+- **Cross-platform:** Linux and macOS support via Avalonia
 - **Backward compatible:** Import/export compatible with PowerShell version JSON format
 
 ### Non-Goals (Removed from original)
@@ -22,38 +22,47 @@ This project is a ground-up remake of [Micke-K/IntuneManagement](https://github.
 
 ### Core Technologies
 - **.NET 8** - Latest LTS framework
-- **C#** - Primary language
-- **Avalonia 11.x** - Cross-platform XAML UI framework
-- **Azure.Identity** - Modern authentication (no direct MSAL dependency)
+- **C# 12** - Primary language with nullable reference types
+- **Avalonia 11.3** - Cross-platform XAML UI framework (FluentTheme)
+- **Azure.Identity 1.17** - Modern authentication (Interactive Browser + Client Secret)
 - **Microsoft.Graph 5.x** - Official Graph SDK with native multi-cloud support
 
 ### Key Libraries
-- **CommunityToolkit.Mvvm** - MVVM source generators
-- **System.Text.Json** - JSON serialization for export/import
-- **Avalonia.Controls.DataGrid** - Data grid UI component
-- **xUnit** - Unit testing framework
+- **CommunityToolkit.Mvvm 8.2** - MVVM source generators (`[ObservableProperty]`, `[RelayCommand]`)
+- **Microsoft.AspNetCore.DataProtection 8.0** - Cross-platform encryption for profile storage
+- **MessageBox.Avalonia 3.2** - Confirmation dialogs
+- **Avalonia.Controls.DataGrid 11.3** - Data grid UI component
+- **xUnit 2.5** - Unit testing framework
 
 ### Deployment Targets
 - **Phase 1-5:** Windows desktop application
 - **Phase 6+:** Docker containerization for headless operations
 
-## Architecture Decisions
+## Architecture
+
+### MVVM Pattern
+- **ViewModelBase** with `IsBusy`/`ErrorMessage` base properties
+- **CommunityToolkit.Mvvm** source generators for property/command boilerplate
+- **Interface-based services** with dependency injection
+- **Async-first** — UI startup never blocks; all data loading happens after window is visible
 
 ### Authentication
 - **Interactive Browser Login:** Default authentication method for interactive sessions
-- **Client Secret Authentication:** App-only authentication support for automated scenarios
+- **Client Secret Authentication:** App-only authentication for automated scenarios
 - **Multi-cloud support:** Cloud environment selection (Commercial, GCC, GCC-High, DoD)
-- **Profile-based:** Named configurations stored locally with encryption
+- **Profile-based:** Named configurations stored locally with DataProtection API encryption
 
-### Object Model
-- Use Microsoft.Graph SDK models directly where possible
-- Custom DTOs only for export/import serialization
-- Maintain JSON schema compatibility with PowerShell version
+### Service-per-Type Pattern
+Each Intune object type has its own service following `I{Type}Service` / `{Type}Service`:
+- **ConfigurationProfileService** — Device Configuration CRUD + assignments
+- **CompliancePolicyService** — Compliance Policy CRUD + assignments
+- **ApplicationService** — Application listing + assignments (read-only)
 
 ### Export/Import Strategy
-- **Backward compatible:** Read PowerShell version JSON exports
-- **Migration table:** Preserve ID mapping concept for cross-tenant imports
-- **Dependency resolution:** Handle object dependencies (Policy Sets, assignments, etc.)
+- **Subfolder-per-type:** `DeviceConfigurations/`, `CompliancePolicies/`, `Applications/`
+- **Migration table:** Preserves ID mapping for cross-tenant imports
+- **Assignments included:** Compliance policies and apps export with their assignment targets
+- **Backward compatible:** Reads PowerShell version JSON exports
 
 ## Project Structure
 
@@ -69,62 +78,86 @@ IntuneManager/
 │   │   ├── Auth/                      # Authentication providers
 │   │   │   ├── IAuthenticationProvider.cs
 │   │   │   ├── InteractiveBrowserAuthProvider.cs
-│   │   │   ├── ClientSecretAuthProvider.cs
-│   │   │   └── CompositeAuthenticationProvider.cs
+│   │   │   └── GraphClientFactory.cs
 │   │   ├── Services/                  # Graph API services
-│   │   │   ├── IntuneService.cs       # Device Configuration CRUD
-│   │   │   ├── ExportService.cs       # JSON export
-│   │   │   ├── ImportService.cs       # JSON import with creation
-│   │   │   └── ProfileService.cs      # Tenant profile management
+│   │   │   ├── ConfigurationProfileService.cs  # Device Configuration CRUD
+│   │   │   ├── CompliancePolicyService.cs      # Compliance Policy CRUD
+│   │   │   ├── ApplicationService.cs           # App listing (read-only)
+│   │   │   ├── ExportService.cs                # JSON export (all types)
+│   │   │   ├── ImportService.cs                # JSON import with creation
+│   │   │   ├── ProfileService.cs               # Tenant profile management
+│   │   │   └── ProfileEncryptionService.cs     # DataProtection encryption
 │   │   ├── Models/                    # Data models
-│   │   │   ├── CloudEnvironment.cs
-│   │   │   ├── TenantProfile.cs
-│   │   │   ├── MigrationTable.cs
+│   │   │   ├── CloudEnvironment.cs    # Commercial/GCC/GCCHigh/DoD enum
+│   │   │   ├── TenantProfile.cs       # Tenant connection profile
+│   │   │   ├── MigrationTable.cs      # Cross-tenant ID mapping
+│   │   │   ├── CompliancePolicyExport.cs  # Policy + assignments wrapper
+│   │   │   ├── ApplicationExport.cs       # App + assignments wrapper
 │   │   │   └── CloudEndpoints.cs
-│   │   ├── Extensions/                # Utility extensions
-│   │   └── ServiceCollectionExtensions.cs
+│   │   └── Extensions/
+│   │       └── ServiceCollectionExtensions.cs   # DI registration
 │   ├── IntuneManager.Desktop/         # Avalonia UI application
-│   │   ├── Views/                     # XAML views
-│   │   │   ├── LoginView.axaml        # Tenant/client ID and auth method selection
-│   │   │   └── MainWindow.axaml       # Main interface with toolbar, DataGrid, detail pane
-│   │   ├── ViewModels/                # MVVM view models
-│   │   │   ├── ViewModelBase.cs
-│   │   │   ├── LoginViewModel.cs
-│   │   │   └── MainWindowViewModel.cs
+│   │   ├── Views/
+│   │   │   ├── LoginView.axaml        # Cloud selection, tenant/client ID, validation
+│   │   │   ├── MainWindow.axaml       # Left nav, dynamic DataGrid, detail pane
+│   │   │   └── MainWindow.axaml.cs    # Column builder, chooser popup, import picker
+│   │   ├── ViewModels/
+│   │   │   ├── ViewModelBase.cs       # Base with IsBusy/ErrorMessage
+│   │   │   ├── LoginViewModel.cs      # Auth, profiles, GUID validation
+│   │   │   ├── MainWindowViewModel.cs # Navigation, data loading, export/import
+│   │   │   ├── NavCategory.cs         # Left nav item model
+│   │   │   ├── AssignmentDisplayItem.cs   # Assignment display model
+│   │   │   └── DataGridColumnConfig.cs    # Configurable column model
+│   │   ├── Converters/
+│   │   │   └── ComputedColumnConverters.cs  # OData type + platform converters
 │   │   └── App.axaml.cs               # Application entry point with DI
-│   └── IntuneManager.Cli/             # CLI tool (Phase 6)
 └── tests/
-    └── IntuneManager.Core.Tests/      # Unit tests
-        ├── Models/                    # Model tests
-        ├── Services/                  # Service tests
-        └── 30+ unit tests covering core functionality
+    └── IntuneManager.Core.Tests/      # Unit tests (53 tests)
+        ├── Models/                    # CloudEndpoints, MigrationTable tests
+        └── Services/                  # Export, Profile, Encryption, Validation tests
 ```
 
 ## Current Status
 
-**Stage:** Phase 1 Complete - Foundation Implementation  
-**Next Steps:** Expanding object type support and UI enhancements
+**Stage:** Phase 3 — Expanding Object Types  
+**Tests:** 53 passing | **Build:** Zero warnings
 
 ### Implemented Features
-✅ Multi-cloud authentication (Interactive Browser + Client Secret)  
-✅ Graph API integration with IntuneService  
-✅ Export/Import services with JSON serialization  
-✅ Profile management for tenant configurations  
-✅ Basic Avalonia UI with login and main window  
-✅ Dependency injection setup  
-✅ Comprehensive unit test coverage (30+ tests)
 
-### In Progress
-🔄 Additional Intune object type support  
-🔄 UI polish and user experience improvements
+#### Phase 1 — Foundation ✅
+- Multi-cloud authentication (Interactive Browser + Client Secret)
+- Device Configuration CRUD via Graph API
+- Export/Import services with JSON serialization
+- Basic Avalonia UI with login and main window
+- Dependency injection setup
+- Unit test coverage
+
+#### Phase 2 — Multi-Cloud & Profiles ✅
+- Cloud Environment dropdown (Commercial, GCC, GCC-High, DoD)
+- GUID validation on Tenant ID and Client ID with inline error messages
+- DataProtection API encryption for profile storage
+- Profile switcher with confirmation dialog
+- Active profile pre-selection on startup
+- New Profile / Save / Delete lifecycle
+
+#### Phase 3 — Expanding Object Types (In Progress)
+- ✅ Compliance Policies — full CRUD + assignment export/import
+- ✅ Applications — list all types, export with assignments (read-only)
+- ✅ Left navigation panel with category switching
+- ✅ Intune-style detail panes (Properties → Assignments → Type-specific)
+- ✅ Async assignment loading with group name resolution
+- ✅ Configurable DataGrid columns with chooser UI
+- ✅ Computed columns: App Type (from OData type) and Platform (inferred)
+- ⏳ Configuration Policies (Settings Catalog)
+- ⏳ Conditional Access Policies (read-only)
 
 ### Planned
-⏳ Multi-tenant profile switching  
-⏳ Advanced import features (dependency resolution, conflict handling)  
-⏳ Certificate authentication  
-⏳ Managed Identity support  
-⏳ CLI interface  
-⏳ Docker containerization
+- Advanced import features (dependency resolution, conflict handling)
+- Certificate authentication
+- Managed Identity support
+- Bulk operations
+- CLI interface
+- Docker containerization
 
 ## Quick Links
 
@@ -138,8 +171,7 @@ IntuneManager/
 
 ### Prerequisites
 - .NET 8 SDK
-- Visual Studio 2022 or JetBrains Rider (or VS Code with C# Dev Kit)
-- Git
+- Visual Studio 2022, JetBrains Rider, or VS Code with C# Dev Kit
 - Azure AD app registration with appropriate Microsoft Graph permissions
 
 ### Building the Project
