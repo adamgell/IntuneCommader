@@ -1,10 +1,13 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using IntuneManager.Core.Auth;
@@ -48,10 +51,15 @@ public partial class MainWindowViewModel : ViewModelBase
 
     public ObservableCollection<NavCategory> NavCategories { get; } =
     [
+        new NavCategory { Name = "Overview", Icon = "📊" },
         new NavCategory { Name = "Device Configurations", Icon = "⚙" },
         new NavCategory { Name = "Compliance Policies", Icon = "✓" },
-        new NavCategory { Name = "Applications", Icon = "📦" }
+        new NavCategory { Name = "Applications", Icon = "📦" },
+        new NavCategory { Name = "Application Assignments", Icon = "📋" }
     ];
+
+    // --- Overview dashboard ---
+    public OverviewViewModel Overview { get; } = new();
 
     // --- Device Configurations ---
     [ObservableProperty]
@@ -74,6 +82,15 @@ public partial class MainWindowViewModel : ViewModelBase
     [ObservableProperty]
     private MobileApp? _selectedApplication;
 
+    // --- Application Assignments (flattened view) ---
+    [ObservableProperty]
+    private ObservableCollection<AppAssignmentRow> _appAssignmentRows = [];
+
+    [ObservableProperty]
+    private AppAssignmentRow? _selectedAppAssignmentRow;
+
+    private bool _appAssignmentsLoaded;
+
     // --- Detail pane ---
     [ObservableProperty]
     private ObservableCollection<AssignmentDisplayItem> _selectedItemAssignments = [];
@@ -84,12 +101,83 @@ public partial class MainWindowViewModel : ViewModelBase
     [ObservableProperty]
     private bool _isLoadingDetails;
 
+    // --- Search / filter ---
+    [ObservableProperty]
+    private string _searchText = "";
+
+    partial void OnSearchTextChanged(string value)
+    {
+        ApplyFilter();
+    }
+
+    /// <summary>
+    /// Filtered views exposed for DataGrid binding.
+    /// These are rebuilt whenever the source collection or SearchText changes.
+    /// </summary>
+    [ObservableProperty]
+    private ObservableCollection<DeviceConfiguration> _filteredDeviceConfigurations = [];
+
+    [ObservableProperty]
+    private ObservableCollection<DeviceCompliancePolicy> _filteredCompliancePolicies = [];
+
+    [ObservableProperty]
+    private ObservableCollection<MobileApp> _filteredApplications = [];
+
+    [ObservableProperty]
+    private ObservableCollection<AppAssignmentRow> _filteredAppAssignmentRows = [];
+
+    private void ApplyFilter()
+    {
+        var q = SearchText.Trim();
+
+        if (string.IsNullOrEmpty(q))
+        {
+            FilteredDeviceConfigurations = new ObservableCollection<DeviceConfiguration>(DeviceConfigurations);
+            FilteredCompliancePolicies = new ObservableCollection<DeviceCompliancePolicy>(CompliancePolicies);
+            FilteredApplications = new ObservableCollection<MobileApp>(Applications);
+            FilteredAppAssignmentRows = new ObservableCollection<AppAssignmentRow>(AppAssignmentRows);
+            return;
+        }
+
+        FilteredDeviceConfigurations = new ObservableCollection<DeviceConfiguration>(
+            DeviceConfigurations.Where(c =>
+                Contains(c.DisplayName, q) ||
+                Contains(c.Description, q) ||
+                Contains(c.OdataType, q)));
+
+        FilteredCompliancePolicies = new ObservableCollection<DeviceCompliancePolicy>(
+            CompliancePolicies.Where(p =>
+                Contains(p.DisplayName, q) ||
+                Contains(p.Description, q) ||
+                Contains(p.OdataType, q)));
+
+        FilteredApplications = new ObservableCollection<MobileApp>(
+            Applications.Where(a =>
+                Contains(a.DisplayName, q) ||
+                Contains(a.Publisher, q) ||
+                Contains(a.Description, q) ||
+                Contains(a.OdataType, q)));
+
+        FilteredAppAssignmentRows = new ObservableCollection<AppAssignmentRow>(
+            AppAssignmentRows.Where(r =>
+                Contains(r.AppName, q) ||
+                Contains(r.Publisher, q) ||
+                Contains(r.TargetName, q) ||
+                Contains(r.AppType, q) ||
+                Contains(r.Platform, q) ||
+                Contains(r.InstallIntent, q)));
+    }
+
+    private static bool Contains(string? source, string search)
+        => source?.Contains(search, StringComparison.OrdinalIgnoreCase) == true;
+
     // --- Configurable columns per category ---
     public ObservableCollection<DataGridColumnConfig> DeviceConfigColumns { get; } =
     [
         new() { Header = "Display Name", BindingPath = "DisplayName", IsStar = true, IsVisible = true },
+        new() { Header = "Type", BindingPath = "Computed:ODataType", Width = 180, IsVisible = true },
+        new() { Header = "Platform", BindingPath = "Computed:Platform", Width = 100, IsVisible = true },
         new() { Header = "Description", BindingPath = "Description", Width = 200, IsVisible = false },
-        new() { Header = "Platform / Type", BindingPath = "Computed:ODataType", Width = 180, IsVisible = false },
         new() { Header = "Created", BindingPath = "CreatedDateTime", Width = 150, IsVisible = false },
         new() { Header = "Last Modified", BindingPath = "LastModifiedDateTime", Width = 150, IsVisible = true },
         new() { Header = "Version", BindingPath = "Version", Width = 80, IsVisible = false }
@@ -98,8 +186,9 @@ public partial class MainWindowViewModel : ViewModelBase
     public ObservableCollection<DataGridColumnConfig> CompliancePolicyColumns { get; } =
     [
         new() { Header = "Display Name", BindingPath = "DisplayName", IsStar = true, IsVisible = true },
+        new() { Header = "Type", BindingPath = "Computed:ODataType", Width = 180, IsVisible = true },
+        new() { Header = "Platform", BindingPath = "Computed:Platform", Width = 100, IsVisible = true },
         new() { Header = "Description", BindingPath = "Description", Width = 200, IsVisible = false },
-        new() { Header = "Platform / Type", BindingPath = "Computed:ODataType", Width = 180, IsVisible = false },
         new() { Header = "Created", BindingPath = "CreatedDateTime", Width = 150, IsVisible = false },
         new() { Header = "Last Modified", BindingPath = "LastModifiedDateTime", Width = 150, IsVisible = true },
         new() { Header = "Version", BindingPath = "Version", Width = 80, IsVisible = false }
@@ -119,6 +208,36 @@ public partial class MainWindowViewModel : ViewModelBase
         new() { Header = "Publishing State", BindingPath = "PublishingState", Width = 120, IsVisible = false }
     ];
 
+    public ObservableCollection<DataGridColumnConfig> AppAssignmentColumns { get; } =
+    [
+        new() { Header = "App Name", BindingPath = "AppName", IsStar = true, IsVisible = true },
+        new() { Header = "App Type", BindingPath = "AppType", Width = 140, IsVisible = true },
+        new() { Header = "Platform", BindingPath = "Platform", Width = 90, IsVisible = true },
+        new() { Header = "Assignment Type", BindingPath = "AssignmentType", Width = 110, IsVisible = true },
+        new() { Header = "Target Name", BindingPath = "TargetName", Width = 180, IsVisible = true },
+        new() { Header = "Install Intent", BindingPath = "InstallIntent", Width = 90, IsVisible = true },
+        new() { Header = "Is Exclusion", BindingPath = "IsExclusion", Width = 80, IsVisible = true },
+        new() { Header = "Publisher", BindingPath = "Publisher", Width = 140, IsVisible = false },
+        new() { Header = "Version", BindingPath = "Version", Width = 100, IsVisible = false },
+        new() { Header = "Assignment Settings", BindingPath = "AssignmentSettings", Width = 260, IsVisible = false },
+        new() { Header = "Target Group ID", BindingPath = "TargetGroupId", Width = 280, IsVisible = false },
+        new() { Header = "Description", BindingPath = "Description", Width = 250, IsVisible = false },
+        new() { Header = "Bundle ID", BindingPath = "BundleId", Width = 160, IsVisible = false },
+        new() { Header = "Package ID", BindingPath = "PackageId", Width = 160, IsVisible = false },
+        new() { Header = "Is Featured", BindingPath = "IsFeatured", Width = 80, IsVisible = false },
+        new() { Header = "Created Date", BindingPath = "CreatedDate", Width = 150, IsVisible = false },
+        new() { Header = "Last Modified", BindingPath = "LastModified", Width = 150, IsVisible = false },
+        new() { Header = "App Store URL", BindingPath = "AppStoreUrl", Width = 200, IsVisible = false },
+        new() { Header = "Privacy URL", BindingPath = "PrivacyUrl", Width = 200, IsVisible = false },
+        new() { Header = "Information URL", BindingPath = "InformationUrl", Width = 200, IsVisible = false },
+        new() { Header = "Min OS Version", BindingPath = "MinimumOsVersion", Width = 120, IsVisible = false },
+        new() { Header = "Min Disk (MB)", BindingPath = "MinimumFreeDiskSpaceMB", Width = 100, IsVisible = false },
+        new() { Header = "Min Memory (MB)", BindingPath = "MinimumMemoryMB", Width = 100, IsVisible = false },
+        new() { Header = "Min Processors", BindingPath = "MinimumProcessors", Width = 100, IsVisible = false },
+        new() { Header = "Categories", BindingPath = "Categories", Width = 180, IsVisible = false },
+        new() { Header = "Notes", BindingPath = "Notes", Width = 200, IsVisible = false }
+    ];
+
     /// <summary>
     /// Returns the column configs for the currently selected nav category.
     /// </summary>
@@ -127,6 +246,7 @@ public partial class MainWindowViewModel : ViewModelBase
         "Device Configurations" => DeviceConfigColumns,
         "Compliance Policies" => CompliancePolicyColumns,
         "Applications" => ApplicationColumns,
+        "Application Assignments" => AppAssignmentColumns,
         _ => null
     };
 
@@ -199,9 +319,11 @@ public partial class MainWindowViewModel : ViewModelBase
     // --- Navigation ---
 
     // Computed visibility helpers for the view
+    public bool IsOverviewCategory => SelectedCategory?.Name == "Overview";
     public bool IsDeviceConfigCategory => SelectedCategory?.Name == "Device Configurations";
     public bool IsCompliancePolicyCategory => SelectedCategory?.Name == "Compliance Policies";
     public bool IsApplicationCategory => SelectedCategory?.Name == "Applications";
+    public bool IsAppAssignmentsCategory => SelectedCategory?.Name == "Application Assignments";
 
     partial void OnSelectedCategoryChanged(NavCategory? value)
     {
@@ -209,12 +331,20 @@ public partial class MainWindowViewModel : ViewModelBase
         SelectedConfiguration = null;
         SelectedCompliancePolicy = null;
         SelectedApplication = null;
+        SelectedAppAssignmentRow = null;
         SelectedItemAssignments.Clear();
         SelectedItemTypeName = "";
+        SearchText = "";
+        OnPropertyChanged(nameof(IsOverviewCategory));
         OnPropertyChanged(nameof(IsDeviceConfigCategory));
         OnPropertyChanged(nameof(IsCompliancePolicyCategory));
         OnPropertyChanged(nameof(IsApplicationCategory));
+        OnPropertyChanged(nameof(IsAppAssignmentsCategory));
         OnPropertyChanged(nameof(ActiveColumns));
+
+        // Lazy-load assignments when navigating to tabs that require them
+        if ((value?.Name == "Application Assignments" || value?.Name == "Overview") && !_appAssignmentsLoaded)
+            _ = LoadAppAssignmentRowsAsync();
     }
 
     // --- Selection-changed handlers (load detail + assignments) ---
@@ -361,6 +491,400 @@ public partial class MainWindowViewModel : ViewModelBase
         return char.ToUpper(spaced[0]) + spaced[1..];
     }
 
+    // --- Application Assignments flattened view ---
+
+    private async Task LoadAppAssignmentRowsAsync()
+    {
+        if (_applicationService == null || _graphClient == null) return;
+
+        IsBusy = true;
+        IsLoadingDetails = true;
+        Overview.IsLoading = true;
+        StatusText = "Loading application assignments...";
+
+        try
+        {
+            // Reuse existing apps list if available, otherwise fetch
+            var apps = Applications.Count > 0
+                ? Applications.ToList()
+                : await _applicationService.ListApplicationsAsync();
+
+            var rows = new List<AppAssignmentRow>();
+            var total = apps.Count;
+            var processed = 0;
+
+            // Use a semaphore to limit concurrent Graph API calls
+            using var semaphore = new SemaphoreSlim(5, 5);
+            var tasks = apps.Select(async app =>
+            {
+                await semaphore.WaitAsync();
+                try
+                {
+                    var assignments = app.Id != null
+                        ? await _applicationService.GetAssignmentsAsync(app.Id)
+                        : [];
+
+                    var appRows = new List<AppAssignmentRow>();
+                    foreach (var assignment in assignments)
+                    {
+                        appRows.Add(await BuildAppAssignmentRowAsync(app, assignment));
+                    }
+
+                    // If app has no assignments, still include it with empty assignment fields
+                    if (assignments.Count == 0)
+                    {
+                        appRows.Add(BuildAppRowNoAssignment(app));
+                    }
+
+                    lock (rows)
+                    {
+                        rows.AddRange(appRows);
+                        processed++;
+                    }
+
+                    // Update status on UI thread periodically
+                    if (processed % 10 == 0 || processed == total)
+                    {
+                        var currentProcessed = processed;
+                        var currentTotal = total;
+                        Dispatcher.UIThread.Post(() =>
+                            StatusText = $"Loading assignments... {currentProcessed}/{currentTotal} apps");
+                    }
+                }
+                finally
+                {
+                    semaphore.Release();
+                }
+            }).ToList();
+
+            await Task.WhenAll(tasks);
+
+            // Sort by app name, then target name
+            rows.Sort((a, b) =>
+            {
+                var cmp = string.Compare(a.AppName, b.AppName, StringComparison.OrdinalIgnoreCase);
+                return cmp != 0 ? cmp : string.Compare(a.TargetName, b.TargetName, StringComparison.OrdinalIgnoreCase);
+            });
+
+            AppAssignmentRows = new ObservableCollection<AppAssignmentRow>(rows);
+            _appAssignmentsLoaded = true;
+            ApplyFilter();
+
+            // Update Overview dashboard now that all data is ready
+            Overview.Update(
+                ActiveProfile,
+                (IReadOnlyList<DeviceConfiguration>)DeviceConfigurations,
+                (IReadOnlyList<DeviceCompliancePolicy>)CompliancePolicies,
+                (IReadOnlyList<MobileApp>)Applications,
+                (IReadOnlyList<AppAssignmentRow>)AppAssignmentRows);
+
+            StatusText = $"Loaded {rows.Count} application assignments row(s) from {total} apps";
+        }
+        catch (Exception ex)
+        {
+            SetError($"Failed to load Application Assignments: {ex.Message}");
+            StatusText = "Error loading Application Assignments";
+        }
+        finally
+        {
+            IsBusy = false;
+            IsLoadingDetails = false;
+            Overview.IsLoading = false;
+        }
+    }
+
+    private async Task<AppAssignmentRow> BuildAppAssignmentRowAsync(MobileApp app, MobileAppAssignment assignment)
+    {
+        var (assignmentType, targetName, targetGroupId, isExclusion) =
+            await ResolveAssignmentTargetAsync(assignment.Target);
+
+        return new AppAssignmentRow
+        {
+            AppId = app.Id ?? "",
+            AppName = app.DisplayName ?? "",
+            Publisher = app.Publisher ?? "",
+            Description = app.Description ?? "",
+            AppType = ExtractShortTypeName(app.OdataType),
+            Version = ExtractVersion(app),
+            Platform = InferPlatform(app.OdataType),
+            BundleId = ExtractBundleId(app),
+            PackageId = ExtractPackageId(app),
+            IsFeatured = app.IsFeatured == true ? "True" : "False",
+            CreatedDate = app.CreatedDateTime?.ToString("g", CultureInfo.InvariantCulture) ?? "",
+            LastModified = app.LastModifiedDateTime?.ToString("g", CultureInfo.InvariantCulture) ?? "",
+            AssignmentType = assignmentType,
+            TargetName = targetName,
+            TargetGroupId = targetGroupId,
+            InstallIntent = assignment.Intent?.ToString()?.ToLowerInvariant() ?? "",
+            AssignmentSettings = FormatAssignmentSettings(assignment.Settings),
+            IsExclusion = isExclusion,
+            AppStoreUrl = ExtractAppStoreUrl(app),
+            PrivacyUrl = app.PrivacyInformationUrl ?? "",
+            InformationUrl = app.InformationUrl ?? "",
+            MinimumOsVersion = ExtractMinOsVersion(app),
+            MinimumFreeDiskSpaceMB = ExtractMinDiskSpace(app),
+            MinimumMemoryMB = ExtractMinMemory(app),
+            MinimumProcessors = ExtractMinProcessors(app),
+            Categories = app.Categories != null
+                ? string.Join(", ", app.Categories.Select(c => c.DisplayName ?? ""))
+                : "",
+            Notes = app.Notes ?? ""
+        };
+    }
+
+    private AppAssignmentRow BuildAppRowNoAssignment(MobileApp app)
+    {
+        return new AppAssignmentRow
+        {
+            AppId = app.Id ?? "",
+            AppName = app.DisplayName ?? "",
+            Publisher = app.Publisher ?? "",
+            Description = app.Description ?? "",
+            AppType = ExtractShortTypeName(app.OdataType),
+            Version = ExtractVersion(app),
+            Platform = InferPlatform(app.OdataType),
+            BundleId = ExtractBundleId(app),
+            PackageId = ExtractPackageId(app),
+            IsFeatured = app.IsFeatured == true ? "True" : "False",
+            CreatedDate = app.CreatedDateTime?.ToString("g", CultureInfo.InvariantCulture) ?? "",
+            LastModified = app.LastModifiedDateTime?.ToString("g", CultureInfo.InvariantCulture) ?? "",
+            AssignmentType = "None",
+            TargetName = "",
+            TargetGroupId = "",
+            InstallIntent = "",
+            AssignmentSettings = "",
+            IsExclusion = "False",
+            AppStoreUrl = ExtractAppStoreUrl(app),
+            PrivacyUrl = app.PrivacyInformationUrl ?? "",
+            InformationUrl = app.InformationUrl ?? "",
+            MinimumOsVersion = ExtractMinOsVersion(app),
+            MinimumFreeDiskSpaceMB = ExtractMinDiskSpace(app),
+            MinimumMemoryMB = ExtractMinMemory(app),
+            MinimumProcessors = ExtractMinProcessors(app),
+            Categories = app.Categories != null
+                ? string.Join(", ", app.Categories.Select(c => c.DisplayName ?? ""))
+                : "",
+            Notes = app.Notes ?? ""
+        };
+    }
+
+    private async Task<(string Type, string Name, string GroupId, string IsExclusion)>
+        ResolveAssignmentTargetAsync(DeviceAndAppManagementAssignmentTarget? target)
+    {
+        return target switch
+        {
+            AllDevicesAssignmentTarget => ("All Devices", "All Devices", "", "False"),
+            AllLicensedUsersAssignmentTarget => ("All Users", "All Users", "", "False"),
+            ExclusionGroupAssignmentTarget excl =>
+                ("Group", await ResolveGroupNameAsync(excl.GroupId), excl.GroupId ?? "", "True"),
+            GroupAssignmentTarget grp =>
+                ("Group", await ResolveGroupNameAsync(grp.GroupId), grp.GroupId ?? "", "False"),
+            _ => ("Unknown", "Unknown", "", "False")
+        };
+    }
+
+    // --- Type-specific field extractors ---
+
+    private static string? TryGetAdditionalString(MobileApp app, string key)
+    {
+        if (app.AdditionalData?.TryGetValue(key, out var val) == true)
+            return val?.ToString();
+        return null;
+    }
+
+    private static string ExtractShortTypeName(string? odataType)
+    {
+        if (string.IsNullOrEmpty(odataType)) return "";
+        // "#microsoft.graph.win32LobApp" → "win32LobApp"
+        return odataType.Split('.').LastOrDefault() ?? odataType;
+    }
+
+    private static string ExtractVersion(MobileApp app)
+    {
+        return app switch
+        {
+            Win32LobApp w => TryGetAdditionalString(w, "displayVersion")
+                             ?? w.MsiInformation?.ProductVersion ?? "",
+            MacOSLobApp m => m.VersionNumber ?? "",
+            MacOSDmgApp d => d.PrimaryBundleVersion ?? "",
+            IosLobApp i => i.VersionNumber ?? "",
+            _ => ""
+        };
+    }
+
+    private static string ExtractBundleId(MobileApp app)
+    {
+        return app switch
+        {
+            IosLobApp i => i.BundleId ?? "",
+            IosStoreApp s => s.BundleId ?? "",
+            IosVppApp v => v.BundleId ?? "",
+            MacOSLobApp m => m.BundleId ?? "",
+            MacOSDmgApp d => d.PrimaryBundleId ?? "",
+            _ => ""
+        };
+    }
+
+    private static string ExtractPackageId(MobileApp app)
+    {
+        return app switch
+        {
+            AndroidStoreApp a => a.PackageId ?? "",
+            _ => ""
+        };
+    }
+
+    private static string ExtractAppStoreUrl(MobileApp app)
+    {
+        return app switch
+        {
+            IosStoreApp i => i.AppStoreUrl ?? "",
+            AndroidStoreApp a => a.AppStoreUrl ?? "",
+            WebApp w => w.AppUrl ?? "",
+            _ => ""
+        };
+    }
+
+    private static string ExtractMinOsVersion(MobileApp app)
+    {
+        return app switch
+        {
+            Win32LobApp w => w.MinimumSupportedWindowsRelease ?? "",
+            _ => ""
+        };
+    }
+
+    private static string ExtractMinDiskSpace(MobileApp app)
+    {
+        return app switch
+        {
+            Win32LobApp w when w.MinimumFreeDiskSpaceInMB.HasValue =>
+                w.MinimumFreeDiskSpaceInMB.Value.ToString(CultureInfo.InvariantCulture),
+            _ => ""
+        };
+    }
+
+    private static string ExtractMinMemory(MobileApp app)
+    {
+        return app switch
+        {
+            Win32LobApp w when w.MinimumMemoryInMB.HasValue =>
+                w.MinimumMemoryInMB.Value.ToString(CultureInfo.InvariantCulture),
+            _ => ""
+        };
+    }
+
+    private static string ExtractMinProcessors(MobileApp app)
+    {
+        return app switch
+        {
+            Win32LobApp w when w.MinimumNumberOfProcessors.HasValue =>
+                w.MinimumNumberOfProcessors.Value.ToString(CultureInfo.InvariantCulture),
+            _ => ""
+        };
+    }
+
+    private static string FormatAssignmentSettings(MobileAppAssignmentSettings? settings)
+    {
+        if (settings is Win32LobAppAssignmentSettings w32)
+        {
+            var parts = new List<string>();
+            if (w32.Notifications.HasValue)
+                parts.Add($"Notifications: {w32.Notifications.Value.ToString().ToLowerInvariant()}");
+            if (w32.InstallTimeSettings != null)
+                parts.Add("Install Time: configured");
+            if (w32.DeliveryOptimizationPriority.HasValue)
+                parts.Add($"Delivery Priority: {w32.DeliveryOptimizationPriority.Value.ToString().ToLowerInvariant()}");
+            return parts.Count > 0 ? string.Join("; ", parts) : "N/A";
+        }
+
+        return settings != null ? "N/A" : "N/A";
+    }
+
+    // --- CSV Export ---
+
+    [RelayCommand]
+    private async Task ExportAppAssignmentsCsvAsync(CancellationToken cancellationToken)
+    {
+        if (AppAssignmentRows.Count == 0)
+        {
+            StatusText = "No application assignments data to export";
+            return;
+        }
+
+        IsBusy = true;
+        StatusText = "Exporting Application Assignments to CSV...";
+
+        try
+        {
+            var outputPath = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.Desktop),
+                "IntuneExport");
+            Directory.CreateDirectory(outputPath);
+
+            var timestamp = DateTime.Now.ToString("yyyyMMdd-HHmmss");
+            var csvPath = Path.Combine(outputPath, $"ApplicationAssignments-{timestamp}.csv");
+
+            var sb = new StringBuilder();
+
+            // Header row matching the CSV columns
+            sb.AppendLine("\"App Name\",\"Publisher\",\"Description\",\"App Type\",\"Version\"," +
+                          "\"Bundle ID\",\"Package ID\",\"Is Featured\",\"Created Date\",\"Last Modified\"," +
+                          "\"Assignment Type\",\"Target Name\",\"Target Group ID\",\"Install Intent\"," +
+                          "\"Assignment Settings\",\"Is Exclusion\",\"App Store URL\",\"Privacy URL\"," +
+                          "\"Information URL\",\"Minimum OS Version\",\"Minimum Free Disk Space (MB)\"," +
+                          "\"Minimum Memory (MB)\",\"Minimum Processors\",\"Categories\",\"Notes\"");
+
+            foreach (var row in AppAssignmentRows)
+            {
+                sb.AppendLine(string.Join(",",
+                    CsvEscape(row.AppName),
+                    CsvEscape(row.Publisher),
+                    CsvEscape(row.Description),
+                    CsvEscape(row.AppType),
+                    CsvEscape(row.Version),
+                    CsvEscape(row.BundleId),
+                    CsvEscape(row.PackageId),
+                    CsvEscape(row.IsFeatured),
+                    CsvEscape(row.CreatedDate),
+                    CsvEscape(row.LastModified),
+                    CsvEscape(row.AssignmentType),
+                    CsvEscape(row.TargetName),
+                    CsvEscape(row.TargetGroupId),
+                    CsvEscape(row.InstallIntent),
+                    CsvEscape(row.AssignmentSettings),
+                    CsvEscape(row.IsExclusion),
+                    CsvEscape(row.AppStoreUrl),
+                    CsvEscape(row.PrivacyUrl),
+                    CsvEscape(row.InformationUrl),
+                    CsvEscape(row.MinimumOsVersion),
+                    CsvEscape(row.MinimumFreeDiskSpaceMB),
+                    CsvEscape(row.MinimumMemoryMB),
+                    CsvEscape(row.MinimumProcessors),
+                    CsvEscape(row.Categories),
+                    CsvEscape(row.Notes)));
+            }
+
+            await File.WriteAllTextAsync(csvPath, sb.ToString(), Encoding.UTF8, cancellationToken);
+            StatusText = $"Exported {AppAssignmentRows.Count} rows to {csvPath}";
+        }
+        catch (Exception ex)
+        {
+            SetError($"CSV export failed: {ex.Message}");
+            StatusText = "CSV export failed";
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+    private static string CsvEscape(string? value)
+    {
+        if (string.IsNullOrEmpty(value)) return "\"\"";
+        return "\"" + value.Replace("\"", "\"\"") + "\"";
+    }
+
     // --- Connection ---
 
     private async void OnLoginSucceeded(object? sender, TenantProfile profile)
@@ -476,6 +1000,11 @@ public partial class MainWindowViewModel : ViewModelBase
 
             var totalItems = DeviceConfigurations.Count + CompliancePolicies.Count + Applications.Count;
             StatusText = $"Loaded {totalItems} item(s) ({DeviceConfigurations.Count} configs, {CompliancePolicies.Count} policies, {Applications.Count} apps)";
+
+            ApplyFilter();
+
+            // Reset assignment state; actual loading is triggered lazily when needed
+            _appAssignmentsLoaded = false;
         }
         catch (Exception ex)
         {
@@ -691,6 +1220,9 @@ public partial class MainWindowViewModel : ViewModelBase
         SelectedCompliancePolicy = null;
         Applications.Clear();
         SelectedApplication = null;
+        AppAssignmentRows.Clear();
+        SelectedAppAssignmentRow = null;
+        _appAssignmentsLoaded = false;
         SelectedItemAssignments.Clear();
         SelectedItemTypeName = "";
         _graphClient = null;

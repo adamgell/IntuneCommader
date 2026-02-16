@@ -19,12 +19,30 @@
     <DockPanel>
         <!-- Status Bar -->
         <Border DockPanel.Dock="Bottom" Background="{DynamicResource SystemControlBackgroundChromeMediumBrush}"
-                Padding="8,4">
+                Padding="8,6">
             <DockPanel>
                 <TextBlock Text="{Binding StatusText}" FontSize="12" VerticalAlignment="Center" />
                 <ProgressBar IsIndeterminate="True" IsVisible="{Binding IsBusy}"
-                             Width="100" Height="4"
-                             HorizontalAlignment="Right" VerticalAlignment="Center" />
+                             Width="200" Height="12"
+                             Foreground="#00CC55" Background="#224400"
+                             HorizontalAlignment="Right" VerticalAlignment="Center"
+                             Margin="12,0,0,0"
+                             CornerRadius="6">
+                    <ProgressBar.Styles>
+                        <Style Selector="ProgressBar:indeterminate">
+                            <Style.Animations>
+                                <Animation Duration="0:0:0.8" IterationCount="INFINITE" PlaybackDirection="Alternate">
+                                    <KeyFrame Cue="0%">
+                                        <Setter Property="Opacity" Value="0.5" />
+                                    </KeyFrame>
+                                    <KeyFrame Cue="100%">
+                                        <Setter Property="Opacity" Value="1.0" />
+                                    </KeyFrame>
+                                </Animation>
+                            </Style.Animations>
+                        </Style>
+                    </ProgressBar.Styles>
+                </ProgressBar>
             </DockPanel>
         </Border>
 
@@ -100,18 +118,34 @@
                                   Background="{DynamicResource SystemControlForegroundBaseMediumLowBrush}" />
 
                     <!-- Item List (center) -->
-                    <DockPanel Grid.Column="2" Margin="8">
+                    <DockPanel Grid.Column="2" Margin="8"
+                               IsVisible="{Binding !IsOverviewCategory}">
 
                         <!-- Category header with column chooser -->
                         <DockPanel DockPanel.Dock="Top" Margin="0,0,0,8">
-                            <Button DockPanel.Dock="Right" Content="⋮ Columns"
-                                    x:Name="ColumnChooserButton"
-                                    FontSize="12" Padding="8,4"
-                                    VerticalAlignment="Center" />
+                            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="4">
+                                <Button Content="Export CSV"
+                                        Command="{Binding ExportAppAssignmentsCsvCommand}"
+                                        FontSize="12" Padding="8,4"
+                                        VerticalAlignment="Center"
+                                        IsVisible="{Binding IsAppAssignmentsCategory}" />
+                                <Button Content="⋮ Columns"
+                                        x:Name="ColumnChooserButton"
+                                        FontSize="12" Padding="8,4"
+                                        VerticalAlignment="Center" />
+                            </StackPanel>
                             <TextBlock Text="{Binding SelectedCategory.Name, FallbackValue='Items'}"
                                        FontSize="16" FontWeight="SemiBold"
                                        VerticalAlignment="Center" />
                         </DockPanel>
+
+                        <!-- Search / filter box -->
+                        <TextBox DockPanel.Dock="Top"
+                                 Text="{Binding SearchText, Mode=TwoWay}"
+                                 Watermark="🔍 Search..."
+                                 Margin="0,0,0,8"
+                                 Padding="8,6"
+                                 FontSize="13" />
 
                         <!-- Single dynamic DataGrid — columns built in code-behind -->
                         <DataGrid x:Name="MainDataGrid"
@@ -123,12 +157,19 @@
                                   BorderBrush="{DynamicResource SystemControlForegroundBaseMediumLowBrush}" />
                     </DockPanel>
 
+                    <!-- Overview Dashboard (spans center + detail columns) -->
+                    <views:OverviewView Grid.Column="2" Grid.ColumnSpan="3"
+                                        DataContext="{Binding Overview}"
+                                        IsVisible="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).IsOverviewCategory}" />
+
                     <!-- Splitter: Content | Details -->
                     <GridSplitter Grid.Column="3" Width="4"
+                                  IsVisible="{Binding !IsOverviewCategory}"
                                   Background="{DynamicResource SystemControlForegroundBaseMediumLowBrush}" />
 
                     <!-- Detail Pane (right) -->
-                    <DockPanel Grid.Column="4" Margin="8">
+                    <DockPanel Grid.Column="4" Margin="8"
+                               IsVisible="{Binding !IsOverviewCategory}">
                         <TextBlock DockPanel.Dock="Top" Text="Details"
                                    FontSize="16" FontWeight="SemiBold" Margin="0,0,0,8" />
 
@@ -147,6 +188,7 @@
                                     <Binding Path="SelectedConfiguration" Converter="{x:Static ObjectConverters.IsNull}" />
                                     <Binding Path="SelectedCompliancePolicy" Converter="{x:Static ObjectConverters.IsNull}" />
                                     <Binding Path="SelectedApplication" Converter="{x:Static ObjectConverters.IsNull}" />
+                                    <Binding Path="SelectedAppAssignmentRow" Converter="{x:Static ObjectConverters.IsNull}" />
                                 </MultiBinding>
                             </TextBlock.IsVisible>
                         </TextBlock>
@@ -445,6 +487,175 @@
                                                 </DataTemplate>
                                             </ItemsControl.ItemTemplate>
                                         </ItemsControl>
+                                    </StackPanel>
+                                </Border>
+
+                            </StackPanel>
+                        </ScrollViewer>
+
+                        <!-- ═══════════════════════════════════════════ -->
+                        <!-- application assignments Row details                  -->
+                        <!-- ═══════════════════════════════════════════ -->
+                        <ScrollViewer IsVisible="{Binding SelectedAppAssignmentRow, Converter={x:Static ObjectConverters.IsNotNull}}">
+                            <StackPanel Spacing="4" DataContext="{Binding SelectedAppAssignmentRow}">
+
+                                <!-- Section: App Information -->
+                                <TextBlock Text="App Information" FontSize="14" FontWeight="SemiBold"
+                                           Foreground="{DynamicResource SystemAccentColor}"
+                                           Margin="0,0,0,6" />
+                                <Border Background="{DynamicResource SystemControlBackgroundChromeMediumLowBrush}"
+                                        CornerRadius="4" Padding="10" Margin="0,0,0,12">
+                                    <StackPanel Spacing="10">
+                                        <StackPanel Spacing="2">
+                                            <TextBlock Text="App Name" FontSize="11" Foreground="Gray" />
+                                            <TextBlock Text="{Binding AppName}" FontWeight="SemiBold" TextWrapping="Wrap" />
+                                        </StackPanel>
+                                        <Grid ColumnDefinitions="*,*">
+                                            <StackPanel Grid.Column="0" Spacing="2">
+                                                <TextBlock Text="App Type" FontSize="11" Foreground="Gray" />
+                                                <TextBlock Text="{Binding AppType}" FontSize="12" />
+                                            </StackPanel>
+                                            <StackPanel Grid.Column="1" Spacing="2">
+                                                <TextBlock Text="Platform" FontSize="11" Foreground="Gray" />
+                                                <TextBlock Text="{Binding Platform}" FontSize="12" />
+                                            </StackPanel>
+                                        </Grid>
+                                        <Grid ColumnDefinitions="*,*">
+                                            <StackPanel Grid.Column="0" Spacing="2">
+                                                <TextBlock Text="Publisher" FontSize="11" Foreground="Gray" />
+                                                <TextBlock Text="{Binding Publisher}" FontSize="12" />
+                                            </StackPanel>
+                                            <StackPanel Grid.Column="1" Spacing="2">
+                                                <TextBlock Text="Version" FontSize="11" Foreground="Gray" />
+                                                <TextBlock Text="{Binding Version}" FontSize="12" />
+                                            </StackPanel>
+                                        </Grid>
+                                        <StackPanel Spacing="2">
+                                            <TextBlock Text="Description" FontSize="11" Foreground="Gray" />
+                                            <TextBlock Text="{Binding Description}" TextWrapping="Wrap" FontSize="12"
+                                                       MaxLines="5" TextTrimming="CharacterEllipsis" />
+                                        </StackPanel>
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- Section: Assignment -->
+                                <TextBlock Text="Assignment" FontSize="14" FontWeight="SemiBold"
+                                           Foreground="{DynamicResource SystemAccentColor}"
+                                           Margin="0,0,0,6" />
+                                <Border Background="{DynamicResource SystemControlBackgroundChromeMediumLowBrush}"
+                                        CornerRadius="4" Padding="10" Margin="0,0,0,12">
+                                    <StackPanel Spacing="10">
+                                        <Grid ColumnDefinitions="*,*">
+                                            <StackPanel Grid.Column="0" Spacing="2">
+                                                <TextBlock Text="Assignment Type" FontSize="11" Foreground="Gray" />
+                                                <TextBlock Text="{Binding AssignmentType}" FontSize="12" />
+                                            </StackPanel>
+                                            <StackPanel Grid.Column="1" Spacing="2">
+                                                <TextBlock Text="Install Intent" FontSize="11" Foreground="Gray" />
+                                                <TextBlock Text="{Binding InstallIntent}" FontSize="12" />
+                                            </StackPanel>
+                                        </Grid>
+                                        <StackPanel Spacing="2">
+                                            <TextBlock Text="Target Name" FontSize="11" Foreground="Gray" />
+                                            <TextBlock Text="{Binding TargetName}" FontWeight="SemiBold" TextWrapping="Wrap" />
+                                        </StackPanel>
+                                        <StackPanel Spacing="2">
+                                            <TextBlock Text="Target Group ID" FontSize="11" Foreground="Gray" />
+                                            <TextBlock Text="{Binding TargetGroupId}" FontSize="11" Opacity="0.8"
+                                                       IsVisible="{Binding TargetGroupId, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                                        </StackPanel>
+                                        <Grid ColumnDefinitions="*,*">
+                                            <StackPanel Grid.Column="0" Spacing="2">
+                                                <TextBlock Text="Is Exclusion" FontSize="11" Foreground="Gray" />
+                                                <TextBlock Text="{Binding IsExclusion}" FontSize="12" />
+                                            </StackPanel>
+                                            <StackPanel Grid.Column="1" Spacing="2">
+                                                <TextBlock Text="Is Featured" FontSize="11" Foreground="Gray" />
+                                                <TextBlock Text="{Binding IsFeatured}" FontSize="12" />
+                                            </StackPanel>
+                                        </Grid>
+                                        <StackPanel Spacing="2">
+                                            <TextBlock Text="Assignment Settings" FontSize="11" Foreground="Gray" />
+                                            <TextBlock Text="{Binding AssignmentSettings}" TextWrapping="Wrap" FontSize="12" />
+                                        </StackPanel>
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- Section: Technical -->
+                                <TextBlock Text="Technical Details" FontSize="14" FontWeight="SemiBold"
+                                           Foreground="{DynamicResource SystemAccentColor}"
+                                           Margin="0,0,0,6" />
+                                <Border Background="{DynamicResource SystemControlBackgroundChromeMediumLowBrush}"
+                                        CornerRadius="4" Padding="10" Margin="0,0,0,12">
+                                    <StackPanel Spacing="10">
+                                        <Grid ColumnDefinitions="*,*">
+                                            <StackPanel Grid.Column="0" Spacing="2">
+                                                <TextBlock Text="Bundle ID" FontSize="11" Foreground="Gray" />
+                                                <TextBlock Text="{Binding BundleId}" FontSize="12" />
+                                            </StackPanel>
+                                            <StackPanel Grid.Column="1" Spacing="2">
+                                                <TextBlock Text="Package ID" FontSize="11" Foreground="Gray" />
+                                                <TextBlock Text="{Binding PackageId}" FontSize="12" />
+                                            </StackPanel>
+                                        </Grid>
+                                        <StackPanel Spacing="2">
+                                            <TextBlock Text="Minimum OS Version" FontSize="11" Foreground="Gray" />
+                                            <TextBlock Text="{Binding MinimumOsVersion}" FontSize="12" />
+                                        </StackPanel>
+                                        <Grid ColumnDefinitions="*,*,*">
+                                            <StackPanel Grid.Column="0" Spacing="2">
+                                                <TextBlock Text="Min Disk (MB)" FontSize="11" Foreground="Gray" />
+                                                <TextBlock Text="{Binding MinimumFreeDiskSpaceMB}" FontSize="12" />
+                                            </StackPanel>
+                                            <StackPanel Grid.Column="1" Spacing="2">
+                                                <TextBlock Text="Min RAM (MB)" FontSize="11" Foreground="Gray" />
+                                                <TextBlock Text="{Binding MinimumMemoryMB}" FontSize="12" />
+                                            </StackPanel>
+                                            <StackPanel Grid.Column="2" Spacing="2">
+                                                <TextBlock Text="Min CPUs" FontSize="11" Foreground="Gray" />
+                                                <TextBlock Text="{Binding MinimumProcessors}" FontSize="12" />
+                                            </StackPanel>
+                                        </Grid>
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- Section: Links & Metadata -->
+                                <TextBlock Text="Links &amp; Metadata" FontSize="14" FontWeight="SemiBold"
+                                           Foreground="{DynamicResource SystemAccentColor}"
+                                           Margin="0,0,0,6" />
+                                <Border Background="{DynamicResource SystemControlBackgroundChromeMediumLowBrush}"
+                                        CornerRadius="4" Padding="10" Margin="0,0,0,12">
+                                    <StackPanel Spacing="10">
+                                        <StackPanel Spacing="2">
+                                            <TextBlock Text="Information URL" FontSize="11" Foreground="Gray" />
+                                            <TextBlock Text="{Binding InformationUrl}" TextWrapping="Wrap" FontSize="12" />
+                                        </StackPanel>
+                                        <StackPanel Spacing="2">
+                                            <TextBlock Text="Privacy URL" FontSize="11" Foreground="Gray" />
+                                            <TextBlock Text="{Binding PrivacyUrl}" TextWrapping="Wrap" FontSize="12" />
+                                        </StackPanel>
+                                        <StackPanel Spacing="2">
+                                            <TextBlock Text="App Store URL" FontSize="11" Foreground="Gray" />
+                                            <TextBlock Text="{Binding AppStoreUrl}" TextWrapping="Wrap" FontSize="12" />
+                                        </StackPanel>
+                                        <Grid ColumnDefinitions="*,*">
+                                            <StackPanel Grid.Column="0" Spacing="2">
+                                                <TextBlock Text="Created" FontSize="11" Foreground="Gray" />
+                                                <TextBlock Text="{Binding CreatedDate}" FontSize="12" />
+                                            </StackPanel>
+                                            <StackPanel Grid.Column="1" Spacing="2">
+                                                <TextBlock Text="Last Modified" FontSize="11" Foreground="Gray" />
+                                                <TextBlock Text="{Binding LastModified}" FontSize="12" />
+                                            </StackPanel>
+                                        </Grid>
+                                        <StackPanel Spacing="2">
+                                            <TextBlock Text="Categories" FontSize="11" Foreground="Gray" />
+                                            <TextBlock Text="{Binding Categories}" TextWrapping="Wrap" FontSize="12" />
+                                        </StackPanel>
+                                        <StackPanel Spacing="2">
+                                            <TextBlock Text="Notes" FontSize="11" Foreground="Gray" />
+                                            <TextBlock Text="{Binding Notes}" TextWrapping="Wrap" FontSize="12" />
+                                        </StackPanel>
                                     </StackPanel>
                                 </Border>
 

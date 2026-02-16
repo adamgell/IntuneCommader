@@ -53,9 +53,18 @@ public partial class MainWindow : Window
         if (e.PropertyName is nameof(MainWindowViewModel.ActiveColumns)
             or nameof(MainWindowViewModel.IsDeviceConfigCategory)
             or nameof(MainWindowViewModel.IsCompliancePolicyCategory)
-            or nameof(MainWindowViewModel.IsApplicationCategory))
+            or nameof(MainWindowViewModel.IsApplicationCategory)
+            or nameof(MainWindowViewModel.IsAppAssignmentsCategory)
+            or nameof(MainWindowViewModel.IsOverviewCategory))
         {
             RebuildDataGridColumns();
+            BindDataGridSource();
+        }
+        else if (e.PropertyName is nameof(MainWindowViewModel.FilteredDeviceConfigurations)
+            or nameof(MainWindowViewModel.FilteredCompliancePolicies)
+            or nameof(MainWindowViewModel.FilteredApplications)
+            or nameof(MainWindowViewModel.FilteredAppAssignmentRows))
+        {
             BindDataGridSource();
         }
     }
@@ -71,23 +80,30 @@ public partial class MainWindow : Window
         if (_vm.IsDeviceConfigCategory)
         {
             _mainDataGrid.Bind(DataGrid.ItemsSourceProperty,
-                new Binding(nameof(_vm.DeviceConfigurations)) { Source = _vm });
+                new Binding(nameof(_vm.FilteredDeviceConfigurations)) { Source = _vm });
             _mainDataGrid.Bind(DataGrid.SelectedItemProperty,
                 new Binding(nameof(_vm.SelectedConfiguration)) { Source = _vm, Mode = BindingMode.TwoWay });
         }
         else if (_vm.IsCompliancePolicyCategory)
         {
             _mainDataGrid.Bind(DataGrid.ItemsSourceProperty,
-                new Binding(nameof(_vm.CompliancePolicies)) { Source = _vm });
+                new Binding(nameof(_vm.FilteredCompliancePolicies)) { Source = _vm });
             _mainDataGrid.Bind(DataGrid.SelectedItemProperty,
                 new Binding(nameof(_vm.SelectedCompliancePolicy)) { Source = _vm, Mode = BindingMode.TwoWay });
         }
         else if (_vm.IsApplicationCategory)
         {
             _mainDataGrid.Bind(DataGrid.ItemsSourceProperty,
-                new Binding(nameof(_vm.Applications)) { Source = _vm });
+                new Binding(nameof(_vm.FilteredApplications)) { Source = _vm });
             _mainDataGrid.Bind(DataGrid.SelectedItemProperty,
                 new Binding(nameof(_vm.SelectedApplication)) { Source = _vm, Mode = BindingMode.TwoWay });
+        }
+        else if (_vm.IsAppAssignmentsCategory)
+        {
+            _mainDataGrid.Bind(DataGrid.ItemsSourceProperty,
+                new Binding(nameof(_vm.FilteredAppAssignmentRows)) { Source = _vm });
+            _mainDataGrid.Bind(DataGrid.SelectedItemProperty,
+                new Binding(nameof(_vm.SelectedAppAssignmentRow)) { Source = _vm, Mode = BindingMode.TwoWay });
         }
         else
         {

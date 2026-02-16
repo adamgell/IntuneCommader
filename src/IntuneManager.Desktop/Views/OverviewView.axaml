@@ -1,0 +1,180 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:IntuneManager.Desktop.ViewModels"
+             xmlns:lvc="using:LiveChartsCore.SkiaSharpView.Avalonia"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="900"
+             x:Class="IntuneManager.Desktop.Views.OverviewView"
+             x:DataType="vm:OverviewViewModel">
+
+    <Panel>
+    <!-- Loading overlay -->
+    <Border IsVisible="{Binding IsLoading}"
+            Background="{DynamicResource SystemControlBackgroundAltHighBrush}"
+            ZIndex="10">
+        <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="12">
+            <ProgressBar IsIndeterminate="True" Width="200" Height="12"
+                         Foreground="#00CC55" Background="#224400" CornerRadius="6">
+                <ProgressBar.Styles>
+                    <Style Selector="ProgressBar:indeterminate">
+                        <Style.Animations>
+                            <Animation Duration="0:0:0.8" IterationCount="INFINITE" PlaybackDirection="Alternate">
+                                <KeyFrame Cue="0%">
+                                    <Setter Property="Opacity" Value="0.5" />
+                                </KeyFrame>
+                                <KeyFrame Cue="100%">
+                                    <Setter Property="Opacity" Value="1.0" />
+                                </KeyFrame>
+                            </Animation>
+                        </Style.Animations>
+                    </Style>
+                </ProgressBar.Styles>
+            </ProgressBar>
+            <TextBlock Text="Loading dashboard data…" FontSize="14" Foreground="Gray"
+                       HorizontalAlignment="Center" />
+        </StackPanel>
+    </Border>
+
+    <!-- Dashboard content -->
+    <ScrollViewer HorizontalScrollBarVisibility="Disabled" IsVisible="{Binding !IsLoading}">
+        <StackPanel Margin="16" Spacing="16">
+
+            <!-- ═══════════════════════════════════════════ -->
+            <!-- Tenant Banner                              -->
+            <!-- ═══════════════════════════════════════════ -->
+            <Border Background="{DynamicResource SystemControlBackgroundChromeMediumLowBrush}"
+                    CornerRadius="8" Padding="16">
+                <Grid ColumnDefinitions="*,Auto">
+                    <StackPanel Spacing="4">
+                        <TextBlock Text="{Binding TenantName}" FontSize="20" FontWeight="Bold" />
+                        <StackPanel Orientation="Horizontal" Spacing="12">
+                            <TextBlock FontSize="12" Foreground="Gray">
+                                <Run Text="Tenant ID:" />
+                                <Run Text="{Binding TenantId}" />
+                            </TextBlock>
+                            <TextBlock FontSize="12" Foreground="Gray">
+                                <Run Text="Cloud:" />
+                                <Run Text="{Binding CloudEnvironment}" />
+                            </TextBlock>
+                        </StackPanel>
+                    </StackPanel>
+                    <TextBlock Grid.Column="1" Text="📊" FontSize="32"
+                               VerticalAlignment="Center" Opacity="0.5" />
+                </Grid>
+            </Border>
+
+            <!-- ═══════════════════════════════════════════ -->
+            <!-- Summary Cards Row                          -->
+            <!-- ═══════════════════════════════════════════ -->
+            <UniformGrid Columns="4" Margin="0,0,0,0">
+                <!-- Device Configs -->
+                <Border Background="#1A2196F3" CornerRadius="8" Padding="16" Margin="0,0,8,0">
+                    <StackPanel HorizontalAlignment="Center">
+                        <TextBlock Text="⚙" FontSize="24" HorizontalAlignment="Center" />
+                        <TextBlock Text="{Binding TotalDeviceConfigs}" FontSize="28" FontWeight="Bold"
+                                   HorizontalAlignment="Center" Foreground="#2196F3" />
+                        <TextBlock Text="Device Configs" FontSize="12" Foreground="Gray"
+                                   HorizontalAlignment="Center" />
+                    </StackPanel>
+                </Border>
+                <!-- Compliance Policies -->
+                <Border Background="#1A4CAF50" CornerRadius="8" Padding="16" Margin="4,0,4,0">
+                    <StackPanel HorizontalAlignment="Center">
+                        <TextBlock Text="✓" FontSize="24" HorizontalAlignment="Center" />
+                        <TextBlock Text="{Binding TotalCompliancePolicies}" FontSize="28" FontWeight="Bold"
+                                   HorizontalAlignment="Center" Foreground="#4CAF50" />
+                        <TextBlock Text="Compliance Policies" FontSize="12" Foreground="Gray"
+                                   HorizontalAlignment="Center" />
+                    </StackPanel>
+                </Border>
+                <!-- Applications -->
+                <Border Background="#1AFF9800" CornerRadius="8" Padding="16" Margin="4,0,4,0">
+                    <StackPanel HorizontalAlignment="Center">
+                        <TextBlock Text="📦" FontSize="24" HorizontalAlignment="Center" />
+                        <TextBlock Text="{Binding TotalApplications}" FontSize="28" FontWeight="Bold"
+                                   HorizontalAlignment="Center" Foreground="#FF9800" />
+                        <TextBlock Text="Applications" FontSize="12" Foreground="Gray"
+                                   HorizontalAlignment="Center" />
+                    </StackPanel>
+                </Border>
+                <!-- Unassigned Apps -->
+                <Border Background="#1AF44336" CornerRadius="8" Padding="16" Margin="8,0,0,0">
+                    <StackPanel HorizontalAlignment="Center">
+                        <TextBlock Text="⚠" FontSize="24" HorizontalAlignment="Center" />
+                        <TextBlock Text="{Binding UnassignedAppCount}" FontSize="28" FontWeight="Bold"
+                                   HorizontalAlignment="Center" Foreground="#F44336" />
+                        <TextBlock Text="Unassigned Apps" FontSize="12" Foreground="Gray"
+                                   HorizontalAlignment="Center" />
+                    </StackPanel>
+                </Border>
+            </UniformGrid>
+
+            <!-- ═══════════════════════════════════════════ -->
+            <!-- Charts Row: Pie charts side by side        -->
+            <!-- ═══════════════════════════════════════════ -->
+            <Grid ColumnDefinitions="*,16,*">
+                <!-- Apps by Platform -->
+                <Border Background="{DynamicResource SystemControlBackgroundChromeMediumLowBrush}"
+                        CornerRadius="8" Padding="12">
+                    <DockPanel>
+                        <TextBlock DockPanel.Dock="Top" Text="Applications by Platform"
+                                   FontSize="14" FontWeight="SemiBold" Margin="0,0,0,4" />
+                        <lvc:PieChart Series="{Binding AppsByPlatformSeries}"
+                                      LegendPosition="Bottom"
+                                      Height="220" />
+                    </DockPanel>
+                </Border>
+
+                <!-- Configs by Platform -->
+                <Border Grid.Column="2"
+                        Background="{DynamicResource SystemControlBackgroundChromeMediumLowBrush}"
+                        CornerRadius="8" Padding="12">
+                    <DockPanel>
+                        <TextBlock DockPanel.Dock="Top" Text="Configurations by Platform"
+                                   FontSize="14" FontWeight="SemiBold" Margin="0,0,0,4" />
+                        <lvc:PieChart Series="{Binding ConfigsByPlatformSeries}"
+                                      LegendPosition="Bottom"
+                                      Height="220" />
+                    </DockPanel>
+                </Border>
+            </Grid>
+
+            <!-- ═══════════════════════════════════════════ -->
+            <!-- Recently Modified                          -->
+            <!-- ═══════════════════════════════════════════ -->
+            <Border Background="{DynamicResource SystemControlBackgroundChromeMediumLowBrush}"
+                    CornerRadius="8" Padding="12">
+                <DockPanel>
+                    <TextBlock DockPanel.Dock="Top" Text="Recently Modified"
+                               FontSize="14" FontWeight="SemiBold" Margin="0,0,0,8" />
+                    <ItemsControl ItemsSource="{Binding RecentlyModified}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border Padding="6,4" Margin="0,0,0,2"
+                                        CornerRadius="4">
+                                    <Grid ColumnDefinitions="*,Auto,Auto">
+                                        <TextBlock Text="{Binding Name}" FontSize="13"
+                                                   TextTrimming="CharacterEllipsis"
+                                                   VerticalAlignment="Center" />
+                                        <Border Grid.Column="1" Background="{DynamicResource SystemAccentColor}"
+                                                CornerRadius="2" Padding="6,1" Margin="8,0"
+                                                VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding Category}" FontSize="10"
+                                                       Foreground="White" />
+                                        </Border>
+                                        <TextBlock Grid.Column="2" Text="{Binding ModifiedText}"
+                                                   FontSize="11" Foreground="Gray"
+                                                   VerticalAlignment="Center" />
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </DockPanel>
+            </Border>
+
+        </StackPanel>
+    </ScrollViewer>
+    </Panel>
+</UserControl>
