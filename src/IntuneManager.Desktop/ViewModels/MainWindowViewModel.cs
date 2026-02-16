@@ -496,6 +496,7 @@ public partial class MainWindowViewModel : ViewModelBase
     private async Task LoadAppAssignmentRowsAsync()
     {
         if (_applicationService == null || _graphClient == null) return;
+
         IsBusy = true;
         IsLoadingDetails = true;
         Overview.IsLoading = true;
