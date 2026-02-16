@@ -263,18 +263,22 @@
                                         <ItemsControl ItemsSource="{Binding SelectedItemAssignments}">
                                             <ItemsControl.ItemTemplate>
                                                 <DataTemplate>
-                                                    <Border Padding="4,3" Margin="0,0,0,2">
+                                                    <Border Padding="4,3" Margin="0,0,0,4">
                                                         <DockPanel>
                                                             <Border DockPanel.Dock="Left"
                                                                     Background="{DynamicResource SystemAccentColor}"
-                                                                    CornerRadius="2" Padding="5,1" Margin="0,0,6,0"
-                                                                    VerticalAlignment="Center">
+                                                                    CornerRadius="2" Padding="5,1" Margin="0,2,6,0"
+                                                                    VerticalAlignment="Top">
                                                                 <TextBlock Text="{Binding TargetKind}"
                                                                            FontSize="10" Foreground="White" />
                                                             </Border>
-                                                            <TextBlock Text="{Binding Target}"
-                                                                       VerticalAlignment="Center"
-                                                                       FontSize="12" TextWrapping="Wrap" />
+                                                            <StackPanel Spacing="1">
+                                                                <TextBlock Text="{Binding Target}"
+                                                                           FontSize="12" TextWrapping="Wrap" />
+                                                                <TextBlock Text="{Binding GroupId}"
+                                                                           FontSize="10" Foreground="Gray" Opacity="0.7"
+                                                                           IsVisible="{Binding GroupId, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                                                            </StackPanel>
                                                         </DockPanel>
                                                     </Border>
                                                 </DataTemplate>
@@ -346,18 +350,22 @@
                                         <ItemsControl ItemsSource="{Binding SelectedItemAssignments}">
                                             <ItemsControl.ItemTemplate>
                                                 <DataTemplate>
-                                                    <Border Padding="4,3" Margin="0,0,0,2">
+                                                    <Border Padding="4,3" Margin="0,0,0,4">
                                                         <DockPanel>
                                                             <Border DockPanel.Dock="Left"
                                                                     Background="{DynamicResource SystemAccentColor}"
-                                                                    CornerRadius="2" Padding="5,1" Margin="0,0,6,0"
-                                                                    VerticalAlignment="Center">
+                                                                    CornerRadius="2" Padding="5,1" Margin="0,2,6,0"
+                                                                    VerticalAlignment="Top">
                                                                 <TextBlock Text="{Binding TargetKind}"
                                                                            FontSize="10" Foreground="White" />
                                                             </Border>
-                                                            <TextBlock Text="{Binding Target}"
-                                                                       VerticalAlignment="Center"
-                                                                       FontSize="12" TextWrapping="Wrap" />
+                                                            <StackPanel Spacing="1">
+                                                                <TextBlock Text="{Binding Target}"
+                                                                           FontSize="12" TextWrapping="Wrap" />
+                                                                <TextBlock Text="{Binding GroupId}"
+                                                                           FontSize="10" Foreground="Gray" Opacity="0.7"
+                                                                           IsVisible="{Binding GroupId, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                                                            </StackPanel>
                                                         </DockPanel>
                                                     </Border>
                                                 </DataTemplate>
@@ -461,23 +469,29 @@
                                         <ItemsControl ItemsSource="{Binding SelectedItemAssignments}">
                                             <ItemsControl.ItemTemplate>
                                                 <DataTemplate>
-                                                    <Border Padding="4,3" Margin="0,0,0,2">
+                                                    <Border Padding="4,3" Margin="0,0,0,4">
                                                         <DockPanel>
                                                             <Border DockPanel.Dock="Left"
                                                                     Background="{DynamicResource SystemAccentColor}"
-                                                                    CornerRadius="2" Padding="5,1" Margin="0,0,6,0"
-                                                                    VerticalAlignment="Center">
+                                                                    CornerRadius="2" Padding="5,1" Margin="0,2,6,0"
+                                                                    VerticalAlignment="Top">
                                                                 <TextBlock Text="{Binding TargetKind}"
                                                                            FontSize="10" Foreground="White" />
                                                             </Border>
-                                                            <TextBlock Text="{Binding Intent}"
-                                                                       DockPanel.Dock="Right"
-                                                                       VerticalAlignment="Center"
-                                                                       FontSize="11" Foreground="Gray"
-                                                                       Margin="6,0,0,0" />
-                                                            <TextBlock Text="{Binding Target}"
-                                                                       VerticalAlignment="Center"
-                                                                       FontSize="12" TextWrapping="Wrap" />
+                                                            <StackPanel Spacing="1">
+                                                                <DockPanel>
+                                                                    <TextBlock Text="{Binding Intent}"
+                                                                               DockPanel.Dock="Right"
+                                                                               FontSize="11" Foreground="Gray"
+                                                                               Margin="6,0,0,0"
+                                                                               VerticalAlignment="Center" />
+                                                                    <TextBlock Text="{Binding Target}"
+                                                                               FontSize="12" TextWrapping="Wrap" />
+                                                                </DockPanel>
+                                                                <TextBlock Text="{Binding GroupId}"
+                                                                           FontSize="10" Foreground="Gray" Opacity="0.7"
+                                                                           IsVisible="{Binding GroupId, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                                                            </StackPanel>
                                                         </DockPanel>
                                                     </Border>
                                                 </DataTemplate>

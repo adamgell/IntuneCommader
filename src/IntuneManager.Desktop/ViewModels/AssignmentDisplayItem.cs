@@ -6,8 +6,11 @@ namespace IntuneManager.Desktop.ViewModels;
 /// </summary>
 public class AssignmentDisplayItem
 {
-    /// <summary>"All Devices", "All Users", "Group: {id}", "Exclude: {id}"</summary>
+    /// <summary>"All Devices", "All Users", group display name, etc.</summary>
     public required string Target { get; init; }
+
+    /// <summary>The raw group GUID, empty for All Devices / All Users.</summary>
+    public string GroupId { get; init; } = "";
 
     /// <summary>"Include" or "Exclude"</summary>
     public required string TargetKind { get; init; }

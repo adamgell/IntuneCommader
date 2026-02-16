@@ -188,8 +188,10 @@ public partial class MainWindowViewModel : ViewModelBase
         try
         {
             var assignments = await _configProfileService.GetAssignmentsAsync(configId);
-            SelectedItemAssignments = new ObservableCollection<AssignmentDisplayItem>(
-                assignments.Select(a => MapAssignment(a.Target)));
+            var items = new List<AssignmentDisplayItem>();
+            foreach (var a in assignments)
+                items.Add(await MapAssignmentAsync(a.Target));
+            SelectedItemAssignments = new ObservableCollection<AssignmentDisplayItem>(items);
         }
         catch { /* swallow – non-critical */ }
         finally { IsLoadingDetails = false; }
@@ -202,8 +204,10 @@ public partial class MainWindowViewModel : ViewModelBase
         try
         {
             var assignments = await _compliancePolicyService.GetAssignmentsAsync(policyId);
-            SelectedItemAssignments = new ObservableCollection<AssignmentDisplayItem>(
-                assignments.Select(a => MapAssignment(a.Target)));
+            var items = new List<AssignmentDisplayItem>();
+            foreach (var a in assignments)
+                items.Add(await MapAssignmentAsync(a.Target));
+            SelectedItemAssignments = new ObservableCollection<AssignmentDisplayItem>(items);
         }
         catch { /* swallow – non-critical */ }
         finally { IsLoadingDetails = false; }
@@ -216,37 +220,73 @@ public partial class MainWindowViewModel : ViewModelBase
         try
         {
             var assignments = await _applicationService.GetAssignmentsAsync(appId);
-            SelectedItemAssignments = new ObservableCollection<AssignmentDisplayItem>(
-                assignments.Select(a =>
+            var items = new List<AssignmentDisplayItem>();
+            foreach (var a in assignments)
+            {
+                var item = await MapAssignmentAsync(a.Target);
+                items.Add(new AssignmentDisplayItem
                 {
-                    var item = MapAssignment(a.Target);
-                    return new AssignmentDisplayItem
-                    {
-                        Target = item.Target,
-                        TargetKind = item.TargetKind,
-                        Intent = a.Intent?.ToString() ?? ""
-                    };
-                }));
+                    Target = item.Target,
+                    GroupId = item.GroupId,
+                    TargetKind = item.TargetKind,
+                    Intent = a.Intent?.ToString() ?? ""
+                });
+            }
+            SelectedItemAssignments = new ObservableCollection<AssignmentDisplayItem>(items);
         }
         catch { /* swallow – non-critical */ }
         finally { IsLoadingDetails = false; }
     }
 
-    private static AssignmentDisplayItem MapAssignment(DeviceAndAppManagementAssignmentTarget? target)
+    private async Task<AssignmentDisplayItem> MapAssignmentAsync(DeviceAndAppManagementAssignmentTarget? target)
     {
-        return target switch
+        switch (target)
         {
-            AllDevicesAssignmentTarget => new AssignmentDisplayItem
-                { Target = "All Devices", TargetKind = "Include" },
-            AllLicensedUsersAssignmentTarget => new AssignmentDisplayItem
-                { Target = "All Users", TargetKind = "Include" },
-            ExclusionGroupAssignmentTarget excl => new AssignmentDisplayItem
-                { Target = $"Group: {excl.GroupId}", TargetKind = "Exclude" },
-            GroupAssignmentTarget grp => new AssignmentDisplayItem
-                { Target = $"Group: {grp.GroupId}", TargetKind = "Include" },
-            _ => new AssignmentDisplayItem
-                { Target = "Unknown", TargetKind = "Include" }
-        };
+            case AllDevicesAssignmentTarget:
+                return new AssignmentDisplayItem { Target = "All Devices", TargetKind = "Include" };
+            case AllLicensedUsersAssignmentTarget:
+                return new AssignmentDisplayItem { Target = "All Users", TargetKind = "Include" };
+            case ExclusionGroupAssignmentTarget excl:
+                return new AssignmentDisplayItem
+                {
+                    Target = await ResolveGroupNameAsync(excl.GroupId),
+                    GroupId = excl.GroupId ?? "",
+                    TargetKind = "Exclude"
+                };
+            case GroupAssignmentTarget grp:
+                return new AssignmentDisplayItem
+                {
+                    Target = await ResolveGroupNameAsync(grp.GroupId),
+                    GroupId = grp.GroupId ?? "",
+                    TargetKind = "Include"
+                };
+            default:
+                return new AssignmentDisplayItem { Target = "Unknown", TargetKind = "Include" };
+        }
+    }
+
+    private readonly Dictionary<string, string> _groupNameCache = new();
+
+    private async Task<string> ResolveGroupNameAsync(string? groupId)
+    {
+        if (string.IsNullOrEmpty(groupId)) return "Unknown Group";
+        if (_groupNameCache.TryGetValue(groupId, out var cached)) return cached;
+
+        try
+        {
+            if (_graphClient != null)
+            {
+                var group = await _graphClient.Groups[groupId].GetAsync(cfg =>
+                    cfg.QueryParameters.Select = ["displayName"]);
+                var name = group?.DisplayName ?? groupId;
+                _groupNameCache[groupId] = name;
+                return name;
+            }
+        }
+        catch { /* fall back to GUID */ }
+
+        _groupNameCache[groupId] = groupId;
+        return groupId;
     }
 
     private static string FriendlyODataType(string? odataType)
