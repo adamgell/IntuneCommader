@@ -147,6 +147,32 @@
                                 </DataGrid.Columns>
                             </DataGrid>
                         </DockPanel>
+
+                        <!-- Applications list -->
+                        <DockPanel IsVisible="{Binding IsApplicationCategory}">
+                            <TextBlock DockPanel.Dock="Top" Text="Applications"
+                                       FontSize="16" FontWeight="SemiBold" Margin="0,0,0,8" />
+                            <DataGrid ItemsSource="{Binding Applications}"
+                                      SelectedItem="{Binding SelectedApplication}"
+                                      AutoGenerateColumns="False"
+                                      IsReadOnly="True"
+                                      CanUserResizeColumns="True"
+                                      GridLinesVisibility="Horizontal"
+                                      BorderThickness="1"
+                                      BorderBrush="{DynamicResource SystemControlForegroundBaseMediumLowBrush}">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="Display Name"
+                                                        Binding="{Binding DisplayName}"
+                                                        Width="*" />
+                                    <DataGridTextColumn Header="Publisher"
+                                                        Binding="{Binding Publisher}"
+                                                        Width="150" />
+                                    <DataGridTextColumn Header="Created"
+                                                        Binding="{Binding CreatedDateTime}"
+                                                        Width="150" />
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </DockPanel>
                     </DockPanel>
 
                     <!-- Splitter: Content | Details -->
@@ -221,6 +247,36 @@
                                 <StackPanel Spacing="2">
                                     <TextBlock Text="Version" FontSize="11" Foreground="Gray" />
                                     <TextBlock Text="{Binding Version}" />
+                                </StackPanel>
+                            </StackPanel>
+                        </ScrollViewer>
+
+                        <!-- Application details -->
+                        <ScrollViewer IsVisible="{Binding SelectedApplication, Converter={x:Static ObjectConverters.IsNotNull}}">
+                            <StackPanel Spacing="12" DataContext="{Binding SelectedApplication}">
+                                <StackPanel Spacing="2">
+                                    <TextBlock Text="Display Name" FontSize="11" Foreground="Gray" />
+                                    <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" TextWrapping="Wrap" />
+                                </StackPanel>
+                                <StackPanel Spacing="2">
+                                    <TextBlock Text="ID" FontSize="11" Foreground="Gray" />
+                                    <TextBlock Text="{Binding Id}" FontSize="12" />
+                                </StackPanel>
+                                <StackPanel Spacing="2">
+                                    <TextBlock Text="Description" FontSize="11" Foreground="Gray" />
+                                    <TextBlock Text="{Binding Description}" TextWrapping="Wrap" />
+                                </StackPanel>
+                                <StackPanel Spacing="2">
+                                    <TextBlock Text="Publisher" FontSize="11" Foreground="Gray" />
+                                    <TextBlock Text="{Binding Publisher}" />
+                                </StackPanel>
+                                <StackPanel Spacing="2">
+                                    <TextBlock Text="Created" FontSize="11" Foreground="Gray" />
+                                    <TextBlock Text="{Binding CreatedDateTime}" />
+                                </StackPanel>
+                                <StackPanel Spacing="2">
+                                    <TextBlock Text="Last Modified" FontSize="11" Foreground="Gray" />
+                                    <TextBlock Text="{Binding LastModifiedDateTime}" />
                                 </StackPanel>
                             </StackPanel>
                         </ScrollViewer>

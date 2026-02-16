@@ -115,4 +115,52 @@ public class ExportService : IExportService
 
         await SaveMigrationTableAsync(migrationTable, outputPath, cancellationToken);
     }
+
+    public async Task ExportApplicationAsync(
+        MobileApp app,
+        IReadOnlyList<MobileAppAssignment> assignments,
+        string outputPath,
+        MigrationTable migrationTable,
+        CancellationToken cancellationToken = default)
+    {
+        var folderPath = Path.Combine(outputPath, "Applications");
+        Directory.CreateDirectory(folderPath);
+
+        var sanitizedName = SanitizeFileName(app.DisplayName ?? app.Id ?? "unknown");
+        var filePath = Path.Combine(folderPath, $"{sanitizedName}.json");
+
+        var export = new ApplicationExport
+        {
+            Application = app,
+            Assignments = assignments.ToList()
+        };
+
+        var json = JsonSerializer.Serialize(export, JsonOptions);
+        await File.WriteAllTextAsync(filePath, json, cancellationToken);
+
+        if (app.Id != null)
+        {
+            migrationTable.AddOrUpdate(new MigrationEntry
+            {
+                ObjectType = "Application",
+                OriginalId = app.Id,
+                Name = app.DisplayName ?? "Unknown"
+            });
+        }
+    }
+
+    public async Task ExportApplicationsAsync(
+        IEnumerable<(MobileApp App, IReadOnlyList<MobileAppAssignment> Assignments)> apps,
+        string outputPath,
+        CancellationToken cancellationToken = default)
+    {
+        var migrationTable = new MigrationTable();
+
+        foreach (var (app, assignments) in apps)
+        {
+            await ExportApplicationAsync(app, assignments, outputPath, migrationTable, cancellationToken);
+        }
+
+        await SaveMigrationTableAsync(migrationTable, outputPath, cancellationToken);
+    }
 }

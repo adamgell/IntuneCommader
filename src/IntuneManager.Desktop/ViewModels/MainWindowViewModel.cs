@@ -24,6 +24,7 @@ public partial class MainWindowViewModel : ViewModelBase
     private IConfigurationProfileService? _configProfileService;
     private IImportService? _importService;
     private ICompliancePolicyService? _compliancePolicyService;
+    private IApplicationService? _applicationService;
 
     [ObservableProperty]
     private ViewModelBase? _currentView;
@@ -47,7 +48,8 @@ public partial class MainWindowViewModel : ViewModelBase
     public ObservableCollection<NavCategory> NavCategories { get; } =
     [
         new NavCategory { Name = "Device Configurations", Icon = "⚙" },
-        new NavCategory { Name = "Compliance Policies", Icon = "✓" }
+        new NavCategory { Name = "Compliance Policies", Icon = "✓" },
+        new NavCategory { Name = "Applications", Icon = "📦" }
     ];
 
     // --- Device Configurations ---
@@ -63,6 +65,13 @@ public partial class MainWindowViewModel : ViewModelBase
 
     [ObservableProperty]
     private DeviceCompliancePolicy? _selectedCompliancePolicy;
+
+    // --- Applications ---
+    [ObservableProperty]
+    private ObservableCollection<MobileApp> _applications = [];
+
+    [ObservableProperty]
+    private MobileApp? _selectedApplication;
 
     // --- Profile switcher ---
     [ObservableProperty]
@@ -120,14 +129,17 @@ public partial class MainWindowViewModel : ViewModelBase
     // Computed visibility helpers for the view
     public bool IsDeviceConfigCategory => SelectedCategory?.Name == "Device Configurations";
     public bool IsCompliancePolicyCategory => SelectedCategory?.Name == "Compliance Policies";
+    public bool IsApplicationCategory => SelectedCategory?.Name == "Applications";
 
     partial void OnSelectedCategoryChanged(NavCategory? value)
     {
         // Clear selections when switching categories
         SelectedConfiguration = null;
         SelectedCompliancePolicy = null;
+        SelectedApplication = null;
         OnPropertyChanged(nameof(IsDeviceConfigCategory));
         OnPropertyChanged(nameof(IsCompliancePolicyCategory));
+        OnPropertyChanged(nameof(IsApplicationCategory));
     }
 
     // --- Connection ---
@@ -153,6 +165,7 @@ public partial class MainWindowViewModel : ViewModelBase
             _graphClient = await _graphClientFactory.CreateClientAsync(profile);
             _configProfileService = new ConfigurationProfileService(_graphClient);
             _compliancePolicyService = new CompliancePolicyService(_graphClient);
+            _applicationService = new ApplicationService(_graphClient);
             _importService = new ImportService(_configProfileService, _compliancePolicyService);
 
             RefreshSwitcherProfiles();
@@ -235,8 +248,15 @@ public partial class MainWindowViewModel : ViewModelBase
                 CompliancePolicies = new ObservableCollection<DeviceCompliancePolicy>(policies);
             }
 
-            var totalItems = DeviceConfigurations.Count + CompliancePolicies.Count;
-            StatusText = $"Loaded {totalItems} item(s) ({DeviceConfigurations.Count} configs, {CompliancePolicies.Count} policies)";
+            if (_applicationService != null)
+            {
+                StatusText = "Loading applications...";
+                var apps = await _applicationService.ListApplicationsAsync(cancellationToken);
+                Applications = new ObservableCollection<MobileApp>(apps);
+            }
+
+            var totalItems = DeviceConfigurations.Count + CompliancePolicies.Count + Applications.Count;
+            StatusText = $"Loaded {totalItems} item(s) ({DeviceConfigurations.Count} configs, {CompliancePolicies.Count} policies, {Applications.Count} apps)";
         }
         catch (Exception ex)
         {
@@ -279,6 +299,15 @@ public partial class MainWindowViewModel : ViewModelBase
                     : [];
                 await _exportService.ExportCompliancePolicyAsync(
                     SelectedCompliancePolicy, assignments, outputPath, migrationTable, cancellationToken);
+            }
+            else if (IsApplicationCategory && SelectedApplication != null)
+            {
+                StatusText = $"Exporting {SelectedApplication.DisplayName}...";
+                var assignments = _applicationService != null && SelectedApplication.Id != null
+                    ? await _applicationService.GetAssignmentsAsync(SelectedApplication.Id, cancellationToken)
+                    : [];
+                await _exportService.ExportApplicationAsync(
+                    SelectedApplication, assignments, outputPath, migrationTable, cancellationToken);
             }
             else
             {
@@ -336,6 +365,20 @@ public partial class MainWindowViewModel : ViewModelBase
                         ? await _compliancePolicyService.GetAssignmentsAsync(policy.Id, cancellationToken)
                         : [];
                     await _exportService.ExportCompliancePolicyAsync(policy, assignments, outputPath, migrationTable, cancellationToken);
+                    count++;
+                }
+            }
+
+            // Export applications with assignments
+            if (Applications.Any() && _applicationService != null)
+            {
+                StatusText = "Exporting applications...";
+                foreach (var app in Applications)
+                {
+                    var assignments = app.Id != null
+                        ? await _applicationService.GetAssignmentsAsync(app.Id, cancellationToken)
+                        : [];
+                    await _exportService.ExportApplicationAsync(app, assignments, outputPath, migrationTable, cancellationToken);
                     count++;
                 }
             }
@@ -427,9 +470,12 @@ public partial class MainWindowViewModel : ViewModelBase
         SelectedConfiguration = null;
         CompliancePolicies.Clear();
         SelectedCompliancePolicy = null;
+        Applications.Clear();
+        SelectedApplication = null;
         _graphClient = null;
         _configProfileService = null;
         _compliancePolicyService = null;
+        _applicationService = null;
         _importService = null;
     }
 }

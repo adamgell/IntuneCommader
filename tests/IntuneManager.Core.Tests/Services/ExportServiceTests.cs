@@ -189,4 +189,77 @@ public class ExportServiceTests : IDisposable
         var folder = Path.Combine(_tempDir, "CompliancePolicies");
         Assert.Equal(2, Directory.GetFiles(folder, "*.json").Length);
     }
+
+    // --- Application export tests ---
+
+    [Fact]
+    public async Task ExportApplication_CreatesJsonFile()
+    {
+        var app = new MobileApp
+        {
+            Id = "app-id",
+            DisplayName = "Test App"
+        };
+        var assignments = new List<MobileAppAssignment>();
+        var table = new MigrationTable();
+
+        await _service.ExportApplicationAsync(app, assignments, _tempDir, table);
+
+        var expectedPath = Path.Combine(_tempDir, "Applications", "Test App.json");
+        Assert.True(File.Exists(expectedPath));
+    }
+
+    [Fact]
+    public async Task ExportApplication_UpdatesMigrationTable()
+    {
+        var app = new MobileApp
+        {
+            Id = "app-id",
+            DisplayName = "Test App"
+        };
+        var assignments = new List<MobileAppAssignment>();
+        var table = new MigrationTable();
+
+        await _service.ExportApplicationAsync(app, assignments, _tempDir, table);
+
+        Assert.Single(table.Entries);
+        Assert.Equal("app-id", table.Entries[0].OriginalId);
+        Assert.Equal("Application", table.Entries[0].ObjectType);
+    }
+
+    [Fact]
+    public async Task ExportApplication_IncludesAssignmentsInJson()
+    {
+        var app = new MobileApp
+        {
+            Id = "app-id",
+            DisplayName = "With Assignments"
+        };
+        var assignments = new List<MobileAppAssignment>
+        {
+            new() { Id = "a1", Intent = InstallIntent.Required }
+        };
+        var table = new MigrationTable();
+
+        await _service.ExportApplicationAsync(app, assignments, _tempDir, table);
+
+        var filePath = Path.Combine(_tempDir, "Applications", "With Assignments.json");
+        var json = await File.ReadAllTextAsync(filePath);
+        Assert.Contains("assignments", json);
+    }
+
+    [Fact]
+    public async Task ExportApplications_ExportsMultiple()
+    {
+        var apps = new (MobileApp, IReadOnlyList<MobileAppAssignment>)[]
+        {
+            (new MobileApp { Id = "app-1", DisplayName = "App One" }, Array.Empty<MobileAppAssignment>()),
+            (new MobileApp { Id = "app-2", DisplayName = "App Two" }, Array.Empty<MobileAppAssignment>())
+        };
+
+        await _service.ExportApplicationsAsync(apps, _tempDir);
+
+        var folder = Path.Combine(_tempDir, "Applications");
+        Assert.Equal(2, Directory.GetFiles(folder, "*.json").Length);
+    }
 }
