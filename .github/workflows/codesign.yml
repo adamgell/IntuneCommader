@@ -1,0 +1,119 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version (e.g. 0.3.0 or 0.3.0-beta1)'
+        required: true
+
+permissions:
+  id-token: write
+  contents: write
+
+env:
+  PROJECT: src/IntuneManager.Desktop/IntuneManager.Desktop.csproj
+  PUBLISH_DIR: src/IntuneManager.Desktop/bin/Release/net8.0/win-x64/publish
+  DOTNET_VERSION: '8.0.x'
+
+jobs:
+  release:
+    runs-on: windows-latest
+    environment: signing
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Determine version
+        id: version
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            VERSION="${{ github.event.inputs.version }}"
+          else
+            VERSION="${GITHUB_REF_NAME#v}"
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"
+
+          if [[ "$VERSION" == *-* ]]; then
+            echo "prerelease=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "prerelease=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Create and push tag when triggered manually
+      - name: Create tag (manual dispatch only)
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -a ${{ steps.version.outputs.tag }} -m "Release ${{ steps.version.outputs.tag }}"
+          git push origin ${{ steps.version.outputs.tag }}
+
+      - name: Restore dependencies
+        run: dotnet restore ${{ env.PROJECT }} -r win-x64
+
+      - name: Publish
+        run: >
+          dotnet publish ${{ env.PROJECT }}
+          -c Release
+          -r win-x64
+          --no-restore
+          --self-contained true
+          -p:PublishSingleFile=true
+          -p:IncludeNativeLibrariesForSelfExtract=true
+          -p:Version=${{ steps.version.outputs.version }}
+
+      - name: Verify build output
+        shell: bash
+        run: |
+          EXE="${{ env.PUBLISH_DIR }}/IntuneManager.Desktop.exe"
+          if [ ! -f "$EXE" ]; then
+            echo "::error::Build output not found at $EXE"
+            exit 1
+          fi
+          SIZE=$(stat -c%s "$EXE" 2>/dev/null || stat -f%z "$EXE")
+          echo "Artifact: IntuneManager.Desktop.exe ($SIZE bytes)"
+
+      - name: Sign with Trusted Signing
+        uses: azure/trusted-signing-action@v0
+        with:
+          azure-tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          azure-client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          azure-client-secret: ${{ secrets.AZURE_CLIENT_SECRET }}
+          endpoint: ${{ secrets.SIGNING_ENDPOINT }}
+          trusted-signing-account-name: ${{ secrets.SIGNING_ACCOUNT_NAME }}
+          certificate-profile-name: ${{ secrets.SIGNING_PROFILE_NAME }}
+          files-folder: ${{ env.PUBLISH_DIR }}
+          files-folder-filter: exe
+          file-digest: SHA256
+          timestamp-rfc3161: http://timestamp.acs.microsoft.com
+          timestamp-digest: SHA256
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          PRERELEASE_FLAG=""
+          if [ "${{ steps.version.outputs.prerelease }}" = "true" ]; then
+            PRERELEASE_FLAG="--prerelease"
+          fi
+
+          gh release create "${{ steps.version.outputs.tag }}" \
+            "${{ env.PUBLISH_DIR }}/IntuneManager.Desktop.exe" \
+            --title "${{ steps.version.outputs.tag }}" \
+            --generate-notes \
+            $PRERELEASE_FLAG
