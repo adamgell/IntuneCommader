@@ -56,6 +56,8 @@ public partial class MainWindow : Window
             or nameof(MainWindowViewModel.IsCompliancePolicyCategory)
             or nameof(MainWindowViewModel.IsApplicationCategory)
             or nameof(MainWindowViewModel.IsAppAssignmentsCategory)
+            or nameof(MainWindowViewModel.IsDynamicGroupsCategory)
+            or nameof(MainWindowViewModel.IsAssignedGroupsCategory)
             or nameof(MainWindowViewModel.IsOverviewCategory))
         {
             RebuildDataGridColumns();
@@ -64,7 +66,9 @@ public partial class MainWindow : Window
         else if (e.PropertyName is nameof(MainWindowViewModel.FilteredDeviceConfigurations)
             or nameof(MainWindowViewModel.FilteredCompliancePolicies)
             or nameof(MainWindowViewModel.FilteredApplications)
-            or nameof(MainWindowViewModel.FilteredAppAssignmentRows))
+            or nameof(MainWindowViewModel.FilteredAppAssignmentRows)
+            or nameof(MainWindowViewModel.FilteredDynamicGroupRows)
+            or nameof(MainWindowViewModel.FilteredAssignedGroupRows))
         {
             BindDataGridSource();
         }
@@ -105,6 +109,20 @@ public partial class MainWindow : Window
                 new Binding(nameof(_vm.FilteredAppAssignmentRows)) { Source = _vm });
             _mainDataGrid.Bind(DataGrid.SelectedItemProperty,
                 new Binding(nameof(_vm.SelectedAppAssignmentRow)) { Source = _vm, Mode = BindingMode.TwoWay });
+        }
+        else if (_vm.IsDynamicGroupsCategory)
+        {
+            _mainDataGrid.Bind(DataGrid.ItemsSourceProperty,
+                new Binding(nameof(_vm.FilteredDynamicGroupRows)) { Source = _vm });
+            _mainDataGrid.Bind(DataGrid.SelectedItemProperty,
+                new Binding(nameof(_vm.SelectedDynamicGroupRow)) { Source = _vm, Mode = BindingMode.TwoWay });
+        }
+        else if (_vm.IsAssignedGroupsCategory)
+        {
+            _mainDataGrid.Bind(DataGrid.ItemsSourceProperty,
+                new Binding(nameof(_vm.FilteredAssignedGroupRows)) { Source = _vm });
+            _mainDataGrid.Bind(DataGrid.SelectedItemProperty,
+                new Binding(nameof(_vm.SelectedAssignedGroupRow)) { Source = _vm, Mode = BindingMode.TwoWay });
         }
         else
         {

@@ -129,6 +129,17 @@
                                         FontSize="12" Padding="8,4"
                                         VerticalAlignment="Center"
                                         IsVisible="{Binding IsAppAssignmentsCategory}" />
+                                <Button Content="Export CSV"
+                                        Command="{Binding ExportGroupsCsvCommand}"
+                                        FontSize="12" Padding="8,4"
+                                        VerticalAlignment="Center">
+                                    <Button.IsVisible>
+                                        <MultiBinding Converter="{x:Static BoolConverters.Or}">
+                                            <Binding Path="IsDynamicGroupsCategory" />
+                                            <Binding Path="IsAssignedGroupsCategory" />
+                                        </MultiBinding>
+                                    </Button.IsVisible>
+                                </Button>
                                 <Button Content="⋮ Columns"
                                         x:Name="ColumnChooserButton"
                                         FontSize="12" Padding="8,4"
@@ -196,6 +207,8 @@
                                     <Binding Path="SelectedCompliancePolicy" Converter="{x:Static ObjectConverters.IsNull}" />
                                     <Binding Path="SelectedApplication" Converter="{x:Static ObjectConverters.IsNull}" />
                                     <Binding Path="SelectedAppAssignmentRow" Converter="{x:Static ObjectConverters.IsNull}" />
+                                    <Binding Path="SelectedDynamicGroupRow" Converter="{x:Static ObjectConverters.IsNull}" />
+                                    <Binding Path="SelectedAssignedGroupRow" Converter="{x:Static ObjectConverters.IsNull}" />
                                 </MultiBinding>
                             </TextBlock.IsVisible>
                         </TextBlock>
@@ -670,6 +683,171 @@
                                             <TextBlock Text="Notes" FontSize="11" Foreground="Gray" />
                                             <SelectableTextBlock Text="{Binding Notes}" TextWrapping="Wrap" FontSize="12" />
                                         </StackPanel>
+                                    </StackPanel>
+                                </Border>
+
+                            </StackPanel>
+                        </ScrollViewer>
+
+                        <!-- ═══════════════════════════════════════════ -->
+                        <!-- Dynamic Group details                      -->
+                        <!-- ═══════════════════════════════════════════ -->
+                        <ScrollViewer IsVisible="{Binding SelectedDynamicGroupRow, Converter={x:Static ObjectConverters.IsNotNull}}">
+                            <StackPanel Spacing="4" DataContext="{Binding SelectedDynamicGroupRow}">
+
+                                <TextBlock Text="Group Properties" FontSize="14" FontWeight="SemiBold"
+                                           Foreground="{DynamicResource SystemAccentColor}"
+                                           Margin="0,0,0,6" />
+                                <Border Background="{DynamicResource SystemControlBackgroundChromeMediumLowBrush}"
+                                        CornerRadius="4" Padding="10" Margin="0,0,0,12">
+                                    <StackPanel Spacing="10">
+                                        <StackPanel Spacing="2">
+                                            <TextBlock Text="Group Name" FontSize="11" Foreground="Gray" />
+                                            <SelectableTextBlock Text="{Binding GroupName}" FontWeight="SemiBold" TextWrapping="Wrap" />
+                                        </StackPanel>
+                                        <StackPanel Spacing="2">
+                                            <TextBlock Text="Description" FontSize="11" Foreground="Gray" />
+                                            <SelectableTextBlock Text="{Binding Description}" TextWrapping="Wrap" />
+                                        </StackPanel>
+                                        <Grid ColumnDefinitions="*,*">
+                                            <StackPanel Grid.Column="0" Spacing="2">
+                                                <TextBlock Text="Group Type" FontSize="11" Foreground="Gray" />
+                                                <SelectableTextBlock Text="{Binding GroupType}" FontSize="12" />
+                                            </StackPanel>
+                                            <StackPanel Grid.Column="1" Spacing="2">
+                                                <TextBlock Text="Processing State" FontSize="11" Foreground="Gray" />
+                                                <SelectableTextBlock Text="{Binding ProcessingState}" FontSize="12" />
+                                            </StackPanel>
+                                        </Grid>
+                                        <StackPanel Spacing="2">
+                                            <TextBlock Text="Group ID" FontSize="11" Foreground="Gray" />
+                                            <SelectableTextBlock Text="{Binding GroupId}" FontSize="11" Opacity="0.8" />
+                                        </StackPanel>
+                                        <Grid ColumnDefinitions="*,*">
+                                            <StackPanel Grid.Column="0" Spacing="2">
+                                                <TextBlock Text="Security Enabled" FontSize="11" Foreground="Gray" />
+                                                <SelectableTextBlock Text="{Binding SecurityEnabled}" FontSize="12" />
+                                            </StackPanel>
+                                            <StackPanel Grid.Column="1" Spacing="2">
+                                                <TextBlock Text="Mail Enabled" FontSize="11" Foreground="Gray" />
+                                                <SelectableTextBlock Text="{Binding MailEnabled}" FontSize="12" />
+                                            </StackPanel>
+                                        </Grid>
+                                        <StackPanel Spacing="2">
+                                            <TextBlock Text="Created Date" FontSize="11" Foreground="Gray" />
+                                            <SelectableTextBlock Text="{Binding CreatedDate}" FontSize="12" />
+                                        </StackPanel>
+                                    </StackPanel>
+                                </Border>
+
+                                <TextBlock Text="Membership Rule" FontSize="14" FontWeight="SemiBold"
+                                           Foreground="{DynamicResource SystemAccentColor}"
+                                           Margin="0,0,0,6" />
+                                <Border Background="{DynamicResource SystemControlBackgroundChromeMediumLowBrush}"
+                                        CornerRadius="4" Padding="10" Margin="0,0,0,12">
+                                    <SelectableTextBlock Text="{Binding MembershipRule}" TextWrapping="Wrap" FontSize="12"
+                                               FontFamily="Consolas,Courier New,monospace" />
+                                </Border>
+
+                                <TextBlock Text="Membership" FontSize="14" FontWeight="SemiBold"
+                                           Foreground="{DynamicResource SystemAccentColor}"
+                                           Margin="0,0,0,6" />
+                                <Border Background="{DynamicResource SystemControlBackgroundChromeMediumLowBrush}"
+                                        CornerRadius="4" Padding="10" Margin="0,0,0,12">
+                                    <StackPanel Spacing="10">
+                                        <Grid ColumnDefinitions="*,*,*,*">
+                                            <StackPanel Grid.Column="0" Spacing="2">
+                                                <TextBlock Text="Total" FontSize="11" Foreground="Gray" />
+                                                <SelectableTextBlock Text="{Binding TotalMembers}" FontSize="14" FontWeight="SemiBold" />
+                                            </StackPanel>
+                                            <StackPanel Grid.Column="1" Spacing="2">
+                                                <TextBlock Text="Users" FontSize="11" Foreground="Gray" />
+                                                <SelectableTextBlock Text="{Binding Users}" FontSize="14" />
+                                            </StackPanel>
+                                            <StackPanel Grid.Column="2" Spacing="2">
+                                                <TextBlock Text="Devices" FontSize="11" Foreground="Gray" />
+                                                <SelectableTextBlock Text="{Binding Devices}" FontSize="14" />
+                                            </StackPanel>
+                                            <StackPanel Grid.Column="3" Spacing="2">
+                                                <TextBlock Text="Nested" FontSize="11" Foreground="Gray" />
+                                                <SelectableTextBlock Text="{Binding NestedGroups}" FontSize="14" />
+                                            </StackPanel>
+                                        </Grid>
+                                    </StackPanel>
+                                </Border>
+
+                            </StackPanel>
+                        </ScrollViewer>
+
+                        <!-- ═══════════════════════════════════════════ -->
+                        <!-- Assigned Group details                     -->
+                        <!-- ═══════════════════════════════════════════ -->
+                        <ScrollViewer IsVisible="{Binding SelectedAssignedGroupRow, Converter={x:Static ObjectConverters.IsNotNull}}">
+                            <StackPanel Spacing="4" DataContext="{Binding SelectedAssignedGroupRow}">
+
+                                <TextBlock Text="Group Properties" FontSize="14" FontWeight="SemiBold"
+                                           Foreground="{DynamicResource SystemAccentColor}"
+                                           Margin="0,0,0,6" />
+                                <Border Background="{DynamicResource SystemControlBackgroundChromeMediumLowBrush}"
+                                        CornerRadius="4" Padding="10" Margin="0,0,0,12">
+                                    <StackPanel Spacing="10">
+                                        <StackPanel Spacing="2">
+                                            <TextBlock Text="Group Name" FontSize="11" Foreground="Gray" />
+                                            <SelectableTextBlock Text="{Binding GroupName}" FontWeight="SemiBold" TextWrapping="Wrap" />
+                                        </StackPanel>
+                                        <StackPanel Spacing="2">
+                                            <TextBlock Text="Description" FontSize="11" Foreground="Gray" />
+                                            <SelectableTextBlock Text="{Binding Description}" TextWrapping="Wrap" />
+                                        </StackPanel>
+                                        <StackPanel Spacing="2">
+                                            <TextBlock Text="Group Type" FontSize="11" Foreground="Gray" />
+                                            <SelectableTextBlock Text="{Binding GroupType}" FontSize="12" />
+                                        </StackPanel>
+                                        <StackPanel Spacing="2">
+                                            <TextBlock Text="Group ID" FontSize="11" Foreground="Gray" />
+                                            <SelectableTextBlock Text="{Binding GroupId}" FontSize="11" Opacity="0.8" />
+                                        </StackPanel>
+                                        <Grid ColumnDefinitions="*,*">
+                                            <StackPanel Grid.Column="0" Spacing="2">
+                                                <TextBlock Text="Security Enabled" FontSize="11" Foreground="Gray" />
+                                                <SelectableTextBlock Text="{Binding SecurityEnabled}" FontSize="12" />
+                                            </StackPanel>
+                                            <StackPanel Grid.Column="1" Spacing="2">
+                                                <TextBlock Text="Mail Enabled" FontSize="11" Foreground="Gray" />
+                                                <SelectableTextBlock Text="{Binding MailEnabled}" FontSize="12" />
+                                            </StackPanel>
+                                        </Grid>
+                                        <StackPanel Spacing="2">
+                                            <TextBlock Text="Created Date" FontSize="11" Foreground="Gray" />
+                                            <SelectableTextBlock Text="{Binding CreatedDate}" FontSize="12" />
+                                        </StackPanel>
+                                    </StackPanel>
+                                </Border>
+
+                                <TextBlock Text="Membership" FontSize="14" FontWeight="SemiBold"
+                                           Foreground="{DynamicResource SystemAccentColor}"
+                                           Margin="0,0,0,6" />
+                                <Border Background="{DynamicResource SystemControlBackgroundChromeMediumLowBrush}"
+                                        CornerRadius="4" Padding="10" Margin="0,0,0,12">
+                                    <StackPanel Spacing="10">
+                                        <Grid ColumnDefinitions="*,*,*,*">
+                                            <StackPanel Grid.Column="0" Spacing="2">
+                                                <TextBlock Text="Total" FontSize="11" Foreground="Gray" />
+                                                <SelectableTextBlock Text="{Binding TotalMembers}" FontSize="14" FontWeight="SemiBold" />
+                                            </StackPanel>
+                                            <StackPanel Grid.Column="1" Spacing="2">
+                                                <TextBlock Text="Users" FontSize="11" Foreground="Gray" />
+                                                <SelectableTextBlock Text="{Binding Users}" FontSize="14" />
+                                            </StackPanel>
+                                            <StackPanel Grid.Column="2" Spacing="2">
+                                                <TextBlock Text="Devices" FontSize="11" Foreground="Gray" />
+                                                <SelectableTextBlock Text="{Binding Devices}" FontSize="14" />
+                                            </StackPanel>
+                                            <StackPanel Grid.Column="3" Spacing="2">
+                                                <TextBlock Text="Nested" FontSize="11" Foreground="Gray" />
+                                                <SelectableTextBlock Text="{Binding NestedGroups}" FontSize="14" />
+                                            </StackPanel>
+                                        </Grid>
                                     </StackPanel>
                                 </Border>
 

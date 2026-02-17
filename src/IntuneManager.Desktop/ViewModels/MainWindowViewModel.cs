@@ -29,6 +29,7 @@ public partial class MainWindowViewModel : ViewModelBase
     private IImportService? _importService;
     private ICompliancePolicyService? _compliancePolicyService;
     private IApplicationService? _applicationService;
+    private IGroupService? _groupService;
 
     [ObservableProperty]
     private ViewModelBase? _currentView;
@@ -55,7 +56,9 @@ public partial class MainWindowViewModel : ViewModelBase
         new NavCategory { Name = "Device Configurations", Icon = "⚙" },
         new NavCategory { Name = "Compliance Policies", Icon = "✓" },
         new NavCategory { Name = "Applications", Icon = "📦" },
-        new NavCategory { Name = "Application Assignments", Icon = "📋" }
+        new NavCategory { Name = "Application Assignments", Icon = "📋" },
+        new NavCategory { Name = "Dynamic Groups", Icon = "🔄" },
+        new NavCategory { Name = "Assigned Groups", Icon = "👥" }
     ];
 
     // --- Overview dashboard ---
@@ -90,6 +93,24 @@ public partial class MainWindowViewModel : ViewModelBase
     private AppAssignmentRow? _selectedAppAssignmentRow;
 
     private bool _appAssignmentsLoaded;
+
+    // --- Dynamic Groups ---
+    [ObservableProperty]
+    private ObservableCollection<GroupRow> _dynamicGroupRows = [];
+
+    [ObservableProperty]
+    private GroupRow? _selectedDynamicGroupRow;
+
+    private bool _dynamicGroupsLoaded;
+
+    // --- Assigned Groups ---
+    [ObservableProperty]
+    private ObservableCollection<GroupRow> _assignedGroupRows = [];
+
+    [ObservableProperty]
+    private GroupRow? _selectedAssignedGroupRow;
+
+    private bool _assignedGroupsLoaded;
 
     // --- Detail pane ---
     [ObservableProperty]
@@ -201,6 +222,38 @@ public partial class MainWindowViewModel : ViewModelBase
             Append(sb, "Categories", row.Categories);
             Append(sb, "Notes", row.Notes);
         }
+        else if (SelectedDynamicGroupRow is { } dg)
+        {
+            sb.AppendLine("=== Dynamic Group ===");
+            Append(sb, "Group Name", dg.GroupName);
+            Append(sb, "Description", dg.Description);
+            Append(sb, "Membership Rule", dg.MembershipRule);
+            Append(sb, "Processing State", dg.ProcessingState);
+            Append(sb, "Group Type", dg.GroupType);
+            Append(sb, "Total Members", dg.TotalMembers);
+            Append(sb, "Users", dg.Users);
+            Append(sb, "Devices", dg.Devices);
+            Append(sb, "Nested Groups", dg.NestedGroups);
+            Append(sb, "Security Enabled", dg.SecurityEnabled);
+            Append(sb, "Mail Enabled", dg.MailEnabled);
+            Append(sb, "Created Date", dg.CreatedDate);
+            Append(sb, "Group ID", dg.GroupId);
+        }
+        else if (SelectedAssignedGroupRow is { } ag)
+        {
+            sb.AppendLine("=== Assigned Group ===");
+            Append(sb, "Group Name", ag.GroupName);
+            Append(sb, "Description", ag.Description);
+            Append(sb, "Group Type", ag.GroupType);
+            Append(sb, "Total Members", ag.TotalMembers);
+            Append(sb, "Users", ag.Users);
+            Append(sb, "Devices", ag.Devices);
+            Append(sb, "Nested Groups", ag.NestedGroups);
+            Append(sb, "Security Enabled", ag.SecurityEnabled);
+            Append(sb, "Mail Enabled", ag.MailEnabled);
+            Append(sb, "Created Date", ag.CreatedDate);
+            Append(sb, "Group ID", ag.GroupId);
+        }
 
         return sb.ToString();
     }
@@ -250,6 +303,12 @@ public partial class MainWindowViewModel : ViewModelBase
     [ObservableProperty]
     private ObservableCollection<AppAssignmentRow> _filteredAppAssignmentRows = [];
 
+    [ObservableProperty]
+    private ObservableCollection<GroupRow> _filteredDynamicGroupRows = [];
+
+    [ObservableProperty]
+    private ObservableCollection<GroupRow> _filteredAssignedGroupRows = [];
+
     private void ApplyFilter()
     {
         var q = SearchText.Trim();
@@ -260,6 +319,8 @@ public partial class MainWindowViewModel : ViewModelBase
             FilteredCompliancePolicies = new ObservableCollection<DeviceCompliancePolicy>(CompliancePolicies);
             FilteredApplications = new ObservableCollection<MobileApp>(Applications);
             FilteredAppAssignmentRows = new ObservableCollection<AppAssignmentRow>(AppAssignmentRows);
+            FilteredDynamicGroupRows = new ObservableCollection<GroupRow>(DynamicGroupRows);
+            FilteredAssignedGroupRows = new ObservableCollection<GroupRow>(AssignedGroupRows);
             return;
         }
 
@@ -290,6 +351,21 @@ public partial class MainWindowViewModel : ViewModelBase
                 Contains(r.AppType, q) ||
                 Contains(r.Platform, q) ||
                 Contains(r.InstallIntent, q)));
+
+        FilteredDynamicGroupRows = new ObservableCollection<GroupRow>(
+            DynamicGroupRows.Where(g =>
+                Contains(g.GroupName, q) ||
+                Contains(g.Description, q) ||
+                Contains(g.MembershipRule, q) ||
+                Contains(g.GroupType, q) ||
+                Contains(g.GroupId, q)));
+
+        FilteredAssignedGroupRows = new ObservableCollection<GroupRow>(
+            AssignedGroupRows.Where(g =>
+                Contains(g.GroupName, q) ||
+                Contains(g.Description, q) ||
+                Contains(g.GroupType, q) ||
+                Contains(g.GroupId, q)));
     }
 
     private static bool Contains(string? source, string search)
@@ -332,6 +408,38 @@ public partial class MainWindowViewModel : ViewModelBase
         new() { Header = "Publishing State", BindingPath = "PublishingState", Width = 120, IsVisible = false }
     ];
 
+    public ObservableCollection<DataGridColumnConfig> DynamicGroupColumns { get; } =
+    [
+        new() { Header = "Group Name", BindingPath = "GroupName", IsStar = true, IsVisible = true },
+        new() { Header = "Description", BindingPath = "Description", Width = 200, IsVisible = false },
+        new() { Header = "Membership Rule", BindingPath = "MembershipRule", Width = 280, IsVisible = true },
+        new() { Header = "Processing State", BindingPath = "ProcessingState", Width = 120, IsVisible = true },
+        new() { Header = "Group Type", BindingPath = "GroupType", Width = 130, IsVisible = true },
+        new() { Header = "Total Members", BindingPath = "TotalMembers", Width = 100, IsVisible = true },
+        new() { Header = "Users", BindingPath = "Users", Width = 70, IsVisible = true },
+        new() { Header = "Devices", BindingPath = "Devices", Width = 70, IsVisible = true },
+        new() { Header = "Nested Groups", BindingPath = "NestedGroups", Width = 100, IsVisible = false },
+        new() { Header = "Security Enabled", BindingPath = "SecurityEnabled", Width = 110, IsVisible = false },
+        new() { Header = "Mail Enabled", BindingPath = "MailEnabled", Width = 100, IsVisible = false },
+        new() { Header = "Created Date", BindingPath = "CreatedDate", Width = 150, IsVisible = false },
+        new() { Header = "Group ID", BindingPath = "GroupId", Width = 280, IsVisible = false }
+    ];
+
+    public ObservableCollection<DataGridColumnConfig> AssignedGroupColumns { get; } =
+    [
+        new() { Header = "Group Name", BindingPath = "GroupName", IsStar = true, IsVisible = true },
+        new() { Header = "Description", BindingPath = "Description", Width = 200, IsVisible = false },
+        new() { Header = "Group Type", BindingPath = "GroupType", Width = 130, IsVisible = true },
+        new() { Header = "Total Members", BindingPath = "TotalMembers", Width = 100, IsVisible = true },
+        new() { Header = "Users", BindingPath = "Users", Width = 70, IsVisible = true },
+        new() { Header = "Devices", BindingPath = "Devices", Width = 70, IsVisible = true },
+        new() { Header = "Nested Groups", BindingPath = "NestedGroups", Width = 100, IsVisible = false },
+        new() { Header = "Security Enabled", BindingPath = "SecurityEnabled", Width = 110, IsVisible = false },
+        new() { Header = "Mail Enabled", BindingPath = "MailEnabled", Width = 100, IsVisible = false },
+        new() { Header = "Created Date", BindingPath = "CreatedDate", Width = 150, IsVisible = false },
+        new() { Header = "Group ID", BindingPath = "GroupId", Width = 280, IsVisible = false }
+    ];
+
     public ObservableCollection<DataGridColumnConfig> AppAssignmentColumns { get; } =
     [
         new() { Header = "App Name", BindingPath = "AppName", IsStar = true, IsVisible = true },
@@ -371,6 +479,8 @@ public partial class MainWindowViewModel : ViewModelBase
         "Compliance Policies" => CompliancePolicyColumns,
         "Applications" => ApplicationColumns,
         "Application Assignments" => AppAssignmentColumns,
+        "Dynamic Groups" => DynamicGroupColumns,
+        "Assigned Groups" => AssignedGroupColumns,
         _ => null
     };
 
@@ -448,6 +558,8 @@ public partial class MainWindowViewModel : ViewModelBase
     public bool IsCompliancePolicyCategory => SelectedCategory?.Name == "Compliance Policies";
     public bool IsApplicationCategory => SelectedCategory?.Name == "Applications";
     public bool IsAppAssignmentsCategory => SelectedCategory?.Name == "Application Assignments";
+    public bool IsDynamicGroupsCategory => SelectedCategory?.Name == "Dynamic Groups";
+    public bool IsAssignedGroupsCategory => SelectedCategory?.Name == "Assigned Groups";
 
     partial void OnSelectedCategoryChanged(NavCategory? value)
     {
@@ -456,6 +568,8 @@ public partial class MainWindowViewModel : ViewModelBase
         SelectedCompliancePolicy = null;
         SelectedApplication = null;
         SelectedAppAssignmentRow = null;
+        SelectedDynamicGroupRow = null;
+        SelectedAssignedGroupRow = null;
         SelectedItemAssignments.Clear();
         SelectedItemTypeName = "";
         SelectedItemPlatform = "";
@@ -465,11 +579,19 @@ public partial class MainWindowViewModel : ViewModelBase
         OnPropertyChanged(nameof(IsCompliancePolicyCategory));
         OnPropertyChanged(nameof(IsApplicationCategory));
         OnPropertyChanged(nameof(IsAppAssignmentsCategory));
+        OnPropertyChanged(nameof(IsDynamicGroupsCategory));
+        OnPropertyChanged(nameof(IsAssignedGroupsCategory));
         OnPropertyChanged(nameof(ActiveColumns));
 
         // Lazy-load assignments when navigating to tabs that require them
         if ((value?.Name == "Application Assignments" || value?.Name == "Overview") && !_appAssignmentsLoaded)
             _ = LoadAppAssignmentRowsAsync();
+
+        // Lazy-load group views
+        if (value?.Name == "Dynamic Groups" && !_dynamicGroupsLoaded)
+            _ = LoadDynamicGroupRowsAsync();
+        if (value?.Name == "Assigned Groups" && !_assignedGroupsLoaded)
+            _ = LoadAssignedGroupRowsAsync();
     }
 
     // --- Selection-changed handlers (load detail + assignments) ---
@@ -1012,6 +1134,235 @@ public partial class MainWindowViewModel : ViewModelBase
         return "\"" + value.Replace("\"", "\"\"") + "\"";
     }
 
+    // --- Group CSV Export ---
+
+    [RelayCommand]
+    private async Task ExportGroupsCsvAsync(CancellationToken cancellationToken)
+    {
+        var isDynamic = IsDynamicGroupsCategory;
+        var rows = isDynamic ? DynamicGroupRows : AssignedGroupRows;
+        var label = isDynamic ? "Dynamic Groups" : "Assigned Groups";
+
+        if (rows.Count == 0)
+        {
+            StatusText = $"No {label.ToLowerInvariant()} data to export";
+            return;
+        }
+
+        IsBusy = true;
+        StatusText = $"Exporting {label} to CSV...";
+
+        try
+        {
+            var outputPath = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.Desktop),
+                "IntuneExport");
+            Directory.CreateDirectory(outputPath);
+
+            var timestamp = DateTime.Now.ToString("yyyyMMdd-HHmmss");
+            var fileName = isDynamic ? "DynamicGroups" : "AssignedGroups";
+            var csvPath = Path.Combine(outputPath, $"{fileName}-{timestamp}.csv");
+
+            var sb = new StringBuilder();
+
+            if (isDynamic)
+            {
+                sb.AppendLine("\"Group Name\",\"Description\",\"Membership Rule\",\"Processing State\"," +
+                              "\"Group Type\",\"Total Members\",\"Users\",\"Devices\",\"Nested Groups\"," +
+                              "\"Security Enabled\",\"Mail Enabled\",\"Created Date\",\"Group ID\"");
+
+                foreach (var row in rows)
+                {
+                    sb.AppendLine(string.Join(",",
+                        CsvEscape(row.GroupName), CsvEscape(row.Description),
+                        CsvEscape(row.MembershipRule), CsvEscape(row.ProcessingState),
+                        CsvEscape(row.GroupType), CsvEscape(row.TotalMembers),
+                        CsvEscape(row.Users), CsvEscape(row.Devices),
+                        CsvEscape(row.NestedGroups), CsvEscape(row.SecurityEnabled),
+                        CsvEscape(row.MailEnabled), CsvEscape(row.CreatedDate),
+                        CsvEscape(row.GroupId)));
+                }
+            }
+            else
+            {
+                sb.AppendLine("\"Group Name\",\"Description\",\"Group Type\"," +
+                              "\"Total Members\",\"Users\",\"Devices\",\"Nested Groups\"," +
+                              "\"Security Enabled\",\"Mail Enabled\",\"Created Date\",\"Group ID\"");
+
+                foreach (var row in rows)
+                {
+                    sb.AppendLine(string.Join(",",
+                        CsvEscape(row.GroupName), CsvEscape(row.Description),
+                        CsvEscape(row.GroupType), CsvEscape(row.TotalMembers),
+                        CsvEscape(row.Users), CsvEscape(row.Devices),
+                        CsvEscape(row.NestedGroups), CsvEscape(row.SecurityEnabled),
+                        CsvEscape(row.MailEnabled), CsvEscape(row.CreatedDate),
+                        CsvEscape(row.GroupId)));
+                }
+            }
+
+            await File.WriteAllTextAsync(csvPath, sb.ToString(), Encoding.UTF8, cancellationToken);
+            StatusText = $"Exported {rows.Count} {label.ToLowerInvariant()} to {csvPath}";
+        }
+        catch (Exception ex)
+        {
+            SetError($"CSV export failed: {ex.Message}");
+            StatusText = "CSV export failed";
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+    // --- Dynamic Groups view ---
+
+    private async Task LoadDynamicGroupRowsAsync()
+    {
+        if (_groupService == null) return;
+
+        IsBusy = true;
+        StatusText = "Loading dynamic groups...";
+
+        try
+        {
+            var groups = await _groupService.ListDynamicGroupsAsync();
+            var rows = new List<GroupRow>();
+            var total = groups.Count;
+            var processed = 0;
+
+            using var semaphore = new SemaphoreSlim(5, 5);
+            var tasks = groups.Select(async group =>
+            {
+                await semaphore.WaitAsync();
+                try
+                {
+                    var counts = group.Id != null
+                        ? await _groupService.GetMemberCountsAsync(group.Id)
+                        : new GroupMemberCounts(0, 0, 0, 0);
+
+                    var row = BuildGroupRow(group, counts);
+
+                    lock (rows)
+                    {
+                        rows.Add(row);
+                        processed++;
+                    }
+
+                    if (processed % 10 == 0 || processed == total)
+                    {
+                        var p = processed;
+                        Dispatcher.UIThread.Post(() =>
+                            StatusText = $"Loading dynamic groups... {p}/{total}");
+                    }
+                }
+                finally { semaphore.Release(); }
+            }).ToList();
+
+            await Task.WhenAll(tasks);
+
+            rows.Sort((a, b) => string.Compare(a.GroupName, b.GroupName, StringComparison.OrdinalIgnoreCase));
+
+            DynamicGroupRows = new ObservableCollection<GroupRow>(rows);
+            _dynamicGroupsLoaded = true;
+            ApplyFilter();
+            StatusText = $"Loaded {rows.Count} dynamic group(s)";
+        }
+        catch (Exception ex)
+        {
+            SetError($"Failed to load dynamic groups: {ex.Message}");
+            StatusText = "Error loading dynamic groups";
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+    // --- Assigned Groups view ---
+
+    private async Task LoadAssignedGroupRowsAsync()
+    {
+        if (_groupService == null) return;
+
+        IsBusy = true;
+        StatusText = "Loading assigned groups...";
+
+        try
+        {
+            var groups = await _groupService.ListAssignedGroupsAsync();
+            var rows = new List<GroupRow>();
+            var total = groups.Count;
+            var processed = 0;
+
+            using var semaphore = new SemaphoreSlim(5, 5);
+            var tasks = groups.Select(async group =>
+            {
+                await semaphore.WaitAsync();
+                try
+                {
+                    var counts = group.Id != null
+                        ? await _groupService.GetMemberCountsAsync(group.Id)
+                        : new GroupMemberCounts(0, 0, 0, 0);
+
+                    var row = BuildGroupRow(group, counts);
+
+                    lock (rows)
+                    {
+                        rows.Add(row);
+                        processed++;
+                    }
+
+                    if (processed % 10 == 0 || processed == total)
+                    {
+                        var p = processed;
+                        Dispatcher.UIThread.Post(() =>
+                            StatusText = $"Loading assigned groups... {p}/{total}");
+                    }
+                }
+                finally { semaphore.Release(); }
+            }).ToList();
+
+            await Task.WhenAll(tasks);
+
+            rows.Sort((a, b) => string.Compare(a.GroupName, b.GroupName, StringComparison.OrdinalIgnoreCase));
+
+            AssignedGroupRows = new ObservableCollection<GroupRow>(rows);
+            _assignedGroupsLoaded = true;
+            ApplyFilter();
+            StatusText = $"Loaded {rows.Count} assigned group(s)";
+        }
+        catch (Exception ex)
+        {
+            SetError($"Failed to load assigned groups: {ex.Message}");
+            StatusText = "Error loading assigned groups";
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+    private static GroupRow BuildGroupRow(Microsoft.Graph.Models.Group group, GroupMemberCounts counts)
+    {
+        return new GroupRow
+        {
+            GroupName = group.DisplayName ?? "",
+            Description = group.Description ?? "",
+            MembershipRule = group.MembershipRule ?? "",
+            ProcessingState = group.MembershipRuleProcessingState ?? "",
+            GroupType = GroupService.InferGroupType(group),
+            TotalMembers = counts.Total.ToString(CultureInfo.InvariantCulture),
+            Users = counts.Users.ToString(CultureInfo.InvariantCulture),
+            Devices = counts.Devices.ToString(CultureInfo.InvariantCulture),
+            NestedGroups = counts.NestedGroups.ToString(CultureInfo.InvariantCulture),
+            SecurityEnabled = group.SecurityEnabled == true ? "Yes" : "No",
+            MailEnabled = group.MailEnabled == true ? "Yes" : "No",
+            CreatedDate = group.CreatedDateTime?.ToString("g", CultureInfo.InvariantCulture) ?? "",
+            GroupId = group.Id ?? ""
+        };
+    }
+
     // --- Connection ---
 
     private async void OnLoginSucceeded(object? sender, TenantProfile profile)
@@ -1036,6 +1387,7 @@ public partial class MainWindowViewModel : ViewModelBase
             _configProfileService = new ConfigurationProfileService(_graphClient);
             _compliancePolicyService = new CompliancePolicyService(_graphClient);
             _applicationService = new ApplicationService(_graphClient);
+            _groupService = new GroupService(_graphClient);
             _importService = new ImportService(_configProfileService, _compliancePolicyService);
 
             RefreshSwitcherProfiles();
@@ -1130,8 +1482,10 @@ public partial class MainWindowViewModel : ViewModelBase
 
             ApplyFilter();
 
-            // Reset assignment state; actual loading is triggered lazily when needed
+            // Reset lazy-load state; actual loading is triggered when navigating to those tabs
             _appAssignmentsLoaded = false;
+            _dynamicGroupsLoaded = false;
+            _assignedGroupsLoaded = false;
         }
         catch (Exception ex)
         {
@@ -1350,12 +1704,19 @@ public partial class MainWindowViewModel : ViewModelBase
         AppAssignmentRows.Clear();
         SelectedAppAssignmentRow = null;
         _appAssignmentsLoaded = false;
+        DynamicGroupRows.Clear();
+        SelectedDynamicGroupRow = null;
+        _dynamicGroupsLoaded = false;
+        AssignedGroupRows.Clear();
+        SelectedAssignedGroupRow = null;
+        _assignedGroupsLoaded = false;
         SelectedItemAssignments.Clear();
         SelectedItemTypeName = "";
         _graphClient = null;
         _configProfileService = null;
         _compliancePolicyService = null;
         _applicationService = null;
+        _groupService = null;
         _importService = null;
     }
 }
