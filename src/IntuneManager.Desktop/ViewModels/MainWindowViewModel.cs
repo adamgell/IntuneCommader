@@ -1515,11 +1515,19 @@ public partial class MainWindowViewModel : ViewModelBase
             StatusText = $"Connected to {profile.Name}";
             DebugLog.Log("Auth", $"Connected to {profile.Name}");
 
-            // Try loading cached data first for instant UI
-            var cacheLoaded = TryLoadFromCache(profile.TenantId ?? "");
-
-            // Always refresh from Graph (will update cache on success)
-            await RefreshAsync(CancellationToken.None);
+            // Try loading cached data — if all 4 types are cached, skip Graph refresh
+            var cachedCount = TryLoadFromCache(profile.TenantId ?? "");
+            if (cachedCount >= 4)
+            {
+                DebugLog.Log("Cache", "All data loaded from cache — skipping Graph refresh");
+                IsBusy = false;
+            }
+            else
+            {
+                if (cachedCount > 0)
+                    DebugLog.Log("Cache", $"Partial cache hit ({cachedCount}/4) — refreshing from Graph");
+                await RefreshAsync(CancellationToken.None);
+            }
         }
         catch (Exception ex)
         {
@@ -1608,6 +1616,7 @@ public partial class MainWindowViewModel : ViewModelBase
     {
         ClearError();
         IsBusy = true;
+        DebugLog.Log("Graph", "Refreshing all data from Graph API...");
         var errors = new List<string>();
 
         try
@@ -1890,13 +1899,16 @@ public partial class MainWindowViewModel : ViewModelBase
     // --- Cache helpers ---
 
     /// <summary>
-    /// Attempts to populate all collections from cached data. Returns true if any data was loaded.
+    /// Attempts to populate all collections from cached data.
+    /// Returns how many data types were loaded (0–4).
     /// </summary>
-    private bool TryLoadFromCache(string tenantId)
+    private int TryLoadFromCache(string tenantId)
     {
-        if (string.IsNullOrEmpty(tenantId)) return false;
+        if (string.IsNullOrEmpty(tenantId)) return 0;
 
-        var anyLoaded = false;
+        var typesLoaded = 0;
+        DateTime? oldestCacheTime = null;
+
         try
         {
             var configs = _cacheService.Get<DeviceConfiguration>(tenantId, CacheKeyDeviceConfigs);
@@ -1904,7 +1916,8 @@ public partial class MainWindowViewModel : ViewModelBase
             {
                 DeviceConfigurations = new ObservableCollection<DeviceConfiguration>(configs);
                 DebugLog.Log("Cache", $"Loaded {configs.Count} device configuration(s) from cache");
-                anyLoaded = true;
+                typesLoaded++;
+                UpdateOldestCacheTime(ref oldestCacheTime, tenantId, CacheKeyDeviceConfigs);
             }
 
             var policies = _cacheService.Get<DeviceCompliancePolicy>(tenantId, CacheKeyCompliancePolicies);
@@ -1912,7 +1925,8 @@ public partial class MainWindowViewModel : ViewModelBase
             {
                 CompliancePolicies = new ObservableCollection<DeviceCompliancePolicy>(policies);
                 DebugLog.Log("Cache", $"Loaded {policies.Count} compliance policy(ies) from cache");
-                anyLoaded = true;
+                typesLoaded++;
+                UpdateOldestCacheTime(ref oldestCacheTime, tenantId, CacheKeyCompliancePolicies);
             }
 
             var apps = _cacheService.Get<MobileApp>(tenantId, CacheKeyApplications);
@@ -1920,7 +1934,8 @@ public partial class MainWindowViewModel : ViewModelBase
             {
                 Applications = new ObservableCollection<MobileApp>(apps);
                 DebugLog.Log("Cache", $"Loaded {apps.Count} application(s) from cache");
-                anyLoaded = true;
+                typesLoaded++;
+                UpdateOldestCacheTime(ref oldestCacheTime, tenantId, CacheKeyApplications);
             }
 
             var settingsPolicies = _cacheService.Get<DeviceManagementConfigurationPolicy>(tenantId, CacheKeySettingsCatalog);
@@ -1928,13 +1943,15 @@ public partial class MainWindowViewModel : ViewModelBase
             {
                 SettingsCatalogPolicies = new ObservableCollection<DeviceManagementConfigurationPolicy>(settingsPolicies);
                 DebugLog.Log("Cache", $"Loaded {settingsPolicies.Count} settings catalog policy(ies) from cache");
-                anyLoaded = true;
+                typesLoaded++;
+                UpdateOldestCacheTime(ref oldestCacheTime, tenantId, CacheKeySettingsCatalog);
             }
 
-            if (anyLoaded)
+            if (typesLoaded > 0)
             {
                 var totalItems = DeviceConfigurations.Count + CompliancePolicies.Count + Applications.Count + SettingsCatalogPolicies.Count;
-                StatusText = $"Loaded {totalItems} cached item(s) — refreshing from Graph...";
+                var ageText = FormatCacheAge(oldestCacheTime);
+                StatusText = $"Loaded {totalItems} item(s) from cache ({ageText})";
                 ApplyFilter();
             }
             else
@@ -1947,7 +1964,27 @@ public partial class MainWindowViewModel : ViewModelBase
             DebugLog.LogError($"Failed to load from cache: {ex.Message}", ex);
         }
 
-        return anyLoaded;
+        return typesLoaded;
+    }
+
+    private void UpdateOldestCacheTime(ref DateTime? oldest, string tenantId, string dataType)
+    {
+        var meta = _cacheService.GetMetadata(tenantId, dataType);
+        if (meta != null)
+        {
+            if (oldest == null || meta.Value.CachedAt < oldest.Value)
+                oldest = meta.Value.CachedAt;
+        }
+    }
+
+    private static string FormatCacheAge(DateTime? cachedAtUtc)
+    {
+        if (cachedAtUtc == null) return "unknown age";
+        var age = DateTime.UtcNow - cachedAtUtc.Value;
+        if (age.TotalMinutes < 1) return "just now";
+        if (age.TotalMinutes < 60) return $"{(int)age.TotalMinutes}m ago";
+        if (age.TotalHours < 24) return $"{(int)age.TotalHours}h {age.Minutes}m ago";
+        return $"{(int)age.TotalDays}d ago";
     }
 
     /// <summary>
