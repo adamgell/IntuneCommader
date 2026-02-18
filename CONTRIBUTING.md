@@ -253,15 +253,15 @@ See [PR_STATUS.md](PR_STATUS.md) for current PR organization and recommended mer
 
 ## Wave Implementation
 
-The project uses a Wave system for implementing new Intune object types. See `docs/issues/` for detailed tracking:
+The project uses a Wave system for implementing new Intune object types. See `docs/issues/` for detailed tracking and current status:
 
-- **Wave 1**: Endpoint Security, Admin Templates, Enrollment (✅ Complete)
-- **Wave 2**: App Protection, Managed App Configs (🔲 Not Started)
-- **Wave 3**: Tenant Administration (🔲 Not Started)
-- **Wave 4**: Autopilot, Device Management (🔲 Not Started)
-- **Wave 5**: Conditional Access, Identity (🔲 Not Started)
+- **Wave 1**: Endpoint Security, Admin Templates, Enrollment
+- **Wave 2**: App Protection, Managed App Configs
+- **Wave 3**: Tenant Administration
+- **Wave 4**: Autopilot, Device Management
+- **Wave 5**: Conditional Access, Identity
 
-If contributing a new service, refer to the appropriate Wave document for detailed requirements.
+If contributing a new service, refer to the appropriate Wave document for detailed requirements and up-to-date progress.
 
 ## License
 
