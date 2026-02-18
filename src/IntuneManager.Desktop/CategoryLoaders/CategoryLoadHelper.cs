@@ -7,10 +7,21 @@ namespace IntuneManager.Desktop.CategoryLoaders;
 
 /// <summary>
 /// Executes any <see cref="ICategoryLoader{T}"/> with standard boilerplate:
-/// busy state, status messages, cache read/write, error reporting (via FormatError), and filter refresh.
+/// busy state, status messages, cache write, error reporting, and filter refresh.
+///
+/// This is a pure network-fetch wrapper. Cache reads must be done separately
+/// via <c>TryLoadLazyCacheEntry</c> in the <c>SelectedNavCategory</c> setter,
+/// maintaining consistency with all existing 30+ categories.
 ///
 /// Usage in MainWindowViewModel:
 /// <code>
+/// // In SelectedNavCategory setter:
+/// if (!TryLoadLazyCacheEntry&lt;T&gt;(cacheKey, rows =&gt; { ... }))
+/// {
+///     _ = LoadXAsync();
+/// }
+///
+/// // In LoadXAsync:
 /// var items = await CategoryLoadHelper.ExecuteAsync(loader, _loadCtx, cancellationToken);
 /// if (items != null)
 /// {
@@ -22,7 +33,8 @@ namespace IntuneManager.Desktop.CategoryLoaders;
 public static class CategoryLoadHelper
 {
     /// <summary>
-    /// Runs the loader, applying cache and VM state management.
+    /// Runs the loader, applying cache write and VM state management.
+    /// Does NOT check cache — caller must use <c>TryLoadLazyCacheEntry</c> first.
     /// Returns <c>null</c> if the load fails; callers must not set the
     /// <c>_*Loaded</c> flag in that case.
     /// </summary>
@@ -36,18 +48,6 @@ public static class CategoryLoadHelper
 
         try
         {
-            // --- Cache read ---
-            if (ctx.TenantId != null)
-            {
-                var cached = ctx.CacheService.Get<T>(ctx.TenantId, loader.CacheKey);
-                if (cached is { Count: > 0 })
-                {
-                    ctx.ApplyFilter();
-                    ctx.SetStatus($"Loaded {cached.Count} {loader.CategoryName.ToLowerInvariant()} from cache");
-                    return cached;
-                }
-            }
-
             // --- Network fetch ---
             var items = await loader.FetchAsync(cancellationToken);
 
