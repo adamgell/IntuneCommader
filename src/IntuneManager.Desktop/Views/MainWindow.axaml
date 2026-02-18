@@ -18,9 +18,8 @@
     </Design.DataContext>
 
     <DockPanel>
-        <Grid DockPanel.Dock="Top">
-            <!-- Menu Bar -->
-            <Menu>
+        <!-- Menu Bar -->
+        <Menu DockPanel.Dock="Top">
                 <MenuItem Header="_File">
                     <MenuItem Header="_Refresh" Command="{Binding RefreshCommand}" InputGesture="F5" />
                     <Separator />
@@ -31,16 +30,7 @@
                     <Separator />
                     <MenuItem Header="_About Intune Commander" x:Name="MenuAbout" Click="OnAboutClick" />
                 </MenuItem>
-            </Menu>
-
-            <!-- Cache date indicator (right-aligned in menu bar) -->
-            <TextBlock Text="{Binding CacheStatusText}"
-                       Margin="0,0,12,0"
-                       FontSize="11" Foreground="{DynamicResource TextFillColorPrimaryBrush}"
-                       HorizontalAlignment="Right" VerticalAlignment="Center"
-                       IsHitTestVisible="False"
-                       IsVisible="{Binding CacheStatusText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
-        </Grid>
+        </Menu>
 
         <!-- Status Bar -->
         <Border DockPanel.Dock="Bottom" Background="{DynamicResource SystemControlBackgroundChromeMediumBrush}"
@@ -81,6 +71,8 @@
                 <!-- Left side: Status text + error text -->
                 <StackPanel Orientation="Vertical" Spacing="2" VerticalAlignment="Center">
                     <TextBlock Text="{Binding StatusText}" FontSize="12" />
+                    <TextBlock Text="{Binding CacheStatusText}" FontSize="11"
+                               Foreground="{DynamicResource SystemControlForegroundBaseHighBrush}" />
                     <TextBlock Text="{Binding ErrorMessage}" Foreground="{DynamicResource AppErrorTextBrush}" FontSize="11"
                                TextWrapping="Wrap"
                                IsVisible="{Binding ErrorMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />

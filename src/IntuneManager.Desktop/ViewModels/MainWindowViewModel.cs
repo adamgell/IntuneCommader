@@ -2774,6 +2774,8 @@ public partial class MainWindowViewModel : ViewModelBase
     {
         if (string.IsNullOrEmpty(tenantId)) return;
 
+        CacheStatusText = $"Cache: {DateTime.Now:MMM dd, h:mm tt}";
+
         try
         {
             if (DeviceConfigurations.Count > 0)
@@ -2798,7 +2800,6 @@ public partial class MainWindowViewModel : ViewModelBase
                 _cacheService.Set(tenantId, CacheKeyPolicySets, PolicySets.ToList());
 
             DebugLog.Log("Cache", "Saved data to disk cache");
-            CacheStatusText = $"Cache: {DateTime.Now:MMM dd, h:mm tt}";
         }
         catch (Exception ex)
         {
