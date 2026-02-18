@@ -414,7 +414,7 @@ ViewModels/
 > **Important:** The project uses `Microsoft.Graph.Beta`, **not** the stable `Microsoft.Graph` package.
 
 ### Dependency Management
-- Use central package management (Directory.Packages.props)
-- Pin major versions, float minor/patch
+- Package versions are pinned directly in each `.csproj` file
+- No central package management (Directory.Packages.props)
 - Review updates monthly
 - Test before updating Graph SDK
