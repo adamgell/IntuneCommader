@@ -1,0 +1,29 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="IntuneManager.Desktop.Views.RawJsonWindow"
+        Title="Raw JSON"
+        Width="700" Height="600"
+        WindowStartupLocation="CenterOwner">
+
+    <DockPanel Margin="12">
+        <DockPanel DockPanel.Dock="Top" Margin="0,0,0,8">
+            <Button DockPanel.Dock="Right" Content="📋 Copy to Clipboard"
+                    Click="OnCopyClick"
+                    FontSize="12" Padding="8,4"
+                    VerticalAlignment="Center" />
+            <TextBlock x:Name="TitleText"
+                       FontSize="16" FontWeight="SemiBold"
+                       VerticalAlignment="Center"
+                       TextTrimming="CharacterEllipsis" />
+        </DockPanel>
+        <TextBox x:Name="JsonTextBox"
+                 IsReadOnly="True"
+                 AcceptsReturn="True"
+                 TextWrapping="Wrap"
+                 FontFamily="Cascadia Code, Consolas, Menlo, monospace"
+                 FontSize="12"
+                 BorderThickness="1"
+                 CornerRadius="4"
+                 Padding="8" />
+    </DockPanel>
+</Window>

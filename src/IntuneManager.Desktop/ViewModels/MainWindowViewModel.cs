@@ -5,6 +5,7 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Avalonia.Threading;
@@ -142,6 +143,12 @@ public partial class MainWindowViewModel : ViewModelBase
     private ObservableCollection<AssignmentDisplayItem> _selectedItemAssignments = [];
 
     [ObservableProperty]
+    private ObservableCollection<GroupMemberItem> _selectedGroupMembers = [];
+
+    [ObservableProperty]
+    private bool _isLoadingGroupMembers;
+
+    [ObservableProperty]
     private string _selectedItemTypeName = "";
 
     [ObservableProperty]
@@ -154,6 +161,7 @@ public partial class MainWindowViewModel : ViewModelBase
     /// Raised when the user clicks "Copy Details". The view handles clipboard access.
     /// </summary>
     public event Action<string>? CopyDetailsRequested;
+    public event Action<string, string>? ViewRawJsonRequested;
 
     /// <summary>
     /// Creates a <see cref="GroupLookupViewModel"/> wired to the current Graph services.
@@ -176,6 +184,41 @@ public partial class MainWindowViewModel : ViewModelBase
         var text = GetDetailText();
         if (!string.IsNullOrEmpty(text))
             CopyDetailsRequested?.Invoke(text);
+    }
+
+    [RelayCommand]
+    private void ViewRawJson()
+    {
+        object? item = SelectedConfiguration as object
+            ?? SelectedCompliancePolicy as object
+            ?? SelectedSettingsCatalogPolicy as object
+            ?? SelectedApplication as object;
+
+        if (item == null) return;
+
+        var title = item switch
+        {
+            DeviceConfiguration cfg => cfg.DisplayName ?? "Device Configuration",
+            DeviceCompliancePolicy pol => pol.DisplayName ?? "Compliance Policy",
+            DeviceManagementConfigurationPolicy sc => sc.Name ?? "Settings Catalog Policy",
+            MobileApp app => app.DisplayName ?? "Application",
+            _ => "Item"
+        };
+
+        try
+        {
+            var json = JsonSerializer.Serialize(item, item.GetType(), new JsonSerializerOptions
+            {
+                WriteIndented = true,
+                DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
+            });
+            ViewRawJsonRequested?.Invoke(title, json);
+        }
+        catch (Exception ex)
+        {
+            DebugLog.LogError($"Failed to serialize item to JSON: {ex.Message}", ex);
+            SetError("Failed to serialize item to JSON");
+        }
     }
 
     /// <summary>
@@ -656,6 +699,7 @@ public partial class MainWindowViewModel : ViewModelBase
         SelectedDynamicGroupRow = null;
         SelectedAssignedGroupRow = null;
         SelectedItemAssignments.Clear();
+        SelectedGroupMembers.Clear();
         SelectedItemTypeName = "";
         SelectedItemPlatform = "";
 
@@ -848,6 +892,46 @@ public partial class MainWindowViewModel : ViewModelBase
         OnPropertyChanged(nameof(CanRefreshSelectedItem));
         if (value?.Id != null)
             _ = LoadApplicationAssignmentsAsync(value.Id);
+    }
+
+    partial void OnSelectedDynamicGroupRowChanged(GroupRow? value)
+    {
+        SelectedGroupMembers.Clear();
+        if (value?.GroupId != null && !string.IsNullOrEmpty(value.GroupId))
+            _ = LoadGroupMembersAsync(value.GroupId);
+    }
+
+    partial void OnSelectedAssignedGroupRowChanged(GroupRow? value)
+    {
+        SelectedGroupMembers.Clear();
+        if (value?.GroupId != null && !string.IsNullOrEmpty(value.GroupId))
+            _ = LoadGroupMembersAsync(value.GroupId);
+    }
+
+    private async Task LoadGroupMembersAsync(string groupId)
+    {
+        if (_groupService == null) return;
+        IsLoadingGroupMembers = true;
+        try
+        {
+            var members = await _groupService.ListGroupMembersAsync(groupId);
+            var items = members.Select(m => new GroupMemberItem
+            {
+                MemberType = m.MemberType,
+                DisplayName = m.DisplayName,
+                SecondaryInfo = m.SecondaryInfo,
+                TertiaryInfo = m.TertiaryInfo,
+                Status = m.Status,
+                Id = m.Id
+            }).ToList();
+            SelectedGroupMembers = new ObservableCollection<GroupMemberItem>(items);
+            DebugLog.Log("Graph", $"Loaded {items.Count} member(s) for group {groupId}");
+        }
+        catch (Exception ex)
+        {
+            DebugLog.LogError($"Failed to load group members: {FormatGraphError(ex)}", ex);
+        }
+        finally { IsLoadingGroupMembers = false; }
     }
 
     private async Task LoadConfigAssignmentsAsync(string configId)

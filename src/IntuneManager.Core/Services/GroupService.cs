@@ -144,6 +144,81 @@ public class GroupService : IGroupService
         return new GroupMemberCounts(users, devices, nestedGroups, users + devices + nestedGroups);
     }
 
+    public async Task<List<GroupMemberInfo>> ListGroupMembersAsync(string groupId, CancellationToken cancellationToken = default)
+    {
+        var result = new List<GroupMemberInfo>();
+
+        var response = await _graphClient.Groups[groupId].Members
+            .GetAsync(req =>
+            {
+                req.QueryParameters.Select = new[]
+                {
+                    "id", "displayName", "userPrincipalName", "mail",
+                    "accountEnabled", "userType",
+                    "operatingSystem", "operatingSystemVersion",
+                    "isManaged", "isCompliant", "manufacturer", "model"
+                };
+                req.QueryParameters.Top = 999;
+            }, cancellationToken);
+
+        while (response?.Value != null)
+        {
+            foreach (var member in response.Value)
+            {
+                switch (member)
+                {
+                    case User u:
+                        result.Add(new GroupMemberInfo(
+                            MemberType: "User",
+                            DisplayName: u.DisplayName ?? "",
+                            SecondaryInfo: u.UserPrincipalName ?? "",
+                            TertiaryInfo: u.Mail ?? "",
+                            Status: u.AccountEnabled == true ? "Enabled" : u.AccountEnabled == false ? "Disabled" : "",
+                            Id: u.Id ?? ""));
+                        break;
+                    case Device d:
+                        var deviceStatus = new List<string>();
+                        if (d.IsManaged == true) deviceStatus.Add("Managed");
+                        if (d.IsCompliant == true) deviceStatus.Add("Compliant");
+                        else if (d.IsCompliant == false) deviceStatus.Add("Not Compliant");
+
+                        result.Add(new GroupMemberInfo(
+                            MemberType: "Device",
+                            DisplayName: d.DisplayName ?? "",
+                            SecondaryInfo: string.IsNullOrEmpty(d.OperatingSystem) ? ""
+                                : $"{d.OperatingSystem} {d.OperatingSystemVersion}".Trim(),
+                            TertiaryInfo: string.IsNullOrEmpty(d.Manufacturer) ? ""
+                                : $"{d.Manufacturer} {d.Model}".Trim(),
+                            Status: string.Join(", ", deviceStatus),
+                            Id: d.Id ?? ""));
+                        break;
+                    case Group g:
+                        result.Add(new GroupMemberInfo(
+                            MemberType: "Group",
+                            DisplayName: g.DisplayName ?? "",
+                            SecondaryInfo: InferGroupType(g),
+                            TertiaryInfo: "",
+                            Status: "",
+                            Id: g.Id ?? ""));
+                        break;
+                }
+            }
+
+            if (!string.IsNullOrEmpty(response.OdataNextLink))
+            {
+                response = await _graphClient.Groups[groupId].Members
+                    .WithUrl(response.OdataNextLink)
+                    .GetAsync(cancellationToken: cancellationToken);
+            }
+            else
+            {
+                break;
+            }
+        }
+
+        return result;
+    }
+
     /// <summary>
     /// Derives a friendly group-type label from the Graph <see cref="Group"/> properties.
     /// </summary>

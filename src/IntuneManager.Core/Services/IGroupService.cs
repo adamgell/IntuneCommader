@@ -21,6 +21,11 @@ public interface IGroupService
     Task<GroupMemberCounts> GetMemberCountsAsync(string groupId, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Returns detailed member list for the specified group (users, devices, nested groups).
+    /// </summary>
+    Task<List<GroupMemberInfo>> ListGroupMembersAsync(string groupId, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Searches for groups by display name (startsWith) or exact GUID.
     /// </summary>
     Task<List<Group>> SearchGroupsAsync(string query, CancellationToken cancellationToken = default);
@@ -42,3 +47,14 @@ public interface IGroupService
 /// Categorised member counts for a single group.
 /// </summary>
 public record GroupMemberCounts(int Users, int Devices, int NestedGroups, int Total);
+
+/// <summary>
+/// Detailed info for a single group member.
+/// </summary>
+public record GroupMemberInfo(
+    string MemberType,
+    string DisplayName,
+    string SecondaryInfo,
+    string TertiaryInfo,
+    string Status,
+    string Id);

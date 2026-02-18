@@ -56,6 +56,7 @@ public partial class MainWindow : Window
             _vm = vm;
             vm.SwitchProfileRequested += OnSwitchProfileRequested;
             vm.CopyDetailsRequested += OnCopyDetailsRequested;
+            vm.ViewRawJsonRequested += OnViewRawJsonRequested;
             vm.PropertyChanged += OnViewModelPropertyChanged;
         }
     }
@@ -341,6 +342,12 @@ public partial class MainWindow : Window
                 await clipboard.SetTextAsync(text);
         }
         catch { /* clipboard not available */ }
+    }
+
+    private void OnViewRawJsonRequested(string title, string json)
+    {
+        var window = new RawJsonWindow(title, json);
+        window.Show(this);
     }
 
     private void OnDebugLogLinkPressed(object? sender, PointerPressedEventArgs e)

@@ -230,10 +230,24 @@
                     <DockPanel Grid.Column="4" Margin="8"
                                IsVisible="{Binding !IsOverviewCategory}">
                         <DockPanel DockPanel.Dock="Top" Margin="0,0,0,8">
-                            <Button DockPanel.Dock="Right" Content="📋 Copy"
-                                    Command="{Binding CopyDetailsToClipboardCommand}"
-                                    FontSize="12" Padding="8,3"
-                                    VerticalAlignment="Center" />
+                            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="4">
+                                <Button Content="🔄 Refresh"
+                                        Command="{Binding RefreshSelectedItemCommand}"
+                                        IsEnabled="{Binding CanRefreshSelectedItem}"
+                                        FontSize="12" Padding="8,3"
+                                        VerticalAlignment="Center"
+                                        ToolTip.Tip="Refresh this item from Graph" />
+                                <Button Content="📄 JSON"
+                                        Command="{Binding ViewRawJsonCommand}"
+                                        IsEnabled="{Binding CanRefreshSelectedItem}"
+                                        FontSize="12" Padding="8,3"
+                                        VerticalAlignment="Center"
+                                        ToolTip.Tip="View raw Graph JSON object" />
+                                <Button Content="📋 Copy"
+                                        Command="{Binding CopyDetailsToClipboardCommand}"
+                                        FontSize="12" Padding="8,3"
+                                        VerticalAlignment="Center" />
+                            </StackPanel>
                             <TextBlock Text="Details"
                                        FontSize="16" FontWeight="SemiBold"
                                        VerticalAlignment="Center" />
@@ -923,6 +937,55 @@
                                     </StackPanel>
                                 </Border>
 
+                                <!-- Section: Members List -->
+                                <TextBlock Text="Members" FontSize="14" FontWeight="SemiBold"
+                                           Foreground="{DynamicResource SystemAccentColor}"
+                                           Margin="0,0,0,6" />
+                                <ProgressBar IsIndeterminate="True"
+                                             IsVisible="{Binding $parent[ScrollViewer].((vm:MainWindowViewModel)DataContext).IsLoadingGroupMembers}"
+                                             Height="2" Margin="0,0,0,4" />
+                                <Border Background="{DynamicResource SystemControlBackgroundChromeMediumLowBrush}"
+                                        CornerRadius="4" Padding="10" Margin="0,0,0,12">
+                                    <StackPanel>
+                                        <TextBlock Text="No members"
+                                                   Foreground="Gray" FontSize="12"
+                                                   IsVisible="{Binding !$parent[ScrollViewer].((vm:MainWindowViewModel)DataContext).SelectedGroupMembers.Count}" />
+                                        <ItemsControl ItemsSource="{Binding $parent[ScrollViewer].((vm:MainWindowViewModel)DataContext).SelectedGroupMembers}">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Border Padding="4,3" Margin="0,0,0,4">
+                                                        <DockPanel>
+                                                            <Border DockPanel.Dock="Left"
+                                                                    Background="{DynamicResource SystemAccentColor}"
+                                                                    CornerRadius="2" Padding="5,1" Margin="0,2,6,0"
+                                                                    VerticalAlignment="Top">
+                                                                <TextBlock Text="{Binding MemberType}"
+                                                                           FontSize="10" Foreground="White" />
+                                                            </Border>
+                                                            <TextBlock DockPanel.Dock="Right"
+                                                                       Text="{Binding Status}"
+                                                                       FontSize="11" Foreground="Gray"
+                                                                       Margin="6,0,0,0"
+                                                                       VerticalAlignment="Center"
+                                                                       IsVisible="{Binding Status, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                                                            <StackPanel Spacing="1">
+                                                                <SelectableTextBlock Text="{Binding DisplayName}"
+                                                                           FontSize="12" TextWrapping="Wrap" />
+                                                                <SelectableTextBlock Text="{Binding SecondaryInfo}"
+                                                                           FontSize="11" Foreground="Gray" Opacity="0.8"
+                                                                           IsVisible="{Binding SecondaryInfo, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                                                                <SelectableTextBlock Text="{Binding TertiaryInfo}"
+                                                                           FontSize="10" Foreground="Gray" Opacity="0.6"
+                                                                           IsVisible="{Binding TertiaryInfo, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                                                            </StackPanel>
+                                                        </DockPanel>
+                                                    </Border>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </StackPanel>
+                                </Border>
+
                             </StackPanel>
                         </ScrollViewer>
 
@@ -995,6 +1058,55 @@
                                                 <SelectableTextBlock Text="{Binding NestedGroups}" FontSize="14" />
                                             </StackPanel>
                                         </Grid>
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- Section: Members List -->
+                                <TextBlock Text="Members" FontSize="14" FontWeight="SemiBold"
+                                           Foreground="{DynamicResource SystemAccentColor}"
+                                           Margin="0,0,0,6" />
+                                <ProgressBar IsIndeterminate="True"
+                                             IsVisible="{Binding $parent[ScrollViewer].((vm:MainWindowViewModel)DataContext).IsLoadingGroupMembers}"
+                                             Height="2" Margin="0,0,0,4" />
+                                <Border Background="{DynamicResource SystemControlBackgroundChromeMediumLowBrush}"
+                                        CornerRadius="4" Padding="10" Margin="0,0,0,12">
+                                    <StackPanel>
+                                        <TextBlock Text="No members"
+                                                   Foreground="Gray" FontSize="12"
+                                                   IsVisible="{Binding !$parent[ScrollViewer].((vm:MainWindowViewModel)DataContext).SelectedGroupMembers.Count}" />
+                                        <ItemsControl ItemsSource="{Binding $parent[ScrollViewer].((vm:MainWindowViewModel)DataContext).SelectedGroupMembers}">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Border Padding="4,3" Margin="0,0,0,4">
+                                                        <DockPanel>
+                                                            <Border DockPanel.Dock="Left"
+                                                                    Background="{DynamicResource SystemAccentColor}"
+                                                                    CornerRadius="2" Padding="5,1" Margin="0,2,6,0"
+                                                                    VerticalAlignment="Top">
+                                                                <TextBlock Text="{Binding MemberType}"
+                                                                           FontSize="10" Foreground="White" />
+                                                            </Border>
+                                                            <TextBlock DockPanel.Dock="Right"
+                                                                       Text="{Binding Status}"
+                                                                       FontSize="11" Foreground="Gray"
+                                                                       Margin="6,0,0,0"
+                                                                       VerticalAlignment="Center"
+                                                                       IsVisible="{Binding Status, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                                                            <StackPanel Spacing="1">
+                                                                <SelectableTextBlock Text="{Binding DisplayName}"
+                                                                           FontSize="12" TextWrapping="Wrap" />
+                                                                <SelectableTextBlock Text="{Binding SecondaryInfo}"
+                                                                           FontSize="11" Foreground="Gray" Opacity="0.8"
+                                                                           IsVisible="{Binding SecondaryInfo, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                                                                <SelectableTextBlock Text="{Binding TertiaryInfo}"
+                                                                           FontSize="10" Foreground="Gray" Opacity="0.6"
+                                                                           IsVisible="{Binding TertiaryInfo, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                                                            </StackPanel>
+                                                        </DockPanel>
+                                                    </Border>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
                                     </StackPanel>
                                 </Border>
 
