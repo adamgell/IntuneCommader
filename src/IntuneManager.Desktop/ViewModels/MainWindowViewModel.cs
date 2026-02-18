@@ -31,6 +31,9 @@ public partial class MainWindowViewModel : ViewModelBase
     private const string CacheKeyCompliancePolicies = "CompliancePolicies";
     private const string CacheKeyApplications = "Applications";
     private const string CacheKeySettingsCatalog = "SettingsCatalog";
+    private const string CacheKeyAppAssignments = "AppAssignments";
+    private const string CacheKeyDynamicGroups = "DynamicGroups";
+    private const string CacheKeyAssignedGroups = "AssignedGroups";
 
     private GraphServiceClient? _graphClient;
     private IConfigurationProfileService? _configProfileService;
@@ -674,13 +677,46 @@ public partial class MainWindowViewModel : ViewModelBase
 
         // Lazy-load assignments when navigating to tabs that require them
         if ((value?.Name == "Application Assignments" || value?.Name == "Overview") && !_appAssignmentsLoaded)
-            _ = LoadAppAssignmentRowsAsync();
+        {
+            if (!TryLoadLazyCacheEntry<AppAssignmentRow>(CacheKeyAppAssignments, rows =>
+            {
+                AppAssignmentRows = new ObservableCollection<AppAssignmentRow>(rows);
+                _appAssignmentsLoaded = true;
+                ApplyFilter();
+                StatusText = $"Loaded {rows.Count} app assignment(s) from cache";
+            }))
+            {
+                _ = LoadAppAssignmentRowsAsync();
+            }
+        }
 
         // Lazy-load group views
         if (value?.Name == "Dynamic Groups" && !_dynamicGroupsLoaded)
-            _ = LoadDynamicGroupRowsAsync();
+        {
+            if (!TryLoadLazyCacheEntry<GroupRow>(CacheKeyDynamicGroups, rows =>
+            {
+                DynamicGroupRows = new ObservableCollection<GroupRow>(rows);
+                _dynamicGroupsLoaded = true;
+                ApplyFilter();
+                StatusText = $"Loaded {rows.Count} dynamic group(s) from cache";
+            }))
+            {
+                _ = LoadDynamicGroupRowsAsync();
+            }
+        }
         if (value?.Name == "Assigned Groups" && !_assignedGroupsLoaded)
-            _ = LoadAssignedGroupRowsAsync();
+        {
+            if (!TryLoadLazyCacheEntry<GroupRow>(CacheKeyAssignedGroups, rows =>
+            {
+                AssignedGroupRows = new ObservableCollection<GroupRow>(rows);
+                _assignedGroupsLoaded = true;
+                ApplyFilter();
+                StatusText = $"Loaded {rows.Count} assigned group(s) from cache";
+            }))
+            {
+                _ = LoadAssignedGroupRowsAsync();
+            }
+        }
     }
 
     // --- Selection-changed handlers (load detail + assignments) ---
@@ -931,6 +967,13 @@ public partial class MainWindowViewModel : ViewModelBase
             AppAssignmentRows = new ObservableCollection<AppAssignmentRow>(rows);
             _appAssignmentsLoaded = true;
             ApplyFilter();
+
+            // Save to cache
+            if (ActiveProfile?.TenantId != null)
+            {
+                _cacheService.Set(ActiveProfile.TenantId, CacheKeyAppAssignments, rows);
+                DebugLog.Log("Cache", $"Saved {rows.Count} app assignment row(s) to cache");
+            }
 
             // Update Overview dashboard now that all data is ready
             Overview.Update(
@@ -1379,6 +1422,14 @@ public partial class MainWindowViewModel : ViewModelBase
             DynamicGroupRows = new ObservableCollection<GroupRow>(rows);
             _dynamicGroupsLoaded = true;
             ApplyFilter();
+
+            // Save to cache
+            if (ActiveProfile?.TenantId != null)
+            {
+                _cacheService.Set(ActiveProfile.TenantId, CacheKeyDynamicGroups, rows);
+                DebugLog.Log("Cache", $"Saved {rows.Count} dynamic group row(s) to cache");
+            }
+
             StatusText = $"Loaded {rows.Count} dynamic group(s)";
         }
         catch (Exception ex)
@@ -1443,6 +1494,14 @@ public partial class MainWindowViewModel : ViewModelBase
             AssignedGroupRows = new ObservableCollection<GroupRow>(rows);
             _assignedGroupsLoaded = true;
             ApplyFilter();
+
+            // Save to cache
+            if (ActiveProfile?.TenantId != null)
+            {
+                _cacheService.Set(ActiveProfile.TenantId, CacheKeyAssignedGroups, rows);
+                DebugLog.Log("Cache", $"Saved {rows.Count} assigned group row(s) to cache");
+            }
+
             StatusText = $"Loaded {rows.Count} assigned group(s)";
         }
         catch (Exception ex)
@@ -1705,6 +1764,14 @@ public partial class MainWindowViewModel : ViewModelBase
             _appAssignmentsLoaded = false;
             _dynamicGroupsLoaded = false;
             _assignedGroupsLoaded = false;
+
+            // Invalidate lazy-load caches so they reload from Graph on next tab visit
+            if (ActiveProfile?.TenantId != null)
+            {
+                _cacheService.Invalidate(ActiveProfile.TenantId, CacheKeyAppAssignments);
+                _cacheService.Invalidate(ActiveProfile.TenantId, CacheKeyDynamicGroups);
+                _cacheService.Invalidate(ActiveProfile.TenantId, CacheKeyAssignedGroups);
+            }
         }
         catch (Exception ex)
         {
@@ -1985,6 +2052,33 @@ public partial class MainWindowViewModel : ViewModelBase
         if (age.TotalMinutes < 60) return $"{(int)age.TotalMinutes}m ago";
         if (age.TotalHours < 24) return $"{(int)age.TotalHours}h {age.Minutes}m ago";
         return $"{(int)age.TotalDays}d ago";
+    }
+
+    /// <summary>
+    /// Tries to load a lazy-loaded view (app assignments, groups) from cache.
+    /// Invokes the onLoaded callback with the data if found. Returns true if cache hit.
+    /// </summary>
+    private bool TryLoadLazyCacheEntry<T>(string cacheKey, Action<List<T>> onLoaded)
+    {
+        var tenantId = ActiveProfile?.TenantId;
+        if (string.IsNullOrEmpty(tenantId)) return false;
+
+        try
+        {
+            var cached = _cacheService.Get<T>(tenantId, cacheKey);
+            if (cached != null && cached.Count > 0)
+            {
+                DebugLog.Log("Cache", $"Loaded {cached.Count} {cacheKey} row(s) from cache");
+                onLoaded(cached);
+                return true;
+            }
+        }
+        catch (Exception ex)
+        {
+            DebugLog.LogError($"Failed to load {cacheKey} from cache: {ex.Message}", ex);
+        }
+
+        return false;
     }
 
     /// <summary>
