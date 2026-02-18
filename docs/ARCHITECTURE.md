@@ -98,12 +98,12 @@ methods use interactive auth rather than throwing.
 ```
 
 ### Encryption Strategy
-**Decision:** ASP.NET Core DataProtection with file-system key ring
+**Decision:** ASP.NET DataProtection with file-system key ring
 
 **Rationale:**
-- Cross-platform solution
-- No custom encryption keys to manage
-- Transparent encryption/decryption via DPAPI on Windows, file-system protection on Linux/macOS
+- Cross-platform encryption using a single consistent API
+- DPAPI-protected keys on Windows; file-system protected on macOS/Linux
+- Keys persist to `%LocalAppData%\IntuneManager\keys` directory
 
 **Implementation:**
 - Profile file encrypted via `Microsoft.AspNetCore.DataProtection`
@@ -415,6 +415,6 @@ ViewModels/
 
 ### Dependency Management
 - Package versions are pinned directly in each `.csproj` file
-- Pin major versions, float minor/patch
+- No central package management (Directory.Packages.props)
 - Review updates monthly
 - Test before updating Graph SDK
