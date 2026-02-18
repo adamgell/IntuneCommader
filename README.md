@@ -184,8 +184,8 @@ IntuneManager/
 
 ```bash
 # Clone the repository
-git clone https://github.com/adamgell/IntuneGUI.git
-cd IntuneGUI
+git clone https://github.com/adamgell/IntuneCommader.git
+cd IntuneCommader
 
 # Restore dependencies
 dotnet restore

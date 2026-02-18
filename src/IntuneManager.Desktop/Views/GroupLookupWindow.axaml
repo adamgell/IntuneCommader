@@ -41,8 +41,8 @@
         <!-- Error message -->
         <Border DockPanel.Dock="Bottom"
                 IsVisible="{Binding ErrorMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
-                Background="#44FF0000" CornerRadius="4" Padding="8" Margin="0,4,0,0">
-            <TextBlock Text="{Binding ErrorMessage}" Foreground="Red" FontSize="12" TextWrapping="Wrap" />
+                Background="{DynamicResource AppErrorBackgroundBrush}" CornerRadius="4" Padding="8" Margin="0,4,0,0">
+            <TextBlock Text="{Binding ErrorMessage}" Foreground="{DynamicResource AppErrorTextBrush}" FontSize="12" TextWrapping="Wrap" />
         </Border>
 
         <!-- Group search results (shown when multiple results, hidden after selection loads) -->

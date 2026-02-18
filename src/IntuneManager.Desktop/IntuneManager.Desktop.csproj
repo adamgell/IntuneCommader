@@ -5,6 +5,7 @@
     <Nullable>enable</Nullable>
     <AssemblyTitle>Intune Commander</AssemblyTitle>
     <Product>Intune Commander</Product>
+    <ApplicationIcon>..\..\icon.ico</ApplicationIcon>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
   </PropertyGroup>

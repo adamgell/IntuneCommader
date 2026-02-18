@@ -31,7 +31,7 @@
                     </Style>
                 </ProgressBar.Styles>
             </ProgressBar>
-            <TextBlock Text="Loading dashboard data…" FontSize="14" Foreground="Gray"
+            <TextBlock Text="Loading dashboard data…" FontSize="14" Foreground="{DynamicResource AppTextSecondaryBrush}"
                        HorizontalAlignment="Center" />
         </StackPanel>
     </Border>
@@ -49,11 +49,11 @@
                     <StackPanel Spacing="4">
                         <TextBlock Text="{Binding TenantName}" FontSize="20" FontWeight="Bold" />
                         <StackPanel Orientation="Horizontal" Spacing="12">
-                            <TextBlock FontSize="12" Foreground="Gray">
+                            <TextBlock FontSize="12" Foreground="{DynamicResource AppTextSecondaryBrush}">
                                 <Run Text="Tenant ID:" />
                                 <Run Text="{Binding TenantId}" />
                             </TextBlock>
-                            <TextBlock FontSize="12" Foreground="Gray">
+                            <TextBlock FontSize="12" Foreground="{DynamicResource AppTextSecondaryBrush}">
                                 <Run Text="Cloud:" />
                                 <Run Text="{Binding CloudEnvironment}" />
                             </TextBlock>
@@ -74,7 +74,7 @@
                         <TextBlock Text="⚙" FontSize="24" HorizontalAlignment="Center" />
                         <TextBlock Text="{Binding TotalDeviceConfigs}" FontSize="28" FontWeight="Bold"
                                    HorizontalAlignment="Center" Foreground="#2196F3" />
-                        <TextBlock Text="Device Configs" FontSize="12" Foreground="Gray"
+                        <TextBlock Text="Device Configs" FontSize="12" Foreground="{DynamicResource AppTextSecondaryBrush}"
                                    HorizontalAlignment="Center" />
                     </StackPanel>
                 </Border>
@@ -84,7 +84,7 @@
                         <TextBlock Text="✓" FontSize="24" HorizontalAlignment="Center" />
                         <TextBlock Text="{Binding TotalCompliancePolicies}" FontSize="28" FontWeight="Bold"
                                    HorizontalAlignment="Center" Foreground="#4CAF50" />
-                        <TextBlock Text="Compliance Policies" FontSize="12" Foreground="Gray"
+                        <TextBlock Text="Compliance Policies" FontSize="12" Foreground="{DynamicResource AppTextSecondaryBrush}"
                                    HorizontalAlignment="Center" />
                     </StackPanel>
                 </Border>
@@ -94,7 +94,7 @@
                         <TextBlock Text="📦" FontSize="24" HorizontalAlignment="Center" />
                         <TextBlock Text="{Binding TotalApplications}" FontSize="28" FontWeight="Bold"
                                    HorizontalAlignment="Center" Foreground="#FF9800" />
-                        <TextBlock Text="Applications" FontSize="12" Foreground="Gray"
+                        <TextBlock Text="Applications" FontSize="12" Foreground="{DynamicResource AppTextSecondaryBrush}"
                                    HorizontalAlignment="Center" />
                     </StackPanel>
                 </Border>
@@ -104,7 +104,7 @@
                         <TextBlock Text="⚠" FontSize="24" HorizontalAlignment="Center" />
                         <TextBlock Text="{Binding UnassignedAppCount}" FontSize="28" FontWeight="Bold"
                                    HorizontalAlignment="Center" Foreground="#F44336" />
-                        <TextBlock Text="Unassigned Apps" FontSize="12" Foreground="Gray"
+                        <TextBlock Text="Unassigned Apps" FontSize="12" Foreground="{DynamicResource AppTextSecondaryBrush}"
                                    HorizontalAlignment="Center" />
                     </StackPanel>
                 </Border>
@@ -164,7 +164,7 @@
                                                        Foreground="White" />
                                         </Border>
                                         <TextBlock Grid.Column="2" Text="{Binding ModifiedText}"
-                                                   FontSize="11" Foreground="Gray"
+                                                   FontSize="11" Foreground="{DynamicResource AppTextSecondaryBrush}"
                                                    VerticalAlignment="Center" />
                                     </Grid>
                                 </Border>

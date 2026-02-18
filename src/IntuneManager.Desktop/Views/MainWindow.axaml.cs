@@ -366,7 +366,7 @@ public partial class MainWindow : Window
 
     private void OnCheckForUpdatesClick(object? sender, RoutedEventArgs e)
     {
-        OpenUrl("https://github.com/adamgell/IntuneGUI/releases");
+        OpenUrl("https://github.com/adamgell/IntuneCommader/releases");
     }
 
     private async void OnAboutClick(object? sender, RoutedEventArgs e)
@@ -379,7 +379,7 @@ public partial class MainWindow : Window
             $"Intune Commander {versionText}\n\n" +
             "A .NET 8 / Avalonia desktop app for managing\n" +
             "Microsoft Intune configurations across clouds.\n\n" +
-            "https://github.com/adamgell/IntuneGUI",
+            "https://github.com/adamgell/IntuneCommader",
             ButtonEnum.Ok,
             MsBox.Avalonia.Enums.Icon.Info);
 

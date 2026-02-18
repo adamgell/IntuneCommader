@@ -9,7 +9,7 @@ Intune Commander is a **.NET 8 / Avalonia UI** desktop application for managing 
 ## Repository Structure
 
 ```
-IntuneGUI/
+IntuneCommander/
 ├── CLAUDE.md                  # This file
 ├── README.md                  # Project overview
 ├── .gitignore                 # .NET / editor exclusions
