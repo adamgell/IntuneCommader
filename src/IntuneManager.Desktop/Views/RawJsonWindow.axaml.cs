@@ -1,3 +1,4 @@
+using System;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 
@@ -25,11 +26,9 @@ public partial class RawJsonWindow : Window
             if (clipboard != null)
                 await clipboard.SetTextAsync(JsonTextBox.Text ?? "");
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            // Log the clipboard error for diagnostics and inform the user.
-            DebugLog.LogError(ex, "Failed to copy JSON to clipboard in RawJsonWindow.");
-
+            // Inform the user of the clipboard error.
             var errorWindow = new Window
             {
                 Title = "Clipboard Error",
