@@ -89,6 +89,7 @@ methods use interactive auth rather than throwing.
       "cloud": "GCCHigh",
       "authMethod": "Interactive",
       "clientSecret": null,
+      "certificateThumbprint": null,
       "lastUsed": "2025-02-14T10:30:00Z"
     }
   ],
