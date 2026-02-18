@@ -15,7 +15,7 @@ namespace IntuneManager.Desktop.CategoryLoaders;
 /// <see cref="CategoryLoadHelper.ExecuteAsync{T}"/>, and use the returned
 /// list to populate the corresponding <c>ObservableCollection</c>.
 /// </summary>
-/// <typeparam name="T">The Graph Beta model type for this category.</typeparam>
+/// <typeparam name="T">The Microsoft Graph model type for this category.</typeparam>
 public interface ICategoryLoader<T>
 {
     /// <summary>
