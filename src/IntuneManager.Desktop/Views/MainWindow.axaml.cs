@@ -69,6 +69,9 @@ public partial class MainWindow : Window
             or nameof(MainWindowViewModel.IsApplicationCategory)
             or nameof(MainWindowViewModel.IsAppAssignmentsCategory)
             or nameof(MainWindowViewModel.IsSettingsCatalogCategory)
+            or nameof(MainWindowViewModel.IsConditionalAccessCategory)
+            or nameof(MainWindowViewModel.IsAssignmentFiltersCategory)
+            or nameof(MainWindowViewModel.IsPolicySetsCategory)
             or nameof(MainWindowViewModel.IsDynamicGroupsCategory)
             or nameof(MainWindowViewModel.IsAssignedGroupsCategory)
             or nameof(MainWindowViewModel.IsOverviewCategory))
@@ -93,6 +96,9 @@ public partial class MainWindow : Window
             or nameof(MainWindowViewModel.FilteredApplications)
             or nameof(MainWindowViewModel.FilteredAppAssignmentRows)
             or nameof(MainWindowViewModel.FilteredSettingsCatalogPolicies)
+            or nameof(MainWindowViewModel.FilteredConditionalAccessPolicies)
+            or nameof(MainWindowViewModel.FilteredAssignmentFilters)
+            or nameof(MainWindowViewModel.FilteredPolicySets)
             or nameof(MainWindowViewModel.FilteredDynamicGroupRows)
             or nameof(MainWindowViewModel.FilteredAssignedGroupRows))
         {
@@ -117,6 +123,9 @@ public partial class MainWindow : Window
             nameof(MainWindowViewModel.FilteredApplications)        => _vm.IsApplicationCategory,
             nameof(MainWindowViewModel.FilteredAppAssignmentRows)   => _vm.IsAppAssignmentsCategory,
             nameof(MainWindowViewModel.FilteredSettingsCatalogPolicies) => _vm.IsSettingsCatalogCategory,
+            nameof(MainWindowViewModel.FilteredConditionalAccessPolicies) => _vm.IsConditionalAccessCategory,
+            nameof(MainWindowViewModel.FilteredAssignmentFilters)   => _vm.IsAssignmentFiltersCategory,
+            nameof(MainWindowViewModel.FilteredPolicySets)          => _vm.IsPolicySetsCategory,
             nameof(MainWindowViewModel.FilteredDynamicGroupRows)    => _vm.IsDynamicGroupsCategory,
             nameof(MainWindowViewModel.FilteredAssignedGroupRows)   => _vm.IsAssignedGroupsCategory,
             _ => false
@@ -165,6 +174,27 @@ public partial class MainWindow : Window
                 new Binding(nameof(_vm.FilteredSettingsCatalogPolicies)) { Source = _vm });
             _mainDataGrid.Bind(DataGrid.SelectedItemProperty,
                 new Binding(nameof(_vm.SelectedSettingsCatalogPolicy)) { Source = _vm, Mode = BindingMode.TwoWay });
+        }
+        else if (_vm.IsConditionalAccessCategory)
+        {
+            _mainDataGrid.Bind(DataGrid.ItemsSourceProperty,
+                new Binding(nameof(_vm.FilteredConditionalAccessPolicies)) { Source = _vm });
+            _mainDataGrid.Bind(DataGrid.SelectedItemProperty,
+                new Binding(nameof(_vm.SelectedConditionalAccessPolicy)) { Source = _vm, Mode = BindingMode.TwoWay });
+        }
+        else if (_vm.IsAssignmentFiltersCategory)
+        {
+            _mainDataGrid.Bind(DataGrid.ItemsSourceProperty,
+                new Binding(nameof(_vm.FilteredAssignmentFilters)) { Source = _vm });
+            _mainDataGrid.Bind(DataGrid.SelectedItemProperty,
+                new Binding(nameof(_vm.SelectedAssignmentFilter)) { Source = _vm, Mode = BindingMode.TwoWay });
+        }
+        else if (_vm.IsPolicySetsCategory)
+        {
+            _mainDataGrid.Bind(DataGrid.ItemsSourceProperty,
+                new Binding(nameof(_vm.FilteredPolicySets)) { Source = _vm });
+            _mainDataGrid.Bind(DataGrid.SelectedItemProperty,
+                new Binding(nameof(_vm.SelectedPolicySet)) { Source = _vm, Mode = BindingMode.TwoWay });
         }
         else if (_vm.IsDynamicGroupsCategory)
         {

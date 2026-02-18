@@ -43,6 +43,9 @@ public partial class MainWindowViewModel : ViewModelBase
     private IApplicationService? _applicationService;
     private IGroupService? _groupService;
     private ISettingsCatalogService? _settingsCatalogService;
+    private IConditionalAccessPolicyService? _conditionalAccessPolicyService;
+    private IAssignmentFilterService? _assignmentFilterService;
+    private IPolicySetService? _policySetService;
 
     [ObservableProperty]
     private ViewModelBase? _currentView;
@@ -79,6 +82,9 @@ public partial class MainWindowViewModel : ViewModelBase
         new NavCategory { Name = "Applications", Icon = "📦" },
         new NavCategory { Name = "Application Assignments", Icon = "📋" },
         new NavCategory { Name = "Settings Catalog", Icon = "⚙" },
+        new NavCategory { Name = "Conditional Access", Icon = "🔐" },
+        new NavCategory { Name = "Assignment Filters", Icon = "🧩" },
+        new NavCategory { Name = "Policy Sets", Icon = "🗂" },
         new NavCategory { Name = "Dynamic Groups", Icon = "🔄" },
         new NavCategory { Name = "Assigned Groups", Icon = "👥" }
     ];
@@ -113,6 +119,27 @@ public partial class MainWindowViewModel : ViewModelBase
 
     [ObservableProperty]
     private DeviceManagementConfigurationPolicy? _selectedSettingsCatalogPolicy;
+
+    // --- Conditional Access ---
+    [ObservableProperty]
+    private ObservableCollection<ConditionalAccessPolicy> _conditionalAccessPolicies = [];
+
+    [ObservableProperty]
+    private ConditionalAccessPolicy? _selectedConditionalAccessPolicy;
+
+    // --- Assignment Filters ---
+    [ObservableProperty]
+    private ObservableCollection<DeviceAndAppManagementAssignmentFilter> _assignmentFilters = [];
+
+    [ObservableProperty]
+    private DeviceAndAppManagementAssignmentFilter? _selectedAssignmentFilter;
+
+    // --- Policy Sets ---
+    [ObservableProperty]
+    private ObservableCollection<PolicySet> _policySets = [];
+
+    [ObservableProperty]
+    private PolicySet? _selectedPolicySet;
 
     // --- Application Assignments (flattened view) ---
     [ObservableProperty]
@@ -195,7 +222,10 @@ public partial class MainWindowViewModel : ViewModelBase
         object? item = SelectedConfiguration as object
             ?? SelectedCompliancePolicy as object
             ?? SelectedSettingsCatalogPolicy as object
-            ?? SelectedApplication as object;
+            ?? SelectedApplication as object
+            ?? SelectedConditionalAccessPolicy as object
+            ?? SelectedAssignmentFilter as object
+            ?? SelectedPolicySet as object;
 
         if (item == null) return;
 
@@ -205,6 +235,9 @@ public partial class MainWindowViewModel : ViewModelBase
             DeviceCompliancePolicy pol => pol.DisplayName ?? "Compliance Policy",
             DeviceManagementConfigurationPolicy sc => sc.Name ?? "Settings Catalog Policy",
             MobileApp app => app.DisplayName ?? "Application",
+            ConditionalAccessPolicy cap => cap.DisplayName ?? "Conditional Access Policy",
+            DeviceAndAppManagementAssignmentFilter af => af.DisplayName ?? "Assignment Filter",
+            PolicySet ps => ps.DisplayName ?? "Policy Set",
             _ => "Item"
         };
 
@@ -288,6 +321,28 @@ public partial class MainWindowViewModel : ViewModelBase
             Append(sb, "Last Modified", app.LastModifiedDateTime?.ToString("g"));
             Append(sb, "Publishing State", app.PublishingState?.ToString());
             AppendAssignments(sb);
+        }
+        else if (SelectedConditionalAccessPolicy is { } cap)
+        {
+            sb.AppendLine("=== Conditional Access Policy ===");
+            Append(sb, "Name", cap.DisplayName);
+            Append(sb, "State", cap.State?.ToString());
+            Append(sb, "ID", cap.Id);
+        }
+        else if (SelectedAssignmentFilter is { } filter)
+        {
+            sb.AppendLine("=== Assignment Filter ===");
+            Append(sb, "Name", filter.DisplayName);
+            Append(sb, "Platform", filter.Platform?.ToString());
+            Append(sb, "Type", filter.AssignmentFilterManagementType?.ToString());
+            Append(sb, "ID", filter.Id);
+        }
+        else if (SelectedPolicySet is { } policySet)
+        {
+            sb.AppendLine("=== Policy Set ===");
+            Append(sb, "Name", policySet.DisplayName);
+            Append(sb, "Description", policySet.Description);
+            Append(sb, "ID", policySet.Id);
         }
         else if (SelectedAppAssignmentRow is { } row)
         {
@@ -412,6 +467,15 @@ public partial class MainWindowViewModel : ViewModelBase
     [ObservableProperty]
     private ObservableCollection<DeviceManagementConfigurationPolicy> _filteredSettingsCatalogPolicies = [];
 
+    [ObservableProperty]
+    private ObservableCollection<ConditionalAccessPolicy> _filteredConditionalAccessPolicies = [];
+
+    [ObservableProperty]
+    private ObservableCollection<DeviceAndAppManagementAssignmentFilter> _filteredAssignmentFilters = [];
+
+    [ObservableProperty]
+    private ObservableCollection<PolicySet> _filteredPolicySets = [];
+
     private void ApplyFilter()
     {
         var q = SearchText.Trim();
@@ -425,6 +489,9 @@ public partial class MainWindowViewModel : ViewModelBase
             FilteredDynamicGroupRows = new ObservableCollection<GroupRow>(DynamicGroupRows);
             FilteredAssignedGroupRows = new ObservableCollection<GroupRow>(AssignedGroupRows);
             FilteredSettingsCatalogPolicies = new ObservableCollection<DeviceManagementConfigurationPolicy>(SettingsCatalogPolicies);
+            FilteredConditionalAccessPolicies = new ObservableCollection<ConditionalAccessPolicy>(ConditionalAccessPolicies);
+            FilteredAssignmentFilters = new ObservableCollection<DeviceAndAppManagementAssignmentFilter>(AssignmentFilters);
+            FilteredPolicySets = new ObservableCollection<PolicySet>(PolicySets);
             return;
         }
 
@@ -477,6 +544,25 @@ public partial class MainWindowViewModel : ViewModelBase
                 Contains(p.Description, q) ||
                 Contains(p.Platforms?.ToString(), q) ||
                 Contains(p.Technologies?.ToString(), q)));
+
+        FilteredConditionalAccessPolicies = new ObservableCollection<ConditionalAccessPolicy>(
+            ConditionalAccessPolicies.Where(p =>
+                Contains(p.DisplayName, q) ||
+                Contains(p.State?.ToString(), q) ||
+                Contains(p.Id, q)));
+
+        FilteredAssignmentFilters = new ObservableCollection<DeviceAndAppManagementAssignmentFilter>(
+            AssignmentFilters.Where(f =>
+                Contains(f.DisplayName, q) ||
+                Contains(f.Platform?.ToString(), q) ||
+                Contains(f.AssignmentFilterManagementType?.ToString(), q) ||
+                Contains(f.Id, q)));
+
+        FilteredPolicySets = new ObservableCollection<PolicySet>(
+            PolicySets.Where(p =>
+                Contains(p.DisplayName, q) ||
+                Contains(p.Description, q) ||
+                Contains(p.Id, q)));
     }
 
     private static bool Contains(string? source, string search)
@@ -529,6 +615,28 @@ public partial class MainWindowViewModel : ViewModelBase
         new() { Header = "Created", BindingPath = "CreatedDateTime", Width = 150, IsVisible = false },
         new() { Header = "Last Modified", BindingPath = "LastModifiedDateTime", Width = 150, IsVisible = true },
         new() { Header = "Role Scope Tags", BindingPath = "Computed:RoleScopeTags", Width = 120, IsVisible = false }
+    ];
+
+    public ObservableCollection<DataGridColumnConfig> ConditionalAccessColumns { get; } =
+    [
+        new() { Header = "Display Name", BindingPath = "DisplayName", IsStar = true, IsVisible = true },
+        new() { Header = "State", BindingPath = "State", Width = 120, IsVisible = true },
+        new() { Header = "ID", BindingPath = "Id", Width = 280, IsVisible = false }
+    ];
+
+    public ObservableCollection<DataGridColumnConfig> AssignmentFilterColumns { get; } =
+    [
+        new() { Header = "Display Name", BindingPath = "DisplayName", IsStar = true, IsVisible = true },
+        new() { Header = "Platform", BindingPath = "Platform", Width = 120, IsVisible = true },
+        new() { Header = "Type", BindingPath = "AssignmentFilterManagementType", Width = 140, IsVisible = true },
+        new() { Header = "ID", BindingPath = "Id", Width = 280, IsVisible = false }
+    ];
+
+    public ObservableCollection<DataGridColumnConfig> PolicySetColumns { get; } =
+    [
+        new() { Header = "Display Name", BindingPath = "DisplayName", IsStar = true, IsVisible = true },
+        new() { Header = "Description", BindingPath = "Description", Width = 240, IsVisible = true },
+        new() { Header = "ID", BindingPath = "Id", Width = 280, IsVisible = false }
     ];
 
     public ObservableCollection<DataGridColumnConfig> DynamicGroupColumns { get; } =
@@ -603,6 +711,9 @@ public partial class MainWindowViewModel : ViewModelBase
         "Applications" => ApplicationColumns,
         "Application Assignments" => AppAssignmentColumns,
         "Settings Catalog" => SettingsCatalogColumns,
+        "Conditional Access" => ConditionalAccessColumns,
+        "Assignment Filters" => AssignmentFilterColumns,
+        "Policy Sets" => PolicySetColumns,
         "Dynamic Groups" => DynamicGroupColumns,
         "Assigned Groups" => AssignedGroupColumns,
         _ => null
@@ -688,6 +799,9 @@ public partial class MainWindowViewModel : ViewModelBase
     public bool IsApplicationCategory => SelectedCategory?.Name == "Applications";
     public bool IsAppAssignmentsCategory => SelectedCategory?.Name == "Application Assignments";
     public bool IsSettingsCatalogCategory => SelectedCategory?.Name == "Settings Catalog";
+    public bool IsConditionalAccessCategory => SelectedCategory?.Name == "Conditional Access";
+    public bool IsAssignmentFiltersCategory => SelectedCategory?.Name == "Assignment Filters";
+    public bool IsPolicySetsCategory => SelectedCategory?.Name == "Policy Sets";
     public bool IsDynamicGroupsCategory => SelectedCategory?.Name == "Dynamic Groups";
     public bool IsAssignedGroupsCategory => SelectedCategory?.Name == "Assigned Groups";
 
@@ -699,6 +813,9 @@ public partial class MainWindowViewModel : ViewModelBase
         SelectedApplication = null;
         SelectedAppAssignmentRow = null;
         SelectedSettingsCatalogPolicy = null;
+        SelectedConditionalAccessPolicy = null;
+        SelectedAssignmentFilter = null;
+        SelectedPolicySet = null;
         SelectedDynamicGroupRow = null;
         SelectedAssignedGroupRow = null;
         SelectedItemAssignments.Clear();
@@ -716,6 +833,9 @@ public partial class MainWindowViewModel : ViewModelBase
         OnPropertyChanged(nameof(IsApplicationCategory));
         OnPropertyChanged(nameof(IsAppAssignmentsCategory));
         OnPropertyChanged(nameof(IsSettingsCatalogCategory));
+        OnPropertyChanged(nameof(IsConditionalAccessCategory));
+        OnPropertyChanged(nameof(IsAssignmentFiltersCategory));
+        OnPropertyChanged(nameof(IsPolicySetsCategory));
         OnPropertyChanged(nameof(IsDynamicGroupsCategory));
         OnPropertyChanged(nameof(IsAssignedGroupsCategory));
         OnPropertyChanged(nameof(ActiveColumns));
@@ -842,6 +962,51 @@ public partial class MainWindowViewModel : ViewModelBase
                     DebugLog.Log("Graph", $"Refreshed settings catalog policy: {updated.Name}");
                 }
             }
+            else if (IsConditionalAccessCategory && SelectedConditionalAccessPolicy?.Id != null && _conditionalAccessPolicyService != null)
+            {
+                StatusText = $"Refreshing {SelectedConditionalAccessPolicy.DisplayName}...";
+                var updated = await _conditionalAccessPolicyService.GetPolicyAsync(SelectedConditionalAccessPolicy.Id, cancellationToken);
+                if (updated != null)
+                {
+                    var idx = ConditionalAccessPolicies.IndexOf(SelectedConditionalAccessPolicy);
+                    if (idx >= 0)
+                    {
+                        ConditionalAccessPolicies[idx] = updated;
+                        SelectedConditionalAccessPolicy = updated;
+                    }
+                    DebugLog.Log("Graph", $"Refreshed conditional access policy: {updated.DisplayName}");
+                }
+            }
+            else if (IsAssignmentFiltersCategory && SelectedAssignmentFilter?.Id != null && _assignmentFilterService != null)
+            {
+                StatusText = $"Refreshing {SelectedAssignmentFilter.DisplayName}...";
+                var updated = await _assignmentFilterService.GetFilterAsync(SelectedAssignmentFilter.Id, cancellationToken);
+                if (updated != null)
+                {
+                    var idx = AssignmentFilters.IndexOf(SelectedAssignmentFilter);
+                    if (idx >= 0)
+                    {
+                        AssignmentFilters[idx] = updated;
+                        SelectedAssignmentFilter = updated;
+                    }
+                    DebugLog.Log("Graph", $"Refreshed assignment filter: {updated.DisplayName}");
+                }
+            }
+            else if (IsPolicySetsCategory && SelectedPolicySet?.Id != null && _policySetService != null)
+            {
+                StatusText = $"Refreshing {SelectedPolicySet.DisplayName}...";
+                var updated = await _policySetService.GetPolicySetAsync(SelectedPolicySet.Id, cancellationToken);
+                if (updated != null)
+                {
+                    var idx = PolicySets.IndexOf(SelectedPolicySet);
+                    if (idx >= 0)
+                    {
+                        PolicySets[idx] = updated;
+                        SelectedPolicySet = updated;
+                    }
+                    DebugLog.Log("Graph", $"Refreshed policy set: {updated.DisplayName}");
+                }
+            }
             else
             {
                 return;
@@ -863,7 +1028,10 @@ public partial class MainWindowViewModel : ViewModelBase
         (IsDeviceConfigCategory && SelectedConfiguration != null) ||
         (IsCompliancePolicyCategory && SelectedCompliancePolicy != null) ||
         (IsApplicationCategory && SelectedApplication != null) ||
-        (IsSettingsCatalogCategory && SelectedSettingsCatalogPolicy != null);
+        (IsSettingsCatalogCategory && SelectedSettingsCatalogPolicy != null) ||
+        (IsConditionalAccessCategory && SelectedConditionalAccessPolicy != null) ||
+        (IsAssignmentFiltersCategory && SelectedAssignmentFilter != null) ||
+        (IsPolicySetsCategory && SelectedPolicySet != null);
 
     // --- Selection-changed handlers (load detail + assignments) ---
 
@@ -903,6 +1071,30 @@ public partial class MainWindowViewModel : ViewModelBase
         OnPropertyChanged(nameof(CanRefreshSelectedItem));
         if (value?.Id != null)
             _ = LoadApplicationAssignmentsAsync(value.Id);
+    }
+
+    partial void OnSelectedConditionalAccessPolicyChanged(ConditionalAccessPolicy? value)
+    {
+        SelectedItemAssignments.Clear();
+        SelectedItemTypeName = "Conditional Access";
+        SelectedItemPlatform = "";
+        OnPropertyChanged(nameof(CanRefreshSelectedItem));
+    }
+
+    partial void OnSelectedAssignmentFilterChanged(DeviceAndAppManagementAssignmentFilter? value)
+    {
+        SelectedItemAssignments.Clear();
+        SelectedItemTypeName = "Assignment Filter";
+        SelectedItemPlatform = "";
+        OnPropertyChanged(nameof(CanRefreshSelectedItem));
+    }
+
+    partial void OnSelectedPolicySetChanged(PolicySet? value)
+    {
+        SelectedItemAssignments.Clear();
+        SelectedItemTypeName = "Policy Set";
+        SelectedItemPlatform = "";
+        OnPropertyChanged(nameof(CanRefreshSelectedItem));
     }
 
     partial void OnSelectedDynamicGroupRowChanged(GroupRow? value)
@@ -1773,6 +1965,9 @@ public partial class MainWindowViewModel : ViewModelBase
             _applicationService = new ApplicationService(_graphClient);
             _groupService = new GroupService(_graphClient);
             _settingsCatalogService = new SettingsCatalogService(_graphClient);
+            _conditionalAccessPolicyService = new ConditionalAccessPolicyService(_graphClient);
+            _assignmentFilterService = new AssignmentFilterService(_graphClient);
+            _policySetService = new PolicySetService(_graphClient);
             _importService = new ImportService(_configProfileService, _compliancePolicyService);
 
             RefreshSwitcherProfiles();
@@ -1958,8 +2153,59 @@ public partial class MainWindowViewModel : ViewModelBase
                 }
             }
 
-            var totalItems = DeviceConfigurations.Count + CompliancePolicies.Count + Applications.Count + SettingsCatalogPolicies.Count;
-            StatusText = $"Loaded {totalItems} item(s) ({DeviceConfigurations.Count} configs, {CompliancePolicies.Count} policies, {Applications.Count} apps, {SettingsCatalogPolicies.Count} settings catalog)";
+            if (_conditionalAccessPolicyService != null)
+            {
+                try
+                {
+                    StatusText = "Loading conditional access policies...";
+                    var policies = await _conditionalAccessPolicyService.ListPoliciesAsync(cancellationToken);
+                    ConditionalAccessPolicies = new ObservableCollection<ConditionalAccessPolicy>(policies);
+                    DebugLog.Log("Graph", $"Loaded {policies.Count} conditional access policy(ies)");
+                }
+                catch (Exception ex)
+                {
+                    var detail = FormatGraphError(ex);
+                    DebugLog.LogError($"Failed to load conditional access policies: {detail}", ex);
+                    errors.Add($"Conditional Access: {detail}");
+                }
+            }
+
+            if (_assignmentFilterService != null)
+            {
+                try
+                {
+                    StatusText = "Loading assignment filters...";
+                    var filters = await _assignmentFilterService.ListFiltersAsync(cancellationToken);
+                    AssignmentFilters = new ObservableCollection<DeviceAndAppManagementAssignmentFilter>(filters);
+                    DebugLog.Log("Graph", $"Loaded {filters.Count} assignment filter(s)");
+                }
+                catch (Exception ex)
+                {
+                    var detail = FormatGraphError(ex);
+                    DebugLog.LogError($"Failed to load assignment filters: {detail}", ex);
+                    errors.Add($"Assignment Filters: {detail}");
+                }
+            }
+
+            if (_policySetService != null)
+            {
+                try
+                {
+                    StatusText = "Loading policy sets...";
+                    var sets = await _policySetService.ListPolicySetsAsync(cancellationToken);
+                    PolicySets = new ObservableCollection<PolicySet>(sets);
+                    DebugLog.Log("Graph", $"Loaded {sets.Count} policy set(s)");
+                }
+                catch (Exception ex)
+                {
+                    var detail = FormatGraphError(ex);
+                    DebugLog.LogError($"Failed to load policy sets: {detail}", ex);
+                    errors.Add($"Policy Sets: {detail}");
+                }
+            }
+
+            var totalItems = DeviceConfigurations.Count + CompliancePolicies.Count + Applications.Count + SettingsCatalogPolicies.Count + ConditionalAccessPolicies.Count + AssignmentFilters.Count + PolicySets.Count;
+            StatusText = $"Loaded {totalItems} item(s) ({DeviceConfigurations.Count} configs, {CompliancePolicies.Count} compliance, {Applications.Count} apps, {SettingsCatalogPolicies.Count} settings catalog, {ConditionalAccessPolicies.Count} conditional access, {AssignmentFilters.Count} filters, {PolicySets.Count} policy sets)";
 
             if (errors.Count > 0)
                 SetError($"Some data failed to load — {string.Join("; ", errors)}");
@@ -2373,6 +2619,12 @@ public partial class MainWindowViewModel : ViewModelBase
         _appAssignmentsLoaded = false;
         SettingsCatalogPolicies.Clear();
         SelectedSettingsCatalogPolicy = null;
+        ConditionalAccessPolicies.Clear();
+        SelectedConditionalAccessPolicy = null;
+        AssignmentFilters.Clear();
+        SelectedAssignmentFilter = null;
+        PolicySets.Clear();
+        SelectedPolicySet = null;
         DynamicGroupRows.Clear();
         SelectedDynamicGroupRow = null;
         _dynamicGroupsLoaded = false;
@@ -2387,6 +2639,9 @@ public partial class MainWindowViewModel : ViewModelBase
         _applicationService = null;
         _groupService = null;
         _settingsCatalogService = null;
+        _conditionalAccessPolicyService = null;
+        _assignmentFilterService = null;
+        _policySetService = null;
         _importService = null;
         _groupNameCache.Clear();
         CacheStatusText = "";
