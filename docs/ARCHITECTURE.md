@@ -17,24 +17,27 @@
 
 ### Supported Credential Types
 
-#### Phase 1-2: Interactive
+#### Implemented
 ```
 InteractiveBrowserCredential
 - Browser popup authentication
 - Supports all clouds via AuthorityHost configuration
+- Persistent token cache per profile (MSAL token cache)
+
+ClientSecretCredential
+- Service-principal authentication
+- Requires ClientSecret field in TenantProfile
+- Suitable for automated/unattended scenarios
 ```
 
-#### Phase 5: Expanded
+#### Deferred (not yet implemented)
 ```
-ClientCertificateCredential
-- Certificate from Windows cert store
-- Non-interactive, suitable for automation
+ClientCertificateCredential  — deferred; requires cert-store integration
+ManagedIdentityCredential    — deferred; not applicable for desktop use
+```
 
-ManagedIdentityCredential
-- Azure VM/Container Apps
-- Zero configuration when running in Azure
-- Fallback to interactive for local dev
-```
+`InteractiveBrowserAuthProvider` throws `NotSupportedException` for any method
+outside the two implemented ones, preventing silent fallback.
 
 ---
 
@@ -84,7 +87,7 @@ ManagedIdentityCredential
       "clientId": "app-guid",
       "cloud": "GCCHigh",
       "authMethod": "Interactive",
-      "certificateThumbprint": null,
+      "clientSecret": null,
       "lastUsed": "2025-02-14T10:30:00Z"
     }
   ],
@@ -101,9 +104,9 @@ ManagedIdentityCredential
 - OS-level security guarantees
 
 **Implementation:**
-- Sensitive fields encrypted before JSON serialization
-- Certificate thumbprints stored encrypted
-- Never store secrets/passwords (use secure vaults)
+- Profile file encrypted via `Microsoft.AspNetCore.DataProtection` (DPAPI on Windows)
+- File is Base64-encoded with `INTUNEMANAGER_ENC:` prefix; plaintext files are migrated on next save
+- `ClientSecret` stored in the encrypted profile; never appears in plaintext on disk
 
 ---
 
@@ -186,12 +189,18 @@ ExportFolder/
 Views/
   MainWindow.axaml
   LoginView.axaml
-  ObjectListView.axaml
+  OverviewView.axaml
+  GroupLookupWindow.axaml
+  DebugLogWindow.axaml
+  RawJsonWindow.axaml
 
 ViewModels/
-  MainWindowViewModel.cs
+  MainWindowViewModel.cs   (+ partial class files per feature area)
   LoginViewModel.cs
-  ObjectListViewModel.cs
+  OverviewViewModel.cs
+  GroupLookupViewModel.cs
+  DebugLogViewModel.cs
+  NavCategory.cs / DataGridColumnConfig.cs / row types
 ```
 
 ### Dependency Injection
@@ -202,10 +211,10 @@ ViewModels/
 - Standard service registration
 - Easy testing with mock services
 
-**Service Lifetime:**
-- Singleton: GraphClientFactory, ProfileManager
-- Scoped: IntuneService (per active profile)
-- Transient: ViewModels
+**Service Lifetime (actual):**
+- Singleton: `IAuthenticationProvider`, `IntuneGraphClientFactory`, `ProfileService`, `IProfileEncryptionService`, `ICacheService`
+- Transient: `IExportService`, `MainWindowViewModel`
+- **Not in DI:** Graph API services — created with `new XxxService(graphClient)` in `MainWindowViewModel.ConnectAsync` after authentication succeeds
 
 ---
 
@@ -232,29 +241,14 @@ ViewModels/
 
 ## Logging Strategy
 
-### Framework: Serilog
-**Rationale:**
-- Structured logging
-- Multiple sinks (file, console)
-- Easy to configure
-- Industry standard
+### Framework: DebugLogService (in-memory)
+**Implementation:**
+- `DebugLogService.Instance` singleton with `ObservableCollection<string> Entries` (capped at 2 000)
+- All log dispatches to UI thread via `Dispatcher.UIThread.Post`
+- Exposed in the UI via `DebugLogWindow`
+- Use `DebugLog.Log(category, message)` / `DebugLog.LogError(...)` throughout ViewModels
 
-### Log Levels
-- **Verbose:** Graph API requests/responses (debug only)
-- **Debug:** State transitions, method entry/exit
-- **Information:** User actions (login, export, import)
-- **Warning:** Recoverable errors (retry attempts)
-- **Error:** Failures that block operation
-- **Fatal:** Application crash
-
-### Log Location
-**Windows:** `%LOCALAPPDATA%\IntuneManager\logs\`  
-**Linux/macOS:** `~/.local/share/IntuneManager/logs/`
-
-### Log Retention
-- Rolling file: 1 file per day
-- Retain 30 days
-- Max 100MB per file
+**Note:** No file-based logging is currently implemented; the plan to adopt Serilog is deferred.
 
 ---
 
@@ -316,9 +310,8 @@ ViewModels/
 - No secrets in config files
 
 ### Certificate Handling
-- Store thumbprints only, not private keys
-- Use Windows cert store (protected by OS)
-- Certificate permissions validation
+- Certificate-based auth is **deferred** — no certificate credential code paths exist yet
+- When implemented: store thumbprints only, not private keys; use Windows cert store
 
 ### Network Security
 - HTTPS only
@@ -394,23 +387,29 @@ ViewModels/
 
 ## External Dependencies
 
-### Required NuGet Packages
+### Actual NuGet Packages (current)
 
-**Phase 1:**
+**IntuneManager.Core:**
 ```xml
-<PackageReference Include="Avalonia" Version="11.2.*" />
-<PackageReference Include="CommunityToolkit.Mvvm" Version="8.3.*" />
-<PackageReference Include="Azure.Identity" Version="1.13.*" />
-<PackageReference Include="Microsoft.Graph" Version="5.88.*" />
-<PackageReference Include="System.Text.Json" Version="8.0.*" />
+<PackageReference Include="Azure.Identity" Version="1.17.1" />
+<PackageReference Include="LiteDB" Version="5.0.21" />
+<PackageReference Include="Microsoft.AspNetCore.DataProtection" Version="8.0.12" />
+<PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.3" />
+<PackageReference Include="Microsoft.Graph.Beta" Version="5.130.0-preview" />
 ```
 
-**Phase 6:**
+**IntuneManager.Desktop:**
 ```xml
-<PackageReference Include="Serilog" Version="4.1.*" />
-<PackageReference Include="Serilog.Sinks.File" Version="6.0.*" />
-<PackageReference Include="System.CommandLine" Version="2.0.*" />
+<PackageReference Include="Avalonia" Version="11.3.12" />
+<PackageReference Include="Avalonia.Controls.DataGrid" Version="11.3.12" />
+<PackageReference Include="Avalonia.Themes.Fluent" Version="11.3.12" />
+<PackageReference Include="CommunityToolkit.Mvvm" Version="8.2.1" />
+<PackageReference Include="LiveChartsCore.SkiaSharpView.Avalonia" Version="2.0.0-rc6.1" />
+<PackageReference Include="MessageBox.Avalonia" Version="3.2.0" />
+<PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.3" />
 ```
+
+> **Important:** The project uses `Microsoft.Graph.Beta`, **not** the stable `Microsoft.Graph` package.
 
 ### Dependency Management
 - Use central package management (Directory.Packages.props)
