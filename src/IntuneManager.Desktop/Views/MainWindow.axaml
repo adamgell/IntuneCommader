@@ -341,11 +341,11 @@
                                         <Grid ColumnDefinitions="*,*">
                                             <StackPanel Grid.Column="0" Spacing="2">
                                                 <TextBlock Text="Created" FontSize="11" Foreground="{DynamicResource AppTextSecondaryBrush}" />
-                                                <SelectableTextBlock Text="{Binding CreatedDateTime}" FontSize="12" />
+                                                <SelectableTextBlock Text="{Binding CreatedDateTime, Converter={x:Static conv:HumanDateTimeConverter.Instance}}" FontSize="12" />
                                             </StackPanel>
                                             <StackPanel Grid.Column="1" Spacing="2">
                                                 <TextBlock Text="Last Modified" FontSize="11" Foreground="{DynamicResource AppTextSecondaryBrush}" />
-                                                <SelectableTextBlock Text="{Binding LastModifiedDateTime}" FontSize="12" />
+                                                <SelectableTextBlock Text="{Binding LastModifiedDateTime, Converter={x:Static conv:HumanDateTimeConverter.Instance}}" FontSize="12" />
                                             </StackPanel>
                                         </Grid>
                                         <StackPanel Spacing="2">
@@ -428,11 +428,11 @@
                                         <Grid ColumnDefinitions="*,*">
                                             <StackPanel Grid.Column="0" Spacing="2">
                                                 <TextBlock Text="Created" FontSize="11" Foreground="{DynamicResource AppTextSecondaryBrush}" />
-                                                <SelectableTextBlock Text="{Binding CreatedDateTime}" FontSize="12" />
+                                                <SelectableTextBlock Text="{Binding CreatedDateTime, Converter={x:Static conv:HumanDateTimeConverter.Instance}}" FontSize="12" />
                                             </StackPanel>
                                             <StackPanel Grid.Column="1" Spacing="2">
                                                 <TextBlock Text="Last Modified" FontSize="11" Foreground="{DynamicResource AppTextSecondaryBrush}" />
-                                                <SelectableTextBlock Text="{Binding LastModifiedDateTime}" FontSize="12" />
+                                                <SelectableTextBlock Text="{Binding LastModifiedDateTime, Converter={x:Static conv:HumanDateTimeConverter.Instance}}" FontSize="12" />
                                             </StackPanel>
                                         </Grid>
                                         <StackPanel Spacing="2">
@@ -530,11 +530,11 @@
                                         <Grid ColumnDefinitions="*,*">
                                             <StackPanel Grid.Column="0" Spacing="2">
                                                 <TextBlock Text="Created" FontSize="11" Foreground="{DynamicResource AppTextSecondaryBrush}" />
-                                                <SelectableTextBlock Text="{Binding CreatedDateTime}" FontSize="12" />
+                                                <SelectableTextBlock Text="{Binding CreatedDateTime, Converter={x:Static conv:HumanDateTimeConverter.Instance}}" FontSize="12" />
                                             </StackPanel>
                                             <StackPanel Grid.Column="1" Spacing="2">
                                                 <TextBlock Text="Last Modified" FontSize="11" Foreground="{DynamicResource AppTextSecondaryBrush}" />
-                                                <SelectableTextBlock Text="{Binding LastModifiedDateTime}" FontSize="12" />
+                                                <SelectableTextBlock Text="{Binding LastModifiedDateTime, Converter={x:Static conv:HumanDateTimeConverter.Instance}}" FontSize="12" />
                                             </StackPanel>
                                         </Grid>
                                     </StackPanel>
@@ -599,6 +599,41 @@
                                         <StackPanel Spacing="2">
                                             <TextBlock Text="State" FontSize="11" Foreground="{DynamicResource AppTextSecondaryBrush}" />
                                             <SelectableTextBlock Text="{Binding State}" FontSize="12" />
+                                        </StackPanel>
+                                        <Grid ColumnDefinitions="*,*">
+                                            <StackPanel Grid.Column="0" Spacing="2">
+                                                <TextBlock Text="Created" FontSize="11" Foreground="{DynamicResource AppTextSecondaryBrush}" />
+                                                <SelectableTextBlock Text="{Binding CreatedDateTime, Converter={x:Static conv:HumanDateTimeConverter.Instance}}" FontSize="12" />
+                                            </StackPanel>
+                                            <StackPanel Grid.Column="1" Spacing="2">
+                                                <TextBlock Text="Last Modified" FontSize="11" Foreground="{DynamicResource AppTextSecondaryBrush}" />
+                                                <SelectableTextBlock Text="{Binding ModifiedDateTime, Converter={x:Static conv:HumanDateTimeConverter.Instance}}" FontSize="12" />
+                                            </StackPanel>
+                                        </Grid>
+                                        <StackPanel Spacing="4">
+                                            <TextBlock Text="Configured Controls" FontSize="11" Foreground="{DynamicResource AppTextSecondaryBrush}" />
+                                            <WrapPanel Orientation="Horizontal" ItemHeight="22">
+                                                <Border Background="{DynamicResource SystemAccentColor}" CornerRadius="10"
+                                                        Padding="8,2" Margin="0,0,6,4"
+                                                        IsVisible="{Binding Conditions, Converter={x:Static ObjectConverters.IsNotNull}}">
+                                                    <SelectableTextBlock Text="Conditions" FontSize="11" Foreground="White" />
+                                                </Border>
+                                                <Border Background="{DynamicResource SystemAccentColor}" CornerRadius="10"
+                                                        Padding="8,2" Margin="0,0,6,4"
+                                                        IsVisible="{Binding GrantControls, Converter={x:Static ObjectConverters.IsNotNull}}">
+                                                    <SelectableTextBlock Text="Grant Controls" FontSize="11" Foreground="White" />
+                                                </Border>
+                                                <Border Background="{DynamicResource SystemAccentColor}" CornerRadius="10"
+                                                        Padding="8,2" Margin="0,0,6,4"
+                                                        IsVisible="{Binding SessionControls, Converter={x:Static ObjectConverters.IsNotNull}}">
+                                                    <SelectableTextBlock Text="Session Controls" FontSize="11" Foreground="White" />
+                                                </Border>
+                                            </WrapPanel>
+                                        </StackPanel>
+                                        <StackPanel Spacing="2"
+                                                    IsVisible="{Binding SessionControls, Converter={x:Static ObjectConverters.IsNotNull}}">
+                                            <TextBlock Text="Session Controls" FontSize="11" Foreground="{DynamicResource AppTextSecondaryBrush}" />
+                                            <SelectableTextBlock Text="{Binding SessionControls}" TextWrapping="Wrap" FontSize="12" />
                                         </StackPanel>
                                         <StackPanel Spacing="2">
                                             <TextBlock Text="ID" FontSize="11" Foreground="{DynamicResource AppTextSecondaryBrush}" />
@@ -671,6 +706,20 @@
                                             <TextBlock Text="Description" FontSize="11" Foreground="{DynamicResource AppTextSecondaryBrush}" />
                                             <SelectableTextBlock Text="{Binding Description}" TextWrapping="Wrap" />
                                         </StackPanel>
+                                        <StackPanel Spacing="2">
+                                            <TextBlock Text="Items" FontSize="11" Foreground="{DynamicResource AppTextSecondaryBrush}" />
+                                            <SelectableTextBlock Text="{Binding Items.Count}" FontSize="12" />
+                                        </StackPanel>
+                                        <Grid ColumnDefinitions="*,*">
+                                            <StackPanel Grid.Column="0" Spacing="2">
+                                                <TextBlock Text="Created" FontSize="11" Foreground="{DynamicResource AppTextSecondaryBrush}" />
+                                                <SelectableTextBlock Text="{Binding CreatedDateTime, Converter={x:Static conv:HumanDateTimeConverter.Instance}}" FontSize="12" />
+                                            </StackPanel>
+                                            <StackPanel Grid.Column="1" Spacing="2">
+                                                <TextBlock Text="Last Modified" FontSize="11" Foreground="{DynamicResource AppTextSecondaryBrush}" />
+                                                <SelectableTextBlock Text="{Binding LastModifiedDateTime, Converter={x:Static conv:HumanDateTimeConverter.Instance}}" FontSize="12" />
+                                            </StackPanel>
+                                        </Grid>
                                         <StackPanel Spacing="2">
                                             <TextBlock Text="ID" FontSize="11" Foreground="{DynamicResource AppTextSecondaryBrush}" />
                                             <SelectableTextBlock Text="{Binding Id}" FontSize="11" Opacity="0.8" />
@@ -753,11 +802,11 @@
                                         <Grid ColumnDefinitions="*,*">
                                             <StackPanel Grid.Column="0" Spacing="2">
                                                 <TextBlock Text="Created" FontSize="11" Foreground="{DynamicResource AppTextSecondaryBrush}" />
-                                                <SelectableTextBlock Text="{Binding CreatedDateTime}" FontSize="12" />
+                                                <SelectableTextBlock Text="{Binding CreatedDateTime, Converter={x:Static conv:HumanDateTimeConverter.Instance}}" FontSize="12" />
                                             </StackPanel>
                                             <StackPanel Grid.Column="1" Spacing="2">
                                                 <TextBlock Text="Last Modified" FontSize="11" Foreground="{DynamicResource AppTextSecondaryBrush}" />
-                                                <SelectableTextBlock Text="{Binding LastModifiedDateTime}" FontSize="12" />
+                                                <SelectableTextBlock Text="{Binding LastModifiedDateTime, Converter={x:Static conv:HumanDateTimeConverter.Instance}}" FontSize="12" />
                                             </StackPanel>
                                         </Grid>
                                         <StackPanel Spacing="2">
@@ -962,11 +1011,11 @@
                                         <Grid ColumnDefinitions="*,*">
                                             <StackPanel Grid.Column="0" Spacing="2">
                                                 <TextBlock Text="Created" FontSize="11" Foreground="{DynamicResource AppTextSecondaryBrush}" />
-                                                <SelectableTextBlock Text="{Binding CreatedDate}" FontSize="12" />
+                                                <SelectableTextBlock Text="{Binding CreatedDate, Converter={x:Static conv:HumanDateTimeConverter.Instance}}" FontSize="12" />
                                             </StackPanel>
                                             <StackPanel Grid.Column="1" Spacing="2">
                                                 <TextBlock Text="Last Modified" FontSize="11" Foreground="{DynamicResource AppTextSecondaryBrush}" />
-                                                <SelectableTextBlock Text="{Binding LastModified}" FontSize="12" />
+                                                <SelectableTextBlock Text="{Binding LastModified, Converter={x:Static conv:HumanDateTimeConverter.Instance}}" FontSize="12" />
                                             </StackPanel>
                                         </Grid>
                                         <StackPanel Spacing="2">
@@ -1029,7 +1078,7 @@
                                         </Grid>
                                         <StackPanel Spacing="2">
                                             <TextBlock Text="Created Date" FontSize="11" Foreground="{DynamicResource AppTextSecondaryBrush}" />
-                                            <SelectableTextBlock Text="{Binding CreatedDate}" FontSize="12" />
+                                            <SelectableTextBlock Text="{Binding CreatedDate, Converter={x:Static conv:HumanDateTimeConverter.Instance}}" FontSize="12" />
                                         </StackPanel>
                                     </StackPanel>
                                 </Border>
@@ -1162,7 +1211,7 @@
                                         </Grid>
                                         <StackPanel Spacing="2">
                                             <TextBlock Text="Created Date" FontSize="11" Foreground="{DynamicResource AppTextSecondaryBrush}" />
-                                            <SelectableTextBlock Text="{Binding CreatedDate}" FontSize="12" />
+                                            <SelectableTextBlock Text="{Binding CreatedDate, Converter={x:Static conv:HumanDateTimeConverter.Instance}}" FontSize="12" />
                                         </StackPanel>
                                     </StackPanel>
                                 </Border>

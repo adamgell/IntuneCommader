@@ -32,6 +32,9 @@ public partial class MainWindowViewModel : ViewModelBase
     private const string CacheKeyCompliancePolicies = "CompliancePolicies";
     private const string CacheKeyApplications = "Applications";
     private const string CacheKeySettingsCatalog = "SettingsCatalog";
+    private const string CacheKeyConditionalAccess = "ConditionalAccessPolicies";
+    private const string CacheKeyAssignmentFilters = "AssignmentFilters";
+    private const string CacheKeyPolicySets = "PolicySets";
     private const string CacheKeyAppAssignments = "AppAssignments";
     private const string CacheKeyDynamicGroups = "DynamicGroups";
     private const string CacheKeyAssignedGroups = "AssignedGroups";
@@ -127,6 +130,8 @@ public partial class MainWindowViewModel : ViewModelBase
     [ObservableProperty]
     private ConditionalAccessPolicy? _selectedConditionalAccessPolicy;
 
+    private bool _conditionalAccessLoaded;
+
     // --- Assignment Filters ---
     [ObservableProperty]
     private ObservableCollection<DeviceAndAppManagementAssignmentFilter> _assignmentFilters = [];
@@ -134,12 +139,16 @@ public partial class MainWindowViewModel : ViewModelBase
     [ObservableProperty]
     private DeviceAndAppManagementAssignmentFilter? _selectedAssignmentFilter;
 
+    private bool _assignmentFiltersLoaded;
+
     // --- Policy Sets ---
     [ObservableProperty]
     private ObservableCollection<PolicySet> _policySets = [];
 
     [ObservableProperty]
     private PolicySet? _selectedPolicySet;
+
+    private bool _policySetsLoaded;
 
     // --- Application Assignments (flattened view) ---
     [ObservableProperty]
@@ -891,6 +900,48 @@ public partial class MainWindowViewModel : ViewModelBase
             }))
             {
                 _ = LoadAssignedGroupRowsAsync();
+            }
+        }
+
+        if (value?.Name == "Conditional Access" && !_conditionalAccessLoaded)
+        {
+            if (!TryLoadLazyCacheEntry<ConditionalAccessPolicy>(CacheKeyConditionalAccess, rows =>
+            {
+                ConditionalAccessPolicies = new ObservableCollection<ConditionalAccessPolicy>(rows);
+                _conditionalAccessLoaded = true;
+                ApplyFilter();
+                StatusText = $"Loaded {rows.Count} conditional access policy(ies) from cache";
+            }))
+            {
+                _ = LoadConditionalAccessPoliciesAsync();
+            }
+        }
+
+        if (value?.Name == "Assignment Filters" && !_assignmentFiltersLoaded)
+        {
+            if (!TryLoadLazyCacheEntry<DeviceAndAppManagementAssignmentFilter>(CacheKeyAssignmentFilters, rows =>
+            {
+                AssignmentFilters = new ObservableCollection<DeviceAndAppManagementAssignmentFilter>(rows);
+                _assignmentFiltersLoaded = true;
+                ApplyFilter();
+                StatusText = $"Loaded {rows.Count} assignment filter(s) from cache";
+            }))
+            {
+                _ = LoadAssignmentFiltersAsync();
+            }
+        }
+
+        if (value?.Name == "Policy Sets" && !_policySetsLoaded)
+        {
+            if (!TryLoadLazyCacheEntry<PolicySet>(CacheKeyPolicySets, rows =>
+            {
+                PolicySets = new ObservableCollection<PolicySet>(rows);
+                _policySetsLoaded = true;
+                ApplyFilter();
+                StatusText = $"Loaded {rows.Count} policy set(s) from cache";
+            }))
+            {
+                _ = LoadPolicySetsAsync();
             }
         }
     }
@@ -1853,6 +1904,111 @@ public partial class MainWindowViewModel : ViewModelBase
         if (_groupService == null) return;
 
         IsBusy = true;
+
+    // --- Conditional Access view ---
+
+    private async Task LoadConditionalAccessPoliciesAsync()
+    {
+        if (_conditionalAccessPolicyService == null) return;
+
+        IsBusy = true;
+        StatusText = "Loading conditional access policies...";
+
+        try
+        {
+            var policies = await _conditionalAccessPolicyService.ListPoliciesAsync();
+            ConditionalAccessPolicies = new ObservableCollection<ConditionalAccessPolicy>(policies);
+            _conditionalAccessLoaded = true;
+            ApplyFilter();
+
+            if (ActiveProfile?.TenantId != null)
+            {
+                _cacheService.Set(ActiveProfile.TenantId, CacheKeyConditionalAccess, policies);
+                DebugLog.Log("Cache", $"Saved {policies.Count} conditional access policy(ies) to cache");
+            }
+
+            StatusText = $"Loaded {policies.Count} conditional access policy(ies)";
+        }
+        catch (Exception ex)
+        {
+            SetError($"Failed to load conditional access policies: {FormatGraphError(ex)}");
+            StatusText = "Error loading conditional access policies";
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+    // --- Assignment Filters view ---
+
+    private async Task LoadAssignmentFiltersAsync()
+    {
+        if (_assignmentFilterService == null) return;
+
+        IsBusy = true;
+        StatusText = "Loading assignment filters...";
+
+        try
+        {
+            var filters = await _assignmentFilterService.ListFiltersAsync();
+            AssignmentFilters = new ObservableCollection<DeviceAndAppManagementAssignmentFilter>(filters);
+            _assignmentFiltersLoaded = true;
+            ApplyFilter();
+
+            if (ActiveProfile?.TenantId != null)
+            {
+                _cacheService.Set(ActiveProfile.TenantId, CacheKeyAssignmentFilters, filters);
+                DebugLog.Log("Cache", $"Saved {filters.Count} assignment filter(s) to cache");
+            }
+
+            StatusText = $"Loaded {filters.Count} assignment filter(s)";
+        }
+        catch (Exception ex)
+        {
+            SetError($"Failed to load assignment filters: {FormatGraphError(ex)}");
+            StatusText = "Error loading assignment filters";
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+    // --- Policy Sets view ---
+
+    private async Task LoadPolicySetsAsync()
+    {
+        if (_policySetService == null) return;
+
+        IsBusy = true;
+        StatusText = "Loading policy sets...";
+
+        try
+        {
+            var sets = await _policySetService.ListPolicySetsAsync();
+            PolicySets = new ObservableCollection<PolicySet>(sets);
+            _policySetsLoaded = true;
+            ApplyFilter();
+
+            if (ActiveProfile?.TenantId != null)
+            {
+                _cacheService.Set(ActiveProfile.TenantId, CacheKeyPolicySets, sets);
+                DebugLog.Log("Cache", $"Saved {sets.Count} policy set(s) to cache");
+            }
+
+            StatusText = $"Loaded {sets.Count} policy set(s)";
+        }
+        catch (Exception ex)
+        {
+            SetError($"Failed to load policy sets: {FormatGraphError(ex)}");
+            StatusText = "Error loading policy sets";
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
         StatusText = "Loading assigned groups...";
 
         try
@@ -1979,9 +2135,9 @@ public partial class MainWindowViewModel : ViewModelBase
             StatusText = $"Connected to {profile.Name}";
             DebugLog.Log("Auth", $"Connected to {profile.Name}");
 
-            // Try loading cached data — if all 4 types are cached, skip Graph refresh
+            // Try loading cached data — if all 7 types are cached, skip Graph refresh
             var cachedCount = TryLoadFromCache(profile.TenantId ?? "");
-            if (cachedCount >= 4)
+            if (cachedCount >= 7)
             {
                 DebugLog.Log("Cache", "All data loaded from cache — skipping Graph refresh");
                 IsBusy = false;
@@ -1989,7 +2145,7 @@ public partial class MainWindowViewModel : ViewModelBase
             else
             {
                 if (cachedCount > 0)
-                    DebugLog.Log("Cache", $"Partial cache hit ({cachedCount}/4) — refreshing from Graph");
+                    DebugLog.Log("Cache", $"Partial cache hit ({cachedCount}/7) — refreshing from Graph");
                 await RefreshAsync(CancellationToken.None);
             }
         }
