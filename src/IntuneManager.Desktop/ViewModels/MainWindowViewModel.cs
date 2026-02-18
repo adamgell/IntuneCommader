@@ -729,6 +729,14 @@ public partial class MainWindowViewModel : ViewModelBase
                 _appAssignmentsLoaded = true;
                 ApplyFilter();
                 StatusText = $"Loaded {rows.Count} app assignment(s) from cache";
+
+                // Update Overview dashboard when assignments loaded from cache
+                Overview.Update(
+                    ActiveProfile,
+                    (IReadOnlyList<DeviceConfiguration>)DeviceConfigurations,
+                    (IReadOnlyList<DeviceCompliancePolicy>)CompliancePolicies,
+                    (IReadOnlyList<MobileApp>)Applications,
+                    (IReadOnlyList<AppAssignmentRow>)AppAssignmentRows);
             }))
             {
                 _ = LoadAppAssignmentRowsAsync();
@@ -2203,6 +2211,26 @@ public partial class MainWindowViewModel : ViewModelBase
             else
             {
                 DebugLog.Log("Cache", "No cached data found");
+            }
+
+            // If all 4 primary types loaded, also populate Overview dashboard from cache
+            if (typesLoaded >= 4)
+            {
+                var cachedAssignments = _cacheService.Get<AppAssignmentRow>(tenantId, CacheKeyAppAssignments);
+                if (cachedAssignments != null && cachedAssignments.Count > 0)
+                {
+                    AppAssignmentRows = new ObservableCollection<AppAssignmentRow>(cachedAssignments);
+                    _appAssignmentsLoaded = true;
+                    DebugLog.Log("Cache", $"Loaded {cachedAssignments.Count} app assignment row(s) from cache for dashboard");
+                }
+
+                Overview.Update(
+                    ActiveProfile,
+                    (IReadOnlyList<DeviceConfiguration>)DeviceConfigurations,
+                    (IReadOnlyList<DeviceCompliancePolicy>)CompliancePolicies,
+                    (IReadOnlyList<MobileApp>)Applications,
+                    (IReadOnlyList<AppAssignmentRow>)AppAssignmentRows);
+                DebugLog.Log("Cache", "Updated Overview dashboard from cache");
             }
         }
         catch (Exception ex)
