@@ -8,9 +8,9 @@
 - [ ] Install Visual Studio 2022 (Community Edition or higher)
   - Workload: .NET desktop development
   - Workload: .NET Multi-platform App UI development (for Avalonia)
-- [ ] Install .NET 8 SDK
+- [ ] Install .NET 10 SDK
   - Download: https://dotnet.microsoft.com/download/dotnet/8.0
-  - Verify: `dotnet --version` should show 8.0.x
+  - Verify: `dotnet --version` should show 10.0.x
 - [ ] Install Git
   - Download: https://git-scm.com/downloads
   - Configure: `git config --global user.name "Your Name"`
@@ -94,9 +94,9 @@ cd IntuneManager
 dotnet new sln -n IntuneManager
 
 # Create projects
-dotnet new classlib -n IntuneManager.Core -f net8.0
-dotnet new avalonia.app -n IntuneManager.Desktop -f net8.0
-dotnet new xunit -n IntuneManager.Core.Tests -f net8.0
+dotnet new classlib -n IntuneManager.Core -f net10.0
+dotnet new avalonia.app -n IntuneManager.Desktop -f net10.0
+dotnet new xunit -n IntuneManager.Core.Tests -f net10.0
 
 # Add projects to solution
 dotnet sln add IntuneManager.Core/IntuneManager.Core.csproj

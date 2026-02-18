@@ -369,7 +369,7 @@ ViewModels/
 ## Technology Constraints
 
 ### .NET Version
-**Decision:** .NET 8 (LTS)
+**Decision:** .NET 10 (LTS)
 
 **Rationale:**
 - Long-term support until Nov 2026

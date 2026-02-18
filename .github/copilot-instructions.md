@@ -1,7 +1,7 @@
 # Copilot Instructions
 
 ## Project Overview
-Intune Commander is a .NET 8 / Avalonia UI desktop app for managing Microsoft Intune configurations across Commercial, GCC, GCC-High, and DoD clouds. It's a ground-up remake of a PowerShell/WPF tool — the migration to compiled .NET specifically targets UI deadlocks and threading issues.
+Intune Commander is a .NET 10 / Avalonia UI desktop app for managing Microsoft Intune configurations across Commercial, GCC, GCC-High, and DoD clouds. It's a ground-up remake of a PowerShell/WPF tool — the migration to compiled .NET specifically targets UI deadlocks and threading issues.
 
 ## Critical: Async-First UI Rule
 - The UI startup must NEVER block or wait on any async operation. All data loading (profiles, services, etc.) must happen asynchronously after the window is already visible.

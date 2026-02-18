@@ -16,8 +16,8 @@ permissions:
 
 env:
   PROJECT: src/IntuneManager.Desktop/IntuneManager.Desktop.csproj
-  PUBLISH_DIR: src/IntuneManager.Desktop/bin/Release/net8.0/win-x64/publish
-  DOTNET_VERSION: '8.0.x'
+  PUBLISH_DIR: src/IntuneManager.Desktop/bin/Release/net10.0/win-x64/publish
+  DOTNET_VERSION: '10.0.x'
   GH_REPO: adamgell/IntuneCommader
 
 jobs:

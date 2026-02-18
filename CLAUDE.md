@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-Intune Commander is a **.NET 8 / Avalonia UI** desktop application for managing Microsoft Intune configurations across multiple cloud environments (Commercial, GCC, GCC-High, DoD). It is a ground-up remake of [Micke-K/IntuneManagement](https://github.com/Micke-K/IntuneManagement) (PowerShell/WPF).
+Intune Commander is a **.NET 10 / Avalonia UI** desktop application for managing Microsoft Intune configurations across multiple cloud environments (Commercial, GCC, GCC-High, DoD). It is a ground-up remake of [Micke-K/IntuneManagement](https://github.com/Micke-K/IntuneManagement) (PowerShell/WPF).
 
 **Current Status:** Phase 1 implemented. Core infrastructure (auth, Graph API services, export/import, basic UI) is in place.
 
@@ -20,7 +20,7 @@ IntuneCommander/
 │   ├── PLANNING.md            # 6-phase development plan with success criteria
 │   └── NEXT-STEPS.md          # Pre-coding checklist, Phase 1 guide, resources
 ├── src/
-│   ├── IntuneManager.Core/           # Shared business logic (.NET 8 class library)
+│   ├── IntuneManager.Core/           # Shared business logic (.NET 10 class library)
 │   │   ├── Auth/                     # Authentication providers
 │   │   │   ├── IAuthenticationProvider.cs   # Auth provider interface
 │   │   │   ├── InteractiveBrowserAuthProvider.cs  # Azure.Identity interactive auth
@@ -68,7 +68,7 @@ IntuneCommander/
 
 | Component | Technology | Version |
 |-----------|-----------|---------|
-| Runtime | .NET 8 (LTS) | 8.0.x |
+| Runtime | .NET 10 (LTS) | 10.0.x |
 | Language | C# 12 | — |
 | UI Framework | Avalonia | 11.3.x |
 | MVVM Toolkit | CommunityToolkit.Mvvm | 8.2.x |

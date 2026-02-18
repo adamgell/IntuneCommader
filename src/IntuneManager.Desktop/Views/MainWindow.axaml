@@ -18,27 +18,29 @@
     </Design.DataContext>
 
     <DockPanel>
-        <!-- Menu Bar -->
-        <Menu DockPanel.Dock="Top">
-            <MenuItem Header="_File">
-                <MenuItem Header="_Refresh" Command="{Binding RefreshCommand}" InputGesture="F5" />
-                <Separator />
-                <MenuItem Header="_Disconnect" Command="{Binding DisconnectCommand}" />
-            </MenuItem>
-            <MenuItem Header="_Help">
-                <MenuItem Header="Check for _Updates..." x:Name="MenuCheckUpdates" Click="OnCheckForUpdatesClick" />
-                <Separator />
-                <MenuItem Header="_About Intune Commander" x:Name="MenuAbout" Click="OnAboutClick" />
-            </MenuItem>
-        </Menu>
+        <Grid DockPanel.Dock="Top">
+            <!-- Menu Bar -->
+            <Menu>
+                <MenuItem Header="_File">
+                    <MenuItem Header="_Refresh" Command="{Binding RefreshCommand}" InputGesture="F5" />
+                    <Separator />
+                    <MenuItem Header="_Disconnect" Command="{Binding DisconnectCommand}" />
+                </MenuItem>
+                <MenuItem Header="_Help">
+                    <MenuItem Header="Check for _Updates..." x:Name="MenuCheckUpdates" Click="OnCheckForUpdatesClick" />
+                    <Separator />
+                    <MenuItem Header="_About Intune Commander" x:Name="MenuAbout" Click="OnAboutClick" />
+                </MenuItem>
+            </Menu>
 
-        <!-- Cache date indicator (right-aligned over menu bar) -->
-        <Panel DockPanel.Dock="Top" Height="0" Margin="0,-26,12,0" ClipToBounds="False">
+            <!-- Cache date indicator (right-aligned in menu bar) -->
             <TextBlock Text="{Binding CacheStatusText}"
+                       Margin="0,0,12,0"
                        FontSize="11" Foreground="{DynamicResource TextFillColorPrimaryBrush}"
                        HorizontalAlignment="Right" VerticalAlignment="Center"
+                       IsHitTestVisible="False"
                        IsVisible="{Binding CacheStatusText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
-        </Panel>
+        </Grid>
 
         <!-- Status Bar -->
         <Border DockPanel.Dock="Bottom" Background="{DynamicResource SystemControlBackgroundChromeMediumBrush}"

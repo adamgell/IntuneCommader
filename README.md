@@ -1,6 +1,6 @@
 # Intune Commander - .NET Remake
 
-A cross-platform Intune management tool built with .NET 8 and Avalonia UI, designed to overcome PowerShell WPF limitations in threading, UI refresh, and data caching.
+A cross-platform Intune management tool built with .NET 10 and Avalonia UI, designed to overcome PowerShell WPF limitations in threading, UI refresh, and data caching.
 
 ## Project Overview
 
@@ -27,7 +27,7 @@ This project is a ground-up remake of [Micke-K/IntuneManagement](https://github.
 ## Technology Stack
 
 ### Core Technologies
-- **.NET 8** - Latest LTS framework
+- **.NET 10** - Latest LTS framework
 - **C# 12** - Primary language with nullable reference types
 - **Avalonia 11.3** - Cross-platform XAML UI framework (FluentTheme)
 - **Azure.Identity 1.17** - Modern authentication (Interactive Browser + Client Secret)
@@ -176,7 +176,7 @@ IntuneManager/
 ## Getting Started
 
 ### Prerequisites
-- .NET 8 SDK
+- .NET 10 SDK
 - Visual Studio 2022, JetBrains Rider, or VS Code with C# Dev Kit
 - Azure AD app registration with appropriate Microsoft Graph permissions
 

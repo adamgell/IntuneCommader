@@ -15,8 +15,8 @@ Single tenant, single object type, working end-to-end
 
 ### Deliverables
 1. **Project structure**
-   - Core library (.NET Standard 2.0 or .NET 8)
-   - Avalonia Desktop app (.NET 8)
+   - Core library (.NET Standard 2.0 or .NET 10)
+   - Avalonia Desktop app (.NET 10)
    - Basic test project setup
 
 2. **Authentication**

@@ -16,7 +16,7 @@ This document records key architectural and technical decisions made during the 
 3. Go + Fyne
 4. Electron + TypeScript (web technologies)
 
-**Decision:** .NET 8 + Avalonia UI
+**Decision:** .NET 10 + Avalonia UI
 
 **Rationale:**
 - Natural migration path from PowerShell (both .NET ecosystem)
