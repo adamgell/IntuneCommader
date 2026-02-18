@@ -31,6 +31,7 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        DataContextChanged += OnDataContextChanged;
     }
 
     protected override void OnLoaded(RoutedEventArgs e)
@@ -50,6 +51,25 @@ public partial class MainWindow : Window
         var columnChooserButton = this.FindControl<Button>("ColumnChooserButton");
         if (columnChooserButton != null)
             columnChooserButton.Click += OnColumnChooserClick;
+
+        AttachViewModelIfAvailable("Loaded");
+    }
+
+    private void OnDataContextChanged(object? sender, EventArgs e)
+    {
+        AttachViewModelIfAvailable("DataContextChanged");
+    }
+
+    private void AttachViewModelIfAvailable(string reason)
+    {
+        if (_vm != null)
+        {
+            _vm.SwitchProfileRequested -= OnSwitchProfileRequested;
+            _vm.CopyDetailsRequested -= OnCopyDetailsRequested;
+            _vm.ViewRawJsonRequested -= OnViewRawJsonRequested;
+            _vm.PropertyChanged -= OnViewModelPropertyChanged;
+            _vm = null;
+        }
 
         if (DataContext is MainWindowViewModel vm)
         {
