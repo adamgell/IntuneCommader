@@ -37,7 +37,7 @@ public class CacheService : ICacheService
         var passwordFilePath = Path.Combine(appDataPath, "cache-key.bin");
 
         var protector = dataProtectionProvider.CreateProtector(PasswordPurpose);
-        var dbPassword = GetOrCreatePassword(protector, passwordFilePath);
+        var dbPassword = GetOrCreatePassword(protector, passwordFilePath, dbPath);
 
         var connectionString = new ConnectionString
         {
@@ -153,8 +153,10 @@ public class CacheService : ICacheService
     /// <summary>
     /// Gets or creates the LiteDB password. The password is a random 32-byte
     /// value, base64-encoded, and stored encrypted via DataProtection.
+    /// If the key file exists but cannot be decrypted (keys rotated, corruption),
+    /// the unreadable DB and key file are deleted before a fresh pair is created.
     /// </summary>
-    private static string GetOrCreatePassword(IDataProtector protector, string passwordFilePath)
+    private static string GetOrCreatePassword(IDataProtector protector, string passwordFilePath, string dbPath)
     {
         if (File.Exists(passwordFilePath))
         {
@@ -165,7 +167,9 @@ public class CacheService : ICacheService
             }
             catch
             {
-                // Corrupted or keys rotated — regenerate
+                // Keys rotated or file corrupted — the DB is now permanently unreadable.
+                // Wipe both files so we don't leave orphaned encrypted trash on disk.
+                DeleteCacheFiles(dbPath, passwordFilePath);
             }
         }
 
@@ -179,5 +183,17 @@ public class CacheService : ICacheService
         File.WriteAllText(passwordFilePath, encrypted);
 
         return password;
+    }
+
+    /// <summary>
+    /// Deletes the LiteDB database file, its journal sidecar, and the key file.
+    /// All deletions are best-effort — a locked or missing file is silently skipped.
+    /// </summary>
+    private static void DeleteCacheFiles(string dbPath, string passwordFilePath)
+    {
+        foreach (var path in (string[])[dbPath, dbPath + "-log", passwordFilePath])
+        {
+            try { File.Delete(path); } catch { /* best effort */ }
+        }
     }
 }

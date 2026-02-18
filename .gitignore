@@ -65,3 +65,4 @@ profiles.json
 
 # Example/test data
 example/
+.claude/settings.local.json
