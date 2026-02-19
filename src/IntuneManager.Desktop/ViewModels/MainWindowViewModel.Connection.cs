@@ -167,6 +167,8 @@ public partial class MainWindowViewModel : ViewModelBase
                 _authenticationContextService,
                 _applicationService);
 
+            ExportConditionalAccessPowerPointCommand.NotifyCanExecuteChanged();
+
             _importService = new ImportService(
 
                 _configProfileService,

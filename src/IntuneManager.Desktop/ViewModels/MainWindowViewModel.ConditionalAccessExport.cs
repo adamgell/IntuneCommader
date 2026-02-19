@@ -1,8 +1,10 @@
 using System;
+using System.Collections.ObjectModel;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.Input;
+using Microsoft.Graph.Beta.Models;
 
 namespace IntuneManager.Desktop.ViewModels;
 
@@ -78,5 +80,15 @@ public partial class MainWindowViewModel : ViewModelBase
             return await SaveFileRequested.Invoke(defaultFileName, filter);
         }
         return null;
+    }
+
+    partial void OnIsConnectedChanged(bool value)
+    {
+        ExportConditionalAccessPowerPointCommand.NotifyCanExecuteChanged();
+    }
+
+    partial void OnConditionalAccessPoliciesChanged(ObservableCollection<ConditionalAccessPolicy> value)
+    {
+        ExportConditionalAccessPowerPointCommand.NotifyCanExecuteChanged();
     }
 }
