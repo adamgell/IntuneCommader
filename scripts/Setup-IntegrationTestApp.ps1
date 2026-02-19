@@ -15,17 +15,15 @@
     Prerequisites:
       - Az PowerShell module: Install-Module Az -Scope CurrentUser
       - Entra ID role: Global Admin or Application Admin + Privileged Role Admin (for consent)
-      - Run in PowerShell 7+
+      - Run in PowerShell 5.1+
 
     After running, add these GitHub repository secrets:
       AZURE_TENANT_ID, AZURE_CLIENT_ID, AZURE_CLIENT_SECRET
 #>
 
-#Requires -Modules Az.Accounts, Az.Resources
-
 [CmdletBinding()]
 param(
-    # ---------- PLACEHOLDER VARIABLES — fill these in ----------
+    # ---------- PLACEHOLDER VARIABLES -- fill these in ----------
 
     # Display name for the app registration
     [string]$AppDisplayName = "IntuneCommander-IntegrationTests",
@@ -33,32 +31,32 @@ param(
     # How long the client secret is valid (default: 180 days)
     [int]$SecretExpirationDays = 180,
 
-    # Tenant ID — leave empty to use the current Az context tenant
+    # Tenant ID -- leave empty to use the current Az context tenant
     [string]$TenantId = "",
 
-    # Subscription ID — leave empty to use the current Az context subscription
+    # Subscription ID -- leave empty to use the current Az context subscription
     [string]$SubscriptionId = ""
 )
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
-# ─── 0. Check and install required modules ─────────────────────────────────────
+# --- 0. Check and install required modules -------------------------------------
 
-Write-Host "`n━━━ Step 0: Checking required PowerShell modules ━━━" -ForegroundColor Cyan
+Write-Host "`n=== Step 0: Checking required PowerShell modules ===" -ForegroundColor Cyan
 
 $requiredModules = @("Az.Accounts", "Az.Resources")
 
 foreach ($mod in $requiredModules) {
     if (Get-Module -ListAvailable -Name $mod) {
         $ver = (Get-Module -ListAvailable -Name $mod | Sort-Object Version -Descending | Select-Object -First 1).Version
-        Write-Host "  ✓ $mod ($ver) is installed" -ForegroundColor Green
+        Write-Host "  [OK] $mod ($ver) is installed" -ForegroundColor Green
     } else {
-        Write-Host "  ✗ $mod not found — installing..." -ForegroundColor Yellow
+        Write-Host "  [X] $mod not found -- installing..." -ForegroundColor Yellow
         try {
             Install-Module -Name $mod -Scope CurrentUser -Force -AllowClobber -ErrorAction Stop
             $ver = (Get-Module -ListAvailable -Name $mod | Sort-Object Version -Descending | Select-Object -First 1).Version
-            Write-Host "  ✓ $mod ($ver) installed successfully" -ForegroundColor Green
+            Write-Host "  [OK] $mod ($ver) installed successfully" -ForegroundColor Green
         } catch {
             Write-Error "Failed to install $mod. Run 'Install-Module $mod -Scope CurrentUser' manually and retry."
             exit 1
@@ -73,9 +71,9 @@ foreach ($mod in $requiredModules) {
 
 Write-Host "  All required modules are available." -ForegroundColor Green
 
-# ─── 1. Connect to Azure ───────────────────────────────────────────────────────
+# --- 1. Connect to Azure -------------------------------------------------------
 
-Write-Host "`n━━━ Step 1: Connecting to Azure ━━━" -ForegroundColor Cyan
+Write-Host "`n=== Step 1: Connecting to Azure ===" -ForegroundColor Cyan
 
 $connectParams = @{}
 if ($TenantId)       { $connectParams.TenantId = $TenantId }
@@ -94,9 +92,9 @@ $resolvedTenantId = $context.Tenant.Id
 Write-Host "  Tenant:       $resolvedTenantId" -ForegroundColor Green
 Write-Host "  Subscription: $($context.Subscription.Name)" -ForegroundColor Green
 
-# ─── 2. Get Microsoft Graph service principal ──────────────────────────────────
+# --- 2. Get Microsoft Graph service principal ----------------------------------
 
-Write-Host "`n━━━ Step 2: Looking up Microsoft Graph service principal ━━━" -ForegroundColor Cyan
+Write-Host "`n=== Step 2: Looking up Microsoft Graph service principal ===" -ForegroundColor Cyan
 
 $graphSpn = Get-AzADServicePrincipal -Filter "appId eq '00000003-0000-0000-c000-000000000000'"
 if (-not $graphSpn) {
@@ -104,36 +102,36 @@ if (-not $graphSpn) {
 }
 Write-Host "  Found: $($graphSpn.DisplayName) ($($graphSpn.AppId))" -ForegroundColor Green
 
-# ─── 3. Define required permissions ───────────────────────────────────────────
+# --- 3. Define required permissions -------------------------------------------
 
 # These map to the permissions documented in docs/GRAPH-PERMISSIONS.md
 $requiredPermissions = @(
-    # Intune — Device Management
+    # Intune -- Device Management
     "DeviceManagementConfiguration.ReadWrite.All"
     "DeviceManagementApps.ReadWrite.All"
     "DeviceManagementServiceConfig.ReadWrite.All"
     "DeviceManagementRBAC.ReadWrite.All"
     "DeviceManagementManagedDevices.Read.All"
 
-    # Entra ID — Conditional Access & Identity
+    # Entra ID -- Conditional Access & Identity
     "Policy.ReadWrite.ConditionalAccess"
     "Policy.Read.All"
 
-    # Entra ID — Terms of Use
+    # Entra ID -- Terms of Use
     "Agreement.ReadWrite.All"
 
-    # Entra ID — Organization & Branding
+    # Entra ID -- Organization & Branding
     "Organization.Read.All"
     "OrganizationalBranding.ReadWrite.All"
 
-    # Entra ID — Groups
+    # Entra ID -- Groups
     "Group.Read.All"
     "GroupMember.Read.All"
 )
 
-Write-Host "`n━━━ Step 3: Resolving permission IDs ━━━" -ForegroundColor Cyan
+Write-Host "`n=== Step 3: Resolving permission IDs ===" -ForegroundColor Cyan
 
-# Build a lookup of app role name → ID from the Graph service principal
+# Build a lookup of app role name -> ID from the Graph service principal
 $appRoleLookup = @{}
 foreach ($role in $graphSpn.AppRole) {
     $appRoleLookup[$role.Value] = $role.Id
@@ -146,9 +144,9 @@ foreach ($perm in $requiredPermissions) {
             Name = $perm
             Id   = $appRoleLookup[$perm]
         }
-        Write-Host "  ✓ $perm → $($appRoleLookup[$perm])" -ForegroundColor Green
+        Write-Host "  [OK] $perm -> $($appRoleLookup[$perm])" -ForegroundColor Green
     } else {
-        Write-Warning "  ✗ Permission '$perm' not found on Microsoft Graph service principal — skipping"
+        Write-Warning "  [X] Permission '$perm' not found on Microsoft Graph service principal -- skipping"
     }
 }
 
@@ -156,9 +154,9 @@ if ($permissionIds.Count -eq 0) {
     throw "No valid permissions resolved. Cannot proceed."
 }
 
-# ─── 4. Create the app registration ───────────────────────────────────────────
+# --- 4. Create the app registration -------------------------------------------
 
-Write-Host "`n━━━ Step 4: Creating app registration '$AppDisplayName' ━━━" -ForegroundColor Cyan
+Write-Host "`n=== Step 4: Creating app registration '$AppDisplayName' ===" -ForegroundColor Cyan
 
 # Check if it already exists
 $existingApp = Get-AzADApplication -Filter "displayName eq '$AppDisplayName'" -ErrorAction SilentlyContinue
@@ -190,9 +188,9 @@ if ($existingApp) {
 
 $appId = $app.AppId
 
-# ─── 5. Create a client secret ────────────────────────────────────────────────
+# --- 5. Create a client secret ------------------------------------------------
 
-Write-Host "`n━━━ Step 5: Creating client secret ━━━" -ForegroundColor Cyan
+Write-Host "`n=== Step 5: Creating client secret ===" -ForegroundColor Cyan
 
 $endDate = (Get-Date).AddDays($SecretExpirationDays)
 $secret = New-AzADAppCredential -ApplicationId $appId -EndDate $endDate
@@ -202,12 +200,13 @@ $clientSecret = $secret.SecretText
 if (-not $clientSecret) {
     Write-Warning "  Could not retrieve secret value. You may need to create one manually in the Azure portal."
 } else {
-    Write-Host "  Secret created (expires: $($endDate.ToString('yyyy-MM-dd')))" -ForegroundColor Green
+    $expiryStr = $endDate.ToString("yyyy-MM-dd")
+    Write-Host "  Secret created (expires: $expiryStr)" -ForegroundColor Green
 }
 
-# ─── 6. Create the service principal (enterprise app) ─────────────────────────
+# --- 6. Create the service principal (enterprise app) -------------------------
 
-Write-Host "`n━━━ Step 6: Creating service principal ━━━" -ForegroundColor Cyan
+Write-Host "`n=== Step 6: Creating service principal ===" -ForegroundColor Cyan
 
 $spn = Get-AzADServicePrincipal -Filter "appId eq '$appId'" -ErrorAction SilentlyContinue
 if (-not $spn) {
@@ -217,9 +216,9 @@ if (-not $spn) {
     Write-Host "  Service principal already exists: $($spn.Id)" -ForegroundColor Yellow
 }
 
-# ─── 7. Grant admin consent (assign app roles) ────────────────────────────────
+# --- 7. Grant admin consent (assign app roles) --------------------------------
 
-Write-Host "`n━━━ Step 7: Granting admin consent for $($permissionIds.Count) permissions ━━━" -ForegroundColor Cyan
+Write-Host "`n=== Step 7: Granting admin consent for $($permissionIds.Count) permissions ===" -ForegroundColor Cyan
 
 # Get an access token for the Microsoft Graph API to assign app roles
 $graphToken = (Get-AzAccessToken -ResourceUrl "https://graph.microsoft.com").Token
@@ -239,25 +238,25 @@ foreach ($perm in $permissionIds) {
 
     try {
         $null = Invoke-RestMethod -Uri $consentUrl -Method POST -Headers $headers -Body $body
-        Write-Host "  ✓ Consented: $($perm.Name)" -ForegroundColor Green
+        Write-Host "  [OK] Consented: $($perm.Name)" -ForegroundColor Green
     } catch {
         $statusCode = $_.Exception.Response.StatusCode.value__
         if ($statusCode -eq 409) {
-            Write-Host "  ○ Already consented: $($perm.Name)" -ForegroundColor Yellow
+            Write-Host "  [~] Already consented: $($perm.Name)" -ForegroundColor Yellow
         } else {
-            Write-Warning "  ✗ Failed to consent '$($perm.Name)': $($_.Exception.Message)"
+            Write-Warning "  [X] Failed to consent '$($perm.Name)': $($_.Exception.Message)"
         }
     }
 }
 
-# ─── 8. Output summary ────────────────────────────────────────────────────────
+# --- 8. Output summary --------------------------------------------------------
 
-Write-Host "`n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Cyan
+Write-Host "`n==========================================================" -ForegroundColor Cyan
 Write-Host "  App Registration Setup Complete!" -ForegroundColor Green
-Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Cyan
+Write-Host "==========================================================" -ForegroundColor Cyan
 
 Write-Host "`n  Add these as GitHub repository secrets:" -ForegroundColor White
-Write-Host "  ─────────────────────────────────────────" -ForegroundColor DarkGray
+Write-Host "  -----------------------------------------" -ForegroundColor DarkGray
 Write-Host "  AZURE_TENANT_ID      = $resolvedTenantId" -ForegroundColor Yellow
 Write-Host "  AZURE_CLIENT_ID      = $appId" -ForegroundColor Yellow
 
@@ -267,13 +266,14 @@ if ($clientSecret) {
     Write-Host "  AZURE_CLIENT_SECRET  = <create manually in Azure Portal>" -ForegroundColor Red
 }
 
-Write-Host "`n  GitHub → Settings → Secrets and variables → Actions → New repository secret" -ForegroundColor DarkGray
+Write-Host "`n  GitHub -> Settings -> Secrets and variables -> Actions -> New repository secret" -ForegroundColor DarkGray
 
 Write-Host "`n  App details:" -ForegroundColor White
-Write-Host "  ─────────────────────────────────────────" -ForegroundColor DarkGray
+Write-Host "  -----------------------------------------" -ForegroundColor DarkGray
+$expiryStr = $endDate.ToString("yyyy-MM-dd")
 Write-Host "  Display Name : $AppDisplayName"
 Write-Host "  App (client) ID : $appId"
 Write-Host "  Object ID    : $($app.Id)"
-Write-Host "  Secret Expiry: $($endDate.ToString('yyyy-MM-dd'))"
+Write-Host "  Secret Expiry: $expiryStr"
 Write-Host "  Permissions  : $($permissionIds.Count) application roles granted"
 Write-Host ""

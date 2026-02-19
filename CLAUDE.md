@@ -12,8 +12,14 @@ Intune Commander is a **.NET 10 / Avalonia UI** desktop application for managing
 # Build all projects
 dotnet build
 
-# Run unit tests
-dotnet test
+# Run unit tests (excludes integration tests)
+dotnet test --filter "Category!=Integration"
+
+# Run unit tests with coverage threshold (40% line coverage enforced)
+dotnet test /p:CollectCoverage=true /p:Threshold=40 /p:ThresholdType=line /p:ThresholdStat=total
+
+# Run integration tests (requires AZURE_TENANT_ID, AZURE_CLIENT_ID, AZURE_CLIENT_SECRET env vars)
+dotnet test --filter "Category=Integration"
 
 # Run a single test class
 dotnet test --filter "FullyQualifiedName~ProfileServiceTests"
@@ -121,3 +127,35 @@ Each object type exports to its own subfolder under the chosen output directory 
 - **Graph services created post-auth, not in DI** — services that require a `GraphServiceClient` are instantiated in `MainWindowViewModel` after the user authenticates, not at startup
 - **LiteDB cache keyed by tenant ID** — multiple tenant profiles can share the same cache database; TTL is 24 hours
 - **Hobby project** — keep solutions pragmatic; avoid over-engineering
+
+## CI Workflows
+
+| Workflow | File | Trigger | Purpose |
+|----------|------|---------|---------|
+| CI — Test & Coverage | `.github/workflows/ci-test.yml` | All pushes + PRs to main | Unit tests with 40% line coverage threshold (coverlet.msbuild) |
+| CI — Integration Tests | `.github/workflows/ci-integration.yml` | Push/PR to main + manual | Graph API integration tests against live tenant |
+| Build Release | `.github/workflows/build-release.yml` | All pushes + PRs | Builds self-contained Windows x64 executable |
+
+- Unit test CI uses `--filter "Category!=Integration"` to skip integration tests
+- Integration CI requires repository secrets: `AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET`
+- Coverage threshold is enforced via `/p:Threshold=40` — failing builds if line coverage drops below 40%
+
+## Testing Conventions
+
+### Unit tests (`tests/IntuneManager.Core.Tests/`)
+- xUnit with `[Fact]`/`[Theory]`, no mocking framework
+- Service contract tests verify interface conformance, method signatures, return types, and `CancellationToken` parameters via reflection
+- File I/O tests use temp directories with `IDisposable` cleanup
+
+### Integration tests (`tests/IntuneManager.Core.Tests/Integration/`)
+- Tagged with `[Trait("Category", "Integration")]` — **always** use this trait for any test hitting Graph API
+- Base class `GraphIntegrationTestBase` provides `GraphServiceClient` from env vars and `ShouldSkip()` for graceful no-op when credentials are missing
+- Read-only tests (List + Get) are safe for any tenant
+- CRUD tests use `IntTest_AutoCleanup_` prefix and clean up in `finally` blocks
+- Setup script: `scripts/Setup-IntegrationTestApp.ps1` creates the app registration with all required Graph permissions (see `docs/GRAPH-PERMISSIONS.md`)
+
+## PowerShell Scripts
+
+- Scripts must use **ASCII-only characters** — no Unicode decorations (e.g., `━─→✓✗○—`) as they break PowerShell 5.1 parsing
+- Save `.ps1` files with ASCII encoding
+- Target PowerShell 5.1+ compatibility
