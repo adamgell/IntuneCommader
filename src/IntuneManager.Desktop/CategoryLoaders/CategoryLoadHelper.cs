@@ -56,7 +56,7 @@ public static class CategoryLoadHelper
                 ctx.CacheService.Set(ctx.TenantId, loader.CacheKey, [.. items]);
 
             ctx.ApplyFilter();
-            ctx.SetStatus($"Loaded {items.Count} {loader.CategoryName.ToLowerInvariant()}");
+            ctx.SetStatus($"Loaded {items.Count} {loader.CategoryName.ToLowerInvariant()}(s)");
             return items;
         }
         catch (Exception ex)
