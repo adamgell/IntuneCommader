@@ -30,8 +30,8 @@ param(
     # Display name for the app registration
     [string]$AppDisplayName = "IntuneCommander-IntegrationTests",
 
-    # How long the client secret is valid (default: 1 year)
-    [int]$SecretExpirationDays = 365,
+    # How long the client secret is valid (default: 180 days)
+    [int]$SecretExpirationDays = 180,
 
     # Tenant ID — leave empty to use the current Az context tenant
     [string]$TenantId = "",
@@ -42,6 +42,36 @@ param(
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
+
+# ─── 0. Check and install required modules ─────────────────────────────────────
+
+Write-Host "`n━━━ Step 0: Checking required PowerShell modules ━━━" -ForegroundColor Cyan
+
+$requiredModules = @("Az.Accounts", "Az.Resources")
+
+foreach ($mod in $requiredModules) {
+    if (Get-Module -ListAvailable -Name $mod) {
+        $ver = (Get-Module -ListAvailable -Name $mod | Sort-Object Version -Descending | Select-Object -First 1).Version
+        Write-Host "  ✓ $mod ($ver) is installed" -ForegroundColor Green
+    } else {
+        Write-Host "  ✗ $mod not found — installing..." -ForegroundColor Yellow
+        try {
+            Install-Module -Name $mod -Scope CurrentUser -Force -AllowClobber -ErrorAction Stop
+            $ver = (Get-Module -ListAvailable -Name $mod | Sort-Object Version -Descending | Select-Object -First 1).Version
+            Write-Host "  ✓ $mod ($ver) installed successfully" -ForegroundColor Green
+        } catch {
+            Write-Error "Failed to install $mod. Run 'Install-Module $mod -Scope CurrentUser' manually and retry."
+            exit 1
+        }
+    }
+}
+
+# Import modules
+foreach ($mod in $requiredModules) {
+    Import-Module $mod -ErrorAction Stop
+}
+
+Write-Host "  All required modules are available." -ForegroundColor Green
 
 # ─── 1. Connect to Azure ───────────────────────────────────────────────────────
 
