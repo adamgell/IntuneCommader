@@ -199,6 +199,12 @@
                                         </MultiBinding>
                                     </Button.IsVisible>
                                 </Button>
+                                <Button Content="📊 Export PowerPoint"
+                                        Command="{Binding ExportConditionalAccessPowerPointCommand}"
+                                        FontSize="12" Padding="8,4"
+                                        VerticalAlignment="Center"
+                                        IsVisible="{Binding IsConditionalAccessCategory}"
+                                        ToolTip.Tip="Export Conditional Access policies to PowerPoint presentation" />
                                 <Button Content="⋮ Columns"
                                         x:Name="ColumnChooserButton"
                                         FontSize="12" Padding="8,4"

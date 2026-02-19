@@ -67,6 +67,7 @@ public partial class MainWindow : Window
             _vm.SwitchProfileRequested -= OnSwitchProfileRequested;
             _vm.CopyDetailsRequested -= OnCopyDetailsRequested;
             _vm.ViewRawJsonRequested -= OnViewRawJsonRequested;
+            _vm.SaveFileRequested -= OnSaveFileRequested;
             _vm.PropertyChanged -= OnViewModelPropertyChanged;
             _vm = null;
         }
@@ -77,6 +78,7 @@ public partial class MainWindow : Window
             vm.SwitchProfileRequested += OnSwitchProfileRequested;
             vm.CopyDetailsRequested += OnCopyDetailsRequested;
             vm.ViewRawJsonRequested += OnViewRawJsonRequested;
+            vm.SaveFileRequested += OnSaveFileRequested;
             vm.PropertyChanged += OnViewModelPropertyChanged;
         }
     }
@@ -638,5 +640,22 @@ public partial class MainWindow : Window
                 Process.Start("xdg-open", url);
         }
         catch { /* best effort */ }
+    }
+
+    private async Task<string?> OnSaveFileRequested(string defaultFileName, string filter)
+    {
+        var topLevel = GetTopLevel(this);
+        if (topLevel == null) return null;
+
+        var file = await topLevel.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+        {
+            Title = "Save File",
+            SuggestedFileName = defaultFileName,
+            FileTypeChoices = filter.Contains("pptx") 
+                ? new[] { new FilePickerFileType("PowerPoint Presentation") { Patterns = new[] { "*.pptx" } } }
+                : null
+        });
+
+        return file?.Path.LocalPath;
     }
 }

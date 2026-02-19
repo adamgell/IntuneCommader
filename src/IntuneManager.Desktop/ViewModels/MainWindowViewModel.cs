@@ -174,6 +174,8 @@ public partial class MainWindowViewModel : ViewModelBase
 
     private ITermsOfUseService? _termsOfUseService;
 
+    private IConditionalAccessPptExportService? _conditionalAccessPptExportService;
+
 
 
     [ObservableProperty]

@@ -160,6 +160,13 @@ public partial class MainWindowViewModel : ViewModelBase
 
             _termsOfUseService = new TermsOfUseService(_graphClient);
 
+            _conditionalAccessPptExportService = new ConditionalAccessPptExportService(
+                _conditionalAccessPolicyService,
+                _namedLocationService,
+                _authenticationStrengthService,
+                _authenticationContextService,
+                _applicationService);
+
             _importService = new ImportService(
 
                 _configProfileService,
