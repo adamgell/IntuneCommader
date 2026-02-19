@@ -64,7 +64,8 @@ public class ManagedAppConfigurationService : IManagedAppConfigurationService
         var result = await _graphClient.DeviceAppManagement.MobileAppConfigurations[id]
             .PatchAsync(configuration, cancellationToken: cancellationToken);
 
-        return result ?? throw new InvalidOperationException("Failed to update managed device app configuration");
+        return await GraphPatchHelper.PatchWithGetFallbackAsync(
+            result, () => GetManagedDeviceAppConfigurationAsync(id, cancellationToken), "managed device app configuration");
     }
 
     public async Task DeleteManagedDeviceAppConfigurationAsync(string id, CancellationToken cancellationToken = default)
@@ -124,7 +125,8 @@ public class ManagedAppConfigurationService : IManagedAppConfigurationService
         var result = await _graphClient.DeviceAppManagement.TargetedManagedAppConfigurations[id]
             .PatchAsync(configuration, cancellationToken: cancellationToken);
 
-        return result ?? throw new InvalidOperationException("Failed to update targeted managed app configuration");
+        return await GraphPatchHelper.PatchWithGetFallbackAsync(
+            result, () => GetTargetedManagedAppConfigurationAsync(id, cancellationToken), "targeted managed app configuration");
     }
 
     public async Task DeleteTargetedManagedAppConfigurationAsync(string id, CancellationToken cancellationToken = default)

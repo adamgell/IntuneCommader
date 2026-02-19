@@ -8,6 +8,7 @@ namespace IntuneManager.Core.Tests.Integration;
 /// Safe to run against any tenant — no data is created, modified, or deleted.
 /// </summary>
 [Trait("Category", "Integration")]
+[Collection("Integration")]
 public class GraphServiceListIntegrationTests : GraphIntegrationTestBase
 {
     #region ConfigurationProfileService

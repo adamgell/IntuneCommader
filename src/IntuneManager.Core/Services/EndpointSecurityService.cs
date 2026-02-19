@@ -64,7 +64,8 @@ public class EndpointSecurityService : IEndpointSecurityService
         var result = await _graphClient.DeviceManagement.Intents[id]
             .PatchAsync(intent, cancellationToken: cancellationToken);
 
-        return result ?? throw new InvalidOperationException("Failed to update endpoint security intent");
+        return await GraphPatchHelper.PatchWithGetFallbackAsync(
+            result, () => GetEndpointSecurityIntentAsync(id, cancellationToken), "endpoint security intent");
     }
 
     public async Task DeleteEndpointSecurityIntentAsync(string id, CancellationToken cancellationToken = default)

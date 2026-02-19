@@ -80,7 +80,8 @@ public class AzureBrandingService : IAzureBrandingService
         var result = await _graphClient.Organization[organizationId].Branding.Localizations[id]
             .PatchAsync(localization, cancellationToken: cancellationToken);
 
-        return result ?? throw new InvalidOperationException("Failed to update branding localization");
+        return await GraphPatchHelper.PatchWithGetFallbackAsync(
+            result, () => GetBrandingLocalizationAsync(id, cancellationToken), "branding localization");
     }
 
     public async Task DeleteBrandingLocalizationAsync(string id, CancellationToken cancellationToken = default)

@@ -64,7 +64,8 @@ public class AdministrativeTemplateService : IAdministrativeTemplateService
         var result = await _graphClient.DeviceManagement.GroupPolicyConfigurations[id]
             .PatchAsync(template, cancellationToken: cancellationToken);
 
-        return result ?? throw new InvalidOperationException("Failed to update administrative template");
+        return await GraphPatchHelper.PatchWithGetFallbackAsync(
+            result, () => GetAdministrativeTemplateAsync(id, cancellationToken), "administrative template");
     }
 
     public async Task DeleteAdministrativeTemplateAsync(string id, CancellationToken cancellationToken = default)

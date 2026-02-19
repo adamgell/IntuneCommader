@@ -64,7 +64,8 @@ public class IntuneBrandingService : IIntuneBrandingService
         var result = await _graphClient.DeviceManagement.IntuneBrandingProfiles[id]
             .PatchAsync(profile, cancellationToken: cancellationToken);
 
-        return result ?? throw new InvalidOperationException("Failed to update Intune branding profile");
+        return await GraphPatchHelper.PatchWithGetFallbackAsync(
+            result, () => GetIntuneBrandingProfileAsync(id, cancellationToken), "Intune branding profile");
     }
 
     public async Task DeleteIntuneBrandingProfileAsync(string id, CancellationToken cancellationToken = default)
