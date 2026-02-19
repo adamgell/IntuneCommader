@@ -64,9 +64,8 @@ public class NamedLocationService : INamedLocationService
         var result = await _graphClient.Identity.ConditionalAccess.NamedLocations[id]
             .PatchAsync(namedLocation, cancellationToken: cancellationToken);
 
-        // Some Graph endpoints return 204 No Content on PATCH — fall back to GET
-        return result ?? await GetNamedLocationAsync(id, cancellationToken)
-            ?? throw new InvalidOperationException("Failed to update named location");
+        return await GraphPatchHelper.PatchWithGetFallbackAsync(
+            result, () => GetNamedLocationAsync(id, cancellationToken), "named location");
     }
 
     public async Task DeleteNamedLocationAsync(string id, CancellationToken cancellationToken = default)

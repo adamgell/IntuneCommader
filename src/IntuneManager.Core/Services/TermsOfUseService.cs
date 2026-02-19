@@ -64,9 +64,8 @@ public class TermsOfUseService : ITermsOfUseService
         var result = await _graphClient.IdentityGovernance.TermsOfUse.Agreements[id]
             .PatchAsync(agreement, cancellationToken: cancellationToken);
 
-        // Some Graph endpoints return 204 No Content on PATCH — fall back to GET
-        return result ?? await GetTermsOfUseAgreementAsync(id, cancellationToken)
-            ?? throw new InvalidOperationException("Failed to update terms of use agreement");
+        return await GraphPatchHelper.PatchWithGetFallbackAsync(
+            result, () => GetTermsOfUseAgreementAsync(id, cancellationToken), "terms of use agreement");
     }
 
     public async Task DeleteTermsOfUseAgreementAsync(string id, CancellationToken cancellationToken = default)

@@ -64,9 +64,8 @@ public class DeviceHealthScriptService : IDeviceHealthScriptService
         var result = await _graphClient.DeviceManagement.DeviceHealthScripts[id]
             .PatchAsync(script, cancellationToken: cancellationToken);
 
-        // Some Graph endpoints return 204 No Content on PATCH — fall back to GET
-        return result ?? await GetDeviceHealthScriptAsync(id, cancellationToken)
-            ?? throw new InvalidOperationException("Failed to update device health script");
+        return await GraphPatchHelper.PatchWithGetFallbackAsync(
+            result, () => GetDeviceHealthScriptAsync(id, cancellationToken), "device health script");
     }
 
     public async Task DeleteDeviceHealthScriptAsync(string id, CancellationToken cancellationToken = default)

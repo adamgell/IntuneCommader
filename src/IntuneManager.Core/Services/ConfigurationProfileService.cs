@@ -64,9 +64,8 @@ public class ConfigurationProfileService : IConfigurationProfileService
         var result = await _graphClient.DeviceManagement.DeviceConfigurations[id]
             .PatchAsync(config, cancellationToken: cancellationToken);
 
-        // Some Graph endpoints return 204 No Content on PATCH — fall back to GET
-        return result ?? await GetDeviceConfigurationAsync(id, cancellationToken)
-            ?? throw new InvalidOperationException("Failed to update device configuration");
+        return await GraphPatchHelper.PatchWithGetFallbackAsync(
+            result, () => GetDeviceConfigurationAsync(id, cancellationToken), "device configuration");
     }
 
     public async Task DeleteDeviceConfigurationAsync(string id, CancellationToken cancellationToken = default)

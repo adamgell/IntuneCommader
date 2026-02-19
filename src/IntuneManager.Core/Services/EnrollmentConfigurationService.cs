@@ -82,9 +82,8 @@ public class EnrollmentConfigurationService : IEnrollmentConfigurationService
         var result = await _graphClient.DeviceManagement.DeviceEnrollmentConfigurations[id]
             .PatchAsync(configuration, cancellationToken: cancellationToken);
 
-        // Some Graph endpoints return 204 No Content on PATCH — fall back to GET
-        return result ?? await GetEnrollmentConfigurationAsync(id, cancellationToken)
-            ?? throw new InvalidOperationException("Failed to update enrollment configuration");
+        return await GraphPatchHelper.PatchWithGetFallbackAsync(
+            result, () => GetEnrollmentConfigurationAsync(id, cancellationToken), "enrollment configuration");
     }
 
     public async Task DeleteEnrollmentConfigurationAsync(string id, CancellationToken cancellationToken = default)
