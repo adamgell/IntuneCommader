@@ -1,0 +1,51 @@
+name: CI — Test & Coverage
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Restore dependencies
+        run: dotnet restore IntuneManager.sln
+
+      - name: Build solution
+        run: dotnet build IntuneManager.sln --configuration Release --no-restore
+
+      - name: Run tests with coverage
+        run: |
+          dotnet test IntuneManager.sln \
+            --configuration Release \
+            --no-build \
+            --verbosity normal \
+            /p:CollectCoverage=true \
+            /p:CoverletOutputFormat=cobertura \
+            /p:CoverletOutput=./coverage/ \
+            /p:Include="[IntuneManager.Core]*" \
+            /p:Exclude="[IntuneManager.Core.Tests]*" \
+            /p:Threshold=40 \
+            /p:ThresholdType=line \
+            /p:ThresholdStat=total
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: tests/**/coverage/*.cobertura.xml
+          retention-days: 14
