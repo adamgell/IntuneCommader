@@ -1,0 +1,34 @@
+[
+  {
+    "name": "Contoso-Commercial",
+    "tenantId": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+    "clientId": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+    "cloud": "Commercial",
+    "authMethod": "Interactive",
+    "clientSecret": ""
+  },
+  {
+    "name": "Contoso-GCC",
+    "tenantId": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+    "clientId": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+    "cloud": "GCC",
+    "authMethod": "Interactive",
+    "clientSecret": ""
+  },
+  {
+    "name": "Fabrikam-GCCHigh",
+    "tenantId": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+    "clientId": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+    "cloud": "GCCHigh",
+    "authMethod": "ClientSecret",
+    "clientSecret": "your-client-secret-value-here"
+  },
+  {
+    "name": "Fabrikam-DoD",
+    "tenantId": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+    "clientId": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+    "cloud": "DoD",
+    "authMethod": "ClientSecret",
+    "clientSecret": "your-client-secret-value-here"
+  }
+]

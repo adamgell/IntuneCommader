@@ -52,6 +52,41 @@ dotnet test --filter "FullyQualifiedName~ProfileServiceTests"
 dotnet run --project src/IntuneManager.Desktop
 ```
 
+### Profile Management
+
+Intune Commander stores connection details as **profiles** (tenant ID, client ID, cloud, auth method). Profiles are persisted locally in an encrypted file and never leave your machine.
+
+**Manually adding a profile:**
+1. Launch the app — you'll land on the login screen
+2. Fill in Tenant ID, Client ID, Cloud, and (optionally) Client Secret
+3. Click **Save Profile** to persist it for future sessions
+
+**Importing profiles from a JSON file:**
+1. Click **Import Profiles** on the login screen
+2. Select a `.json` file containing one or more profile definitions
+3. Profiles are merged in — duplicates (same Tenant ID + Client ID) are skipped automatically
+4. The imported profiles appear immediately in the **Saved Profiles** dropdown
+
+A ready-to-use template is available at [`.github/profile-template.json`](.github/profile-template.json). Download it, fill in your real Tenant IDs and Client IDs, and import it directly.
+
+**Supported JSON shapes:**
+
+```json
+// Array of profiles (recommended)
+[
+  {
+    "name": "Contoso-Prod",
+    "tenantId": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+    "clientId": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+    "cloud": "Commercial",
+    "authMethod": "Interactive"
+  }
+]
+```
+
+Valid `cloud` values: `Commercial`, `GCC`, `GCCHigh`, `DoD`
+Valid `authMethod` values: `Interactive` (browser popup), `ClientSecret` (include `"clientSecret"` field)
+
 ### App Registration Setup
 
 1. Go to **Azure Portal → Entra ID → App Registrations → New registration**
