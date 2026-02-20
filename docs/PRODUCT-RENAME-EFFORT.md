@@ -68,3 +68,25 @@ Per PR feedback, proceed with **Option B (full technical rename)**.
 2. Unit tests pass with `--filter "Category!=Integration"`.
 3. Existing users with `%LOCALAPPDATA%/IntuneManager/*` data can still load profiles/cache after upgrade.
 4. No hard-coded `IntuneManager` references remain in active source/build paths, except explicitly documented legacy-compatibility constants.
+
+## Option B split into issues and pull requests
+
+### Issue 1: Rename solution/projects and namespaces
+- **Scope:** rename `IntuneManager.sln`, project names/folders, namespaces/usings, and test project references.
+- **PR:** `rename/option-b-01-solution-project-namespace`
+- **Exit criteria:** `dotnet build` and `dotnet test --filter "Category!=Integration"` pass.
+
+### Issue 2: Update CI/workflows/scripts/docs for renamed paths
+- **Scope:** workflow path updates, release/build scripts, references in README/docs/CONTRIBUTING/CLAUDE.
+- **PR:** `rename/option-b-02-ci-scripts-docs`
+- **Exit criteria:** CI workflows resolve correct project paths and docs reflect new naming.
+
+### Issue 3: Runtime storage migration and compatibility
+- **Scope:** migrate local paths and preserve compatibility for existing profile/cache/protection markers.
+- **PR:** `rename/option-b-03-runtime-migration`
+- **Exit criteria:** app loads legacy `%LOCALAPPDATA%/IntuneManager/*` data and writes to new location.
+
+### Issue 4: Cleanup and verification sweep
+- **Scope:** remove remaining active `IntuneManager` references (except documented legacy constants), final docs and verification.
+- **PR:** `rename/option-b-04-cleanup-verification`
+- **Exit criteria:** no active hard-coded old-name references in source/build paths; build + unit tests pass.
