@@ -258,7 +258,7 @@ ViewModels/
 
 ### Unit Tests
 **Framework:** xUnit
-**Coverage Target:** >70% for Core library
+**Coverage Target:** 40% line coverage (enforced in CI via coverlet)
 
 **Focus Areas:**
 - Service logic (IntuneService, ExportService)
@@ -267,12 +267,13 @@ ViewModels/
 - Migration table logic
 
 ### Integration Tests
-**Scope:** Phase 6+
+**Status:** Implemented — runs in CI (`ci-integration.yml`) against a live tenant
 
 **Requirements:**
 - Test tenant (non-production)
-- App registration with test permissions
-- Automated cleanup after tests
+- App registration with test permissions (`AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET` secrets)
+- Automated cleanup after tests (`IntTest_AutoCleanup_` prefix on created objects)
+- Base class: `GraphIntegrationTestBase` with `ShouldSkip()`, `CreateService<T>()`, `RetryOnTransientFailureAsync()`
 
 ### Manual Testing
 **Every Phase:**

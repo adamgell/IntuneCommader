@@ -228,27 +228,18 @@ This document records key architectural and technical decisions made during the 
 ## Decision 009: Logging Framework
 
 **Date:** 2025-02-14  
-**Status:** Approved  
+**Status:** Superseded — see implementation note  
 **Context:** Need structured logging for debugging and audit trail
 
-**Decision:** Serilog (deferred to Phase 6)
+**Original Decision:** Serilog (deferred to Phase 6)
 
-**Rationale:**
-- Industry standard for .NET
-- Structured logging superior to string formatting
-- Multiple sinks (file, console, cloud)
-- Easy to configure
-- Low performance overhead
+**Implementation Note (2026-02-16):** Serilog was not adopted. A custom `DebugLogService` singleton was implemented instead:
+- In-memory `ObservableCollection<string>` capped at 2 000 entries
+- All writes dispatched to the UI thread
+- Exposed via `DebugLogWindow` in the desktop app
+- Use `DebugLog.Log(category, message)` / `DebugLog.LogError(...)` throughout ViewModels
 
-**Consequences:**
-- Early phases have minimal logging
-- Must add logging retroactively to Phase 1-5 code
-- Log format decisions deferred
-
-**Alternatives Rejected:**
-- NLog: Less popular in modern .NET
-- Microsoft.Extensions.Logging: Less feature-rich
-- Console.WriteLine: Not production-ready
+File-based structured logging remains deferred. If added in the future, Microsoft.Extensions.Logging with a file sink is the preferred approach.
 
 ---
 
@@ -258,7 +249,7 @@ This document records key architectural and technical decisions made during the 
 **Status:** Approved  
 **Context:** Need quality assurance without slowing development
 
-**Decision:** Unit tests for Core library (>70% coverage target), manual testing for UI
+**Decision:** Unit tests for Core library (40% line coverage threshold enforced in CI), manual testing for UI
 
 **Rationale:**
 - Core business logic is most critical
@@ -309,25 +300,12 @@ This document records key architectural and technical decisions made during the 
 ## Decision 012: Dependency Management
 
 **Date:** 2025-02-14  
-**Status:** Approved  
+**Status:** Superseded — see implementation note  
 **Context:** Need to manage NuGet package versions across projects
 
-**Decision:** Central Package Management (Directory.Packages.props)
+**Original Decision:** Central Package Management (Directory.Packages.props)
 
-**Rationale:**
-- Single source of truth for versions
-- Prevents version conflicts across projects
-- Easier to update all projects together
-- Supported in .NET SDK 7.0+
-
-**Consequences:**
-- Slightly more complex project structure
-- Must remember to add versions to central file
-- All projects use same version (usually good)
-
-**Alternatives Rejected:**
-- Per-project package versions: Version drift risk
-- Git submodules for shared deps: Overcomplicated
+**Implementation Note (2026-02-16):** Central Package Management was not implemented. Package versions are pinned directly in each `.csproj` file. `Directory.Packages.props` does not exist in the repository. This keeps the project structure simpler and avoids the additional tooling overhead for a two-project solution.
 
 ---
 
@@ -434,7 +412,7 @@ Decisions can be revisited if new information emerges or requirements change.
 
 ---
 
-## Decision 010: Profile Encryption — ASP.NET DataProtection API
+## Decision 016: Profile Encryption — ASP.NET DataProtection API
 
 **Date:** 2026-02-16
 **Status:** Approved
@@ -455,7 +433,7 @@ Decisions can be revisited if new information emerges or requirements change.
 
 ---
 
-## Decision 011: Profile Switch — Confirmation Dialog
+## Decision 017: Profile Switch — Confirmation Dialog
 
 **Date:** 2026-02-16
 **Status:** Approved
@@ -474,7 +452,7 @@ Decisions can be revisited if new information emerges or requirements change.
 
 ---
 
-## Decision 012: Profile Validation — Basic GUID Format Checks
+## Decision 018: Profile Validation — Basic GUID Format Checks
 
 **Date:** 2026-02-16
 **Status:** Approved
@@ -490,7 +468,7 @@ Decisions can be revisited if new information emerges or requirements change.
 
 ---
 
-## Decision 013: Secret Storage — Deferred
+## Decision 019: Secret Storage — Deferred
 
 **Date:** 2026-02-16
 **Status:** Deferred

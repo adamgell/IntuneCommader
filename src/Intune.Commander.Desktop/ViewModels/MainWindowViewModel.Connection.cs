@@ -275,6 +275,12 @@ public partial class MainWindowViewModel : ViewModelBase
 
             DisconnectInternal();
 
+            CurrentView = LoginViewModel;
+
+            LoginViewModel.PopulateSavedProfiles();
+
+            LoginViewModel.SelectActiveProfile();
+
         }
 
         finally

@@ -674,6 +674,8 @@ public partial class MainWindowViewModel : ViewModelBase
 
             {
 
+                _appAssignmentsLoaded = true;
+
                 _ = LoadAppAssignmentRowsAsync();
 
             }
@@ -704,6 +706,8 @@ public partial class MainWindowViewModel : ViewModelBase
 
             {
 
+                _dynamicGroupsLoaded = true;
+
                 _ = LoadDynamicGroupRowsAsync();
 
             }
@@ -729,6 +733,8 @@ public partial class MainWindowViewModel : ViewModelBase
             }))
 
             {
+
+                _assignedGroupsLoaded = true;
 
                 _ = LoadAssignedGroupRowsAsync();
 
@@ -758,6 +764,8 @@ public partial class MainWindowViewModel : ViewModelBase
 
             {
 
+                _conditionalAccessLoaded = true;
+
                 _ = LoadConditionalAccessPoliciesAsync();
 
             }
@@ -785,6 +793,8 @@ public partial class MainWindowViewModel : ViewModelBase
             }))
 
             {
+
+                _assignmentFiltersLoaded = true;
 
                 _ = LoadAssignmentFiltersAsync();
 
@@ -814,6 +824,8 @@ public partial class MainWindowViewModel : ViewModelBase
 
             {
 
+                _policySetsLoaded = true;
+
                 _ = LoadPolicySetsAsync();
 
             }
@@ -841,6 +853,8 @@ public partial class MainWindowViewModel : ViewModelBase
             }))
 
             {
+
+                _endpointSecurityLoaded = true;
 
                 _ = LoadEndpointSecurityIntentsAsync();
 
@@ -870,6 +884,8 @@ public partial class MainWindowViewModel : ViewModelBase
 
             {
 
+                _administrativeTemplatesLoaded = true;
+
                 _ = LoadAdministrativeTemplatesAsync();
 
             }
@@ -897,6 +913,8 @@ public partial class MainWindowViewModel : ViewModelBase
             }))
 
             {
+
+                _enrollmentConfigurationsLoaded = true;
 
                 _ = LoadEnrollmentConfigurationsAsync();
 
@@ -926,6 +944,8 @@ public partial class MainWindowViewModel : ViewModelBase
 
             {
 
+                _appProtectionPoliciesLoaded = true;
+
                 _ = LoadAppProtectionPoliciesAsync();
 
             }
@@ -953,6 +973,8 @@ public partial class MainWindowViewModel : ViewModelBase
             }))
 
             {
+
+                _managedDeviceAppConfigurationsLoaded = true;
 
                 _ = LoadManagedDeviceAppConfigurationsAsync();
 
@@ -982,6 +1004,8 @@ public partial class MainWindowViewModel : ViewModelBase
 
             {
 
+                _targetedManagedAppConfigurationsLoaded = true;
+
                 _ = LoadTargetedManagedAppConfigurationsAsync();
 
             }
@@ -1009,6 +1033,8 @@ public partial class MainWindowViewModel : ViewModelBase
             }))
 
             {
+
+                _termsAndConditionsLoaded = true;
 
                 _ = LoadTermsAndConditionsAsync();
 
@@ -1038,6 +1064,8 @@ public partial class MainWindowViewModel : ViewModelBase
 
             {
 
+                _scopeTagsLoaded = true;
+
                 _ = LoadScopeTagsAsync();
 
             }
@@ -1065,6 +1093,8 @@ public partial class MainWindowViewModel : ViewModelBase
             }))
 
             {
+
+                _roleDefinitionsLoaded = true;
 
                 _ = LoadRoleDefinitionsAsync();
 
@@ -1094,6 +1124,8 @@ public partial class MainWindowViewModel : ViewModelBase
 
             {
 
+                _intuneBrandingProfilesLoaded = true;
+
                 _ = LoadIntuneBrandingProfilesAsync();
 
             }
@@ -1121,6 +1153,8 @@ public partial class MainWindowViewModel : ViewModelBase
             }))
 
             {
+
+                _azureBrandingLocalizationsLoaded = true;
 
                 _ = LoadAzureBrandingLocalizationsAsync();
 
@@ -1150,6 +1184,8 @@ public partial class MainWindowViewModel : ViewModelBase
 
             {
 
+                _autopilotProfilesLoaded = true;
+
                 _ = LoadAutopilotProfilesAsync();
 
             }
@@ -1177,6 +1213,8 @@ public partial class MainWindowViewModel : ViewModelBase
             }))
 
             {
+
+                _deviceHealthScriptsLoaded = true;
 
                 _ = LoadDeviceHealthScriptsAsync();
 
@@ -1206,6 +1244,8 @@ public partial class MainWindowViewModel : ViewModelBase
 
             {
 
+                _macCustomAttributesLoaded = true;
+
                 _ = LoadMacCustomAttributesAsync();
 
             }
@@ -1233,6 +1273,8 @@ public partial class MainWindowViewModel : ViewModelBase
             }))
 
             {
+
+                _featureUpdateProfilesLoaded = true;
 
                 _ = LoadFeatureUpdateProfilesAsync();
 
@@ -1262,6 +1304,8 @@ public partial class MainWindowViewModel : ViewModelBase
 
             {
 
+                _namedLocationsLoaded = true;
+
                 _ = LoadNamedLocationsAsync();
 
             }
@@ -1289,6 +1333,8 @@ public partial class MainWindowViewModel : ViewModelBase
             }))
 
             {
+
+                _authenticationStrengthPoliciesLoaded = true;
 
                 _ = LoadAuthenticationStrengthPoliciesAsync();
 
@@ -1318,6 +1364,8 @@ public partial class MainWindowViewModel : ViewModelBase
 
             {
 
+                _authenticationContextClassReferencesLoaded = true;
+
                 _ = LoadAuthenticationContextsAsync();
 
             }
@@ -1345,6 +1393,8 @@ public partial class MainWindowViewModel : ViewModelBase
             }))
 
             {
+
+                _termsOfUseAgreementsLoaded = true;
 
                 _ = LoadTermsOfUseAgreementsAsync();
 

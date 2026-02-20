@@ -122,15 +122,17 @@ public partial class OverviewViewModel : ObservableObject
         var series = new List<ISeries>();
         for (var i = 0; i < groups.Count; i++)
         {
+            var key = groups[i].Key;
+            var count = groups[i].Count();
             var color = Palette[i % Palette.Length];
             series.Add(new PieSeries<int>
             {
-                Values = [groups[i].Count()],
-                Name = $"{groups[i].Key} ({groups[i].Count()})",
+                Values = [count],
+                Name = $"{key} ({count})",
                 Fill = new SolidColorPaint(color),
                 DataLabelsSize = 12,
                 DataLabelsPosition = PolarLabelsPosition.Outer,
-                DataLabelsFormatter = p => groups[i].Key
+                DataLabelsFormatter = p => key
             });
         }
 
@@ -148,15 +150,17 @@ public partial class OverviewViewModel : ObservableObject
         var series = new List<ISeries>();
         for (var i = 0; i < groups.Count; i++)
         {
+            var key = groups[i].Key;
+            var count = groups[i].Count();
             var color = Palette[i % Palette.Length];
             series.Add(new PieSeries<int>
             {
-                Values = [groups[i].Count()],
-                Name = $"{groups[i].Key} ({groups[i].Count()})",
+                Values = [count],
+                Name = $"{key} ({count})",
                 Fill = new SolidColorPaint(color),
                 DataLabelsSize = 12,
                 DataLabelsPosition = PolarLabelsPosition.Outer,
-                DataLabelsFormatter = p => groups[i].Key
+                DataLabelsFormatter = p => key
             });
         }
 
