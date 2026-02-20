@@ -49,3 +49,22 @@ Rename solution/project names, folders, namespaces, references, workflows/script
 
 If the priority is branding speed, do Option A now and plan Option B as a separate tracked migration task.  
 If the priority is long-term consistency, execute Option B with explicit backward-compatibility handling for local stored data.
+
+## Selected path: Option B
+
+Per PR feedback, proceed with **Option B (full technical rename)**.
+
+### Option B delivery checklist
+
+- [ ] Rename solution/projects/folders from `IntuneManager*` to `Intune.Commander*`.
+- [ ] Rename namespaces (`IntuneManager.*` → `Intune.Commander.*`) and fix all compile references.
+- [ ] Update CI/workflows/scripts/docs for renamed paths and project names.
+- [ ] Implement runtime migration to preserve existing local profile/cache readability.
+- [ ] Validate with `dotnet build` and `dotnet test --filter "Category!=Integration"`.
+
+### Acceptance criteria for Option B
+
+1. `dotnet build` succeeds with renamed solution/projects.
+2. Unit tests pass with `--filter "Category!=Integration"`.
+3. Existing users with `%LOCALAPPDATA%/IntuneManager/*` data can still load profiles/cache after upgrade.
+4. No hard-coded `IntuneManager` references remain in active source/build paths, except explicitly documented legacy-compatibility constants.
