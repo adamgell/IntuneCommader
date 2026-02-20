@@ -90,3 +90,53 @@ Per PR feedback, proceed with **Option B (full technical rename)**.
 - **Scope:** remove remaining active `IntuneManager` references (except documented legacy constants), final docs and verification.
 - **PR:** `rename/option-b-04-cleanup-verification`
 - **Exit criteria:** no active hard-coded old-name references in source/build paths; build + unit tests pass.
+
+## Claude Code prompt (issue + PR execution)
+
+Use the prompt below in Claude Code to execute Option B as separate issues and PRs using this repo's existing files.
+
+```text
+You are implementing Option B (full technical rename) in adamgell/IntuneCommader.
+
+Use this file as source of truth:
+- /home/runner/work/IntuneCommader/IntuneCommader/docs/PRODUCT-RENAME-EFFORT.md
+
+Follow the split plan already defined there:
+1) rename/option-b-01-solution-project-namespace
+2) rename/option-b-02-ci-scripts-docs
+3) rename/option-b-03-runtime-migration
+4) rename/option-b-04-cleanup-verification
+
+Execution rules:
+- Do one phase per PR only; do not mix phases.
+- Keep changes minimal and surgical.
+- Reuse existing repo patterns and architecture (see CLAUDE.md and .github/copilot-instructions.md).
+- Preserve async-first UI constraints and existing behavior.
+- Do not break backward compatibility for local profile/cache data.
+- Run validation for every PR:
+  - dotnet build
+  - dotnet test --filter "Category!=Integration"
+
+For each phase:
+1. Create/update one issue in this format:
+   - Title: Option B Phase N - <phase name>
+   - Scope: exact files expected to change
+   - Out of scope: all other phases
+   - Acceptance criteria: copy from PRODUCT-RENAME-EFFORT.md
+2. Implement only that phase.
+3. Update docs impacted by the phase.
+4. Open PR with:
+   - Summary
+   - Files changed
+   - Validation output
+   - Risk + rollback notes
+
+Phase-specific guidance:
+- Phase 1: rename solution/project/folder/namespace/usings/test references only.
+- Phase 2: update workflow paths, scripts, README/docs/CONTRIBUTING/CLAUDE references.
+- Phase 3: add runtime migration so legacy %LOCALAPPDATA%/IntuneManager/* remains readable; keep compatibility markers working.
+- Phase 4: remove remaining active IntuneManager references except explicitly documented legacy compatibility constants; final verification sweep.
+
+Completion gate:
+- After each phase PR, ensure CI paths are correct and tests/build pass before moving to next phase.
+```
