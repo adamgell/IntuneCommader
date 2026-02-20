@@ -13,7 +13,7 @@ public class ServiceCollectionExtensionsTests : IDisposable
     public ServiceCollectionExtensionsTests()
     {
         var services = new ServiceCollection();
-        services.AddIntuneManagerCore();
+        services.AddIntuneCommanderCore();
         _provider = services.BuildServiceProvider();
     }
 
@@ -24,10 +24,10 @@ public class ServiceCollectionExtensionsTests : IDisposable
     }
 
     [Fact]
-    public void AddIntuneManagerCore_Returns_Same_ServiceCollection()
+    public void AddIntuneCommanderCore_Returns_Same_ServiceCollection()
     {
         var services = new ServiceCollection();
-        var result = services.AddIntuneManagerCore();
+        var result = services.AddIntuneCommanderCore();
         Assert.Same(services, result);
     }
 
@@ -99,7 +99,7 @@ public class ServiceCollectionExtensionsTests : IDisposable
     [Fact]
     public void All_Expected_Services_Are_Registered()
     {
-        // Verify every service registered by AddIntuneManagerCore is resolvable
+        // Verify every service registered by AddIntuneCommanderCore is resolvable
         Assert.NotNull(_provider.GetService<IDataProtectionProvider>());
         Assert.NotNull(_provider.GetService<IProfileEncryptionService>());
         Assert.NotNull(_provider.GetService<IAuthenticationProvider>());

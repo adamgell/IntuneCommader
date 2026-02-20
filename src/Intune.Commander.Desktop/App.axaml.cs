@@ -37,7 +37,7 @@ public partial class App : Application
             DisableAvaloniaDataAnnotationValidation();
 
             var services = new ServiceCollection();
-            services.AddIntuneManagerCore();
+            services.AddIntuneCommanderCore();
             services.AddTransient<MainWindowViewModel>();
             Services = services.BuildServiceProvider();
 

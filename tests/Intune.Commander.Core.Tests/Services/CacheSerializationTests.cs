@@ -17,7 +17,7 @@ public class CacheSerializationTests : IDisposable
 
     public CacheSerializationTests()
     {
-        _tempDir = Path.Combine(Path.GetTempPath(), $"IntuneManager_CacheSerTests_{Guid.NewGuid():N}");
+        _tempDir = Path.Combine(Path.GetTempPath(), $"IntuneCommander_CacheSerTests_{Guid.NewGuid():N}");
         Directory.CreateDirectory(_tempDir);
 
         var services = new ServiceCollection();

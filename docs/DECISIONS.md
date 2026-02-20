@@ -444,7 +444,7 @@ Decisions can be revisited if new information emerges or requirements change.
 
 **Rationale:**
 - Cross-platform (Windows, macOS, Linux) — aligns with Avalonia's cross-platform story
-- Keys stored in `%LOCALAPPDATA%\IntuneManager\keys\`
+- Keys stored in `%LOCALAPPDATA%\Intune.Commander\keys\`
 - Automatic key rotation and management built-in
 - Transparent migration from plaintext (existing profiles auto-encrypt on next save)
 - Graceful handling of corrupted/migrated data (falls back to empty store)

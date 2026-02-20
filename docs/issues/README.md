@@ -83,7 +83,7 @@ Each service follows these conventions:
 - **Phase B — Functional Completion:** Implement special helpers, normalization
 - **Phase C — Desktop Integration:** Add to `MainWindowViewModel`, UI wiring
 - **Phase D — Export/Import:** Extend `ExportService`/`ImportService`
-- **Phase E — Tests:** Add unit tests in `IntuneManager.Core.Tests`
+- **Phase E — Tests:** Add unit tests in `Intune.Commander.Core.Tests`
 
 ### Definition of Done (per service)
 

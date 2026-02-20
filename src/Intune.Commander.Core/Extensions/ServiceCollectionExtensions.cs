@@ -7,15 +7,14 @@ namespace Intune.Commander.Core.Extensions;
 
 public static class ServiceCollectionExtensions
 {
-    public static IServiceCollection AddIntuneManagerCore(this IServiceCollection services)
+    public static IServiceCollection AddIntuneCommanderCore(this IServiceCollection services)
     {
         var appData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
 
         // DataProtection — keys stored in the user's local app data folder.
         // NOTE: SetApplicationName("IntuneManager") is intentionally preserved as a
-        // read-only compatibility constant (Phase 3). Changing it would make all
-        // existing encrypted profile data permanently unreadable. It will be
-        // re-evaluated in Phase 4 once all legacy data has been migrated.
+        // read-only compatibility constant. Changing it would make all existing
+        // DataProtection-encrypted profile data permanently unreadable.
         var legacyKeysPath = Path.Combine(appData, "IntuneManager", "keys");
         var keysPath = Path.Combine(appData, "Intune.Commander", "keys");
 

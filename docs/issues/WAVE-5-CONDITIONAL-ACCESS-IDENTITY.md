@@ -176,6 +176,6 @@ Wave 5 focuses on implementing services for Conditional Access-adjacent identity
 - **Authentication Contexts** provide granular step-up authentication triggers for apps
 - **Terms of Use** agreements contain PDF files that need special handling
 - These resources are part of Azure AD/Entra ID, not Intune — ensure proper permissions are documented
-- Consider whether these services should be in a separate namespace (e.g., `IntuneManager.Core.Services.Identity`)
+- Consider whether these services should be in a separate namespace (e.g., `Intune.Commander.Core.Services.Identity`)
 - Built-in Authentication Strengths are read-only — handle appropriately in UI
 - Named Locations may be referenced by Conditional Access policies — consider dependency tracking

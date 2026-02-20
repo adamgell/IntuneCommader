@@ -57,7 +57,7 @@ src/
     Models/                  # Enums (CloudEnvironment, AuthMethod), TenantProfile, ProfileStore,
                              #   CloudEndpoints, MigrationEntry/Table, export DTOs, CacheEntry, GroupAssignmentResult
     Services/                # 30+ Graph API services + ProfileService, CacheService, ExportService, ImportService
-    Extensions/              # ServiceCollectionExtensions (AddIntuneManagerCore)
+    Extensions/              # ServiceCollectionExtensions (AddIntuneCommanderCore)
   Intune.Commander.Desktop/  # Avalonia UI
     Views/                   # MainWindow, LoginView, OverviewView, GroupLookupWindow, DebugLogWindow, RawJsonWindow
     ViewModels/              # MainWindowViewModel, LoginViewModel, OverviewViewModel, GroupLookupViewModel,
@@ -70,9 +70,9 @@ tests/
 
 ### DI and service lifetimes
 
-`App.axaml.cs` calls `services.AddIntuneManagerCore()` then registers `MainWindowViewModel` as transient.
+`App.axaml.cs` calls `services.AddIntuneCommanderCore()` then registers `MainWindowViewModel` as transient.
 
-`AddIntuneManagerCore()` registers:
+`AddIntuneCommanderCore()` registers:
 - **Singleton:** `IAuthenticationProvider`, `IntuneGraphClientFactory`, `ProfileService`, `IProfileEncryptionService`, `ICacheService`
 - **Transient:** `IExportService`
 
@@ -95,15 +95,13 @@ Cloud endpoints in `CloudEndpoints.cs`:
 
 ### Caching
 
-`CacheService` uses LiteDB with an AES-encrypted database file at `%LocalAppData%\IntuneManager\cache.db`. The DB password is generated once and stored encrypted via `Microsoft.AspNetCore.DataProtection` in `cache-key.bin`. Cache entries have a 24-hour default TTL and are keyed by tenant ID + data-type string.
-
-> **Phase 3 migration plan:** A future runtime migration will move the cache to `%LocalAppData%\Intune.Commander\cache.db` and, on first launch after upgrade, detect and migrate existing data from the legacy `%LocalAppData%\IntuneManager\` path.
+`CacheService` uses LiteDB with an AES-encrypted database file at `%LocalAppData%\Intune.Commander\cache.db`. The DB password is generated once and stored encrypted via `Microsoft.AspNetCore.DataProtection` in `cache-key.bin`. Cache entries have a 24-hour default TTL and are keyed by tenant ID + data-type string.
 
 ### Profile storage
 
-`ProfileService` currently persists `ProfileStore` (list of `TenantProfile`) to `%LocalAppData%\IntuneManager\profiles.json`. When `IProfileEncryptionService` is injected (always the case in production), the file is prefixed with an encryption marker and the payload is DataProtection-encrypted. Plaintext files are migrated to encrypted on next save.
+`ProfileService` persists `ProfileStore` (list of `TenantProfile`) to `%LocalAppData%\Intune.Commander\profiles.json`. When `IProfileEncryptionService` is injected (always the case in production), the file is prefixed with `INTUNEMANAGER_ENC:` and the payload is DataProtection-encrypted. Plaintext files are migrated to encrypted on next save. On first launch after upgrade from a pre-rename build, `ProfileService.LoadAsync` detects and auto-migrates data from the legacy `%LocalAppData%\IntuneManager\profiles.json` path.
 
-> **Legacy note (Phase 3):** Profile storage will be migrated at runtime from `%LocalAppData%\IntuneManager\profiles.json` to `%LocalAppData%\Intune.Commander\profiles.json`, similar to the cache path migration. The legacy encryption marker `INTUNEMANAGER_ENC:` and DataProtection purpose strings `IntuneManager.Profiles.v1` / `IntuneManager.Cache.Password.v1` are preserved as read-only compatibility constants until this Phase 3 migration is complete.
+> **Legacy compatibility constants** (do not change without careful consideration): `INTUNEMANAGER_ENC:` marker, `IntuneManager.Profiles.v1` DataProtection purpose (fallback decryptor), and `SetApplicationName("IntuneManager")` in `ServiceCollectionExtensions` (changing this makes all existing encrypted data unreadable).
 
 ### DebugLogService
 

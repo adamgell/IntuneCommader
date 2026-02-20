@@ -59,8 +59,8 @@ Per PR feedback, proceed with **Option B (full technical rename)**.
 - [x] Rename solution/projects/folders from `IntuneManager*` to `Intune.Commander*`. *(Phase 1 — PR #46)*
 - [x] Rename namespaces (`IntuneManager.*` → `Intune.Commander.*`) and fix all compile references. *(Phase 1 — PR #46)*
 - [x] Update CI/workflows/scripts/docs for renamed paths and project names. *(Phase 2 — PR #48)*
-- [x] Implement runtime migration to preserve existing local profile/cache readability. *(Phase 3 — this PR)*
-- [ ] Validate with `dotnet build` and `dotnet test --filter "Category!=Integration"`. *(Phase 4)*
+- [x] Implement runtime migration to preserve existing local profile/cache readability. *(Phase 3 — PR #50)*
+- [x] Cleanup remaining active `IntuneManager` references and final verification. *(Phase 4 — this PR)*
 
 ### Acceptance criteria for Option B
 

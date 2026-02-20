@@ -12,7 +12,7 @@ public class CacheServiceTests : IDisposable
 
     public CacheServiceTests()
     {
-        _tempDir = Path.Combine(Path.GetTempPath(), $"IntuneManager_CacheTests_{Guid.NewGuid():N}");
+        _tempDir = Path.Combine(Path.GetTempPath(), $"IntuneCommander_CacheTests_{Guid.NewGuid():N}");
         Directory.CreateDirectory(_tempDir);
 
         var services = new ServiceCollection();

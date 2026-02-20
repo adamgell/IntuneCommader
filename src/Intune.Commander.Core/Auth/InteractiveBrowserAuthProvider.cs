@@ -16,7 +16,7 @@ public class InteractiveBrowserAuthProvider : IAuthenticationProvider
         // Allow unencrypted token cache on Linux where secure storage may not be available.
         var tokenCacheOptions = new TokenCachePersistenceOptions
         {
-            Name = $"IntuneManager-{profile.Id}",
+            Name = $"IntuneCommander-{profile.Id}",
             UnsafeAllowUnencryptedStorage = OperatingSystem.IsLinux()
         };
 

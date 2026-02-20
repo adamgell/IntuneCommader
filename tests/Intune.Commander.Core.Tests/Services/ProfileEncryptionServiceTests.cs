@@ -13,14 +13,14 @@ public class ProfileEncryptionServiceTests : IDisposable
 
     public ProfileEncryptionServiceTests()
     {
-        _tempDir = Path.Combine(Path.GetTempPath(), $"intunemanager-enc-test-{Guid.NewGuid()}");
+        _tempDir = Path.Combine(Path.GetTempPath(), $"intunecommander-enc-test-{Guid.NewGuid()}");
         _keysDir = Path.Combine(_tempDir, "keys");
         Directory.CreateDirectory(_keysDir);
 
         // Build a real DataProtection provider for integration tests
         var services = new Microsoft.Extensions.DependencyInjection.ServiceCollection();
         services.AddDataProtection()
-            .SetApplicationName("IntuneManager-Tests")
+            .SetApplicationName("IntuneCommander-Tests")
             .PersistKeysToFileSystem(new DirectoryInfo(_keysDir));
 
         var sp = services.BuildServiceProvider();
@@ -68,7 +68,7 @@ public class ProfileEncryptionServiceTests : IDisposable
         // The service must fall back to "IntuneManager.Profiles.v1" and decrypt it successfully.
         var services = new Microsoft.Extensions.DependencyInjection.ServiceCollection();
         services.AddDataProtection()
-            .SetApplicationName("IntuneManager-Tests")
+            .SetApplicationName("IntuneCommander-Tests")
             .PersistKeysToFileSystem(new DirectoryInfo(_keysDir));
         using var sp = services.BuildServiceProvider();
         var provider = sp.GetRequiredService<Microsoft.AspNetCore.DataProtection.IDataProtectionProvider>();
@@ -94,14 +94,14 @@ public class EncryptedProfileServiceTests : IDisposable
 
     public EncryptedProfileServiceTests()
     {
-        _tempDir = Path.Combine(Path.GetTempPath(), $"intunemanager-encprofile-test-{Guid.NewGuid()}");
+        _tempDir = Path.Combine(Path.GetTempPath(), $"intunecommander-encprofile-test-{Guid.NewGuid()}");
         _profilePath = Path.Combine(_tempDir, "profiles.json");
         var keysDir = Path.Combine(_tempDir, "keys");
         Directory.CreateDirectory(keysDir);
 
         var services = new Microsoft.Extensions.DependencyInjection.ServiceCollection();
         services.AddDataProtection()
-            .SetApplicationName("IntuneManager-Tests")
+            .SetApplicationName("IntuneCommander-Tests")
             .PersistKeysToFileSystem(new DirectoryInfo(keysDir));
 
         var sp = services.BuildServiceProvider();
