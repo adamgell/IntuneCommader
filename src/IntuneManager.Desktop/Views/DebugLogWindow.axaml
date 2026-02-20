@@ -23,6 +23,12 @@
                            VerticalAlignment="Center" />
                 <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="8"
                             HorizontalAlignment="Right">
+                    <Button Content="Copy Selected" Click="OnCopySelected"
+                            Padding="12,4" FontSize="12" />
+                    <Button Content="Copy All" Click="OnCopyAll"
+                            Padding="12,4" FontSize="12" />
+                    <Button Content="Export..." Click="OnSaveLog"
+                            Padding="12,4" FontSize="12" />
                     <Button Content="Clear" Command="{Binding ClearLogCommand}"
                             Padding="12,4" FontSize="12" />
                 </StackPanel>
@@ -34,6 +40,7 @@
                  x:Name="LogListBox"
                  Background="{DynamicResource SystemControlBackgroundAltHighBrush}"
                  Padding="4"
+                 SelectionMode="Extended"
                  ScrollViewer.HorizontalScrollBarVisibility="Auto">
             <ListBox.ItemTemplate>
                 <DataTemplate>
