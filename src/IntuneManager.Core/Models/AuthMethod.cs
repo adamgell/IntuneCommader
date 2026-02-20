@@ -8,5 +8,6 @@ namespace IntuneManager.Core.Models;
 public enum AuthMethod
 {
     Interactive,
-    ClientSecret
+    ClientSecret,
+    DeviceCode
 }

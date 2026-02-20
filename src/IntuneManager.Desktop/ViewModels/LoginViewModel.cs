@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using Azure.Identity;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using IntuneManager.Core.Auth;
@@ -40,13 +41,36 @@ public partial class LoginViewModel : ViewModelBase
     private CloudEnvironment _selectedCloud = CloudEnvironment.Commercial;
 
     [ObservableProperty]
+    private AuthMethod _selectedAuthMethod = AuthMethod.Interactive;
+
+    [ObservableProperty]
     private string? _tenantIdError;
 
     [ObservableProperty]
     private string? _clientIdError;
 
+    /// <summary>
+    /// Set during a Device Code flow to display the code and verification URL to the user.
+    /// Cleared once authentication completes.
+    /// </summary>
+    [ObservableProperty]
+    private string _deviceCodeMessage = string.Empty;
+
     public static CloudEnvironment[] AvailableClouds { get; } =
         Enum.GetValues<CloudEnvironment>();
+
+    public static AuthMethod[] AvailableAuthMethods { get; } =
+        Enum.GetValues<AuthMethod>();
+
+    /// <summary>
+    /// Controls visibility of the Client Secret field — only shown for ClientSecret auth.
+    /// </summary>
+    public bool IsClientSecretVisible => SelectedAuthMethod == AuthMethod.ClientSecret;
+
+    /// <summary>
+    /// Controls visibility of the Device Code message panel.
+    /// </summary>
+    public bool IsDeviceCodeMessageVisible => !string.IsNullOrEmpty(DeviceCodeMessage);
 
     public ObservableCollection<TenantProfile> SavedProfiles { get; } = [];
 
@@ -82,6 +106,7 @@ public partial class LoginViewModel : ViewModelBase
         ClientId = value.ClientId;
         ClientSecret = value.ClientSecret ?? string.Empty;
         SelectedCloud = value.Cloud;
+        SelectedAuthMethod = value.AuthMethod;
 
         // Clear validation errors when loading a saved profile
         TenantIdError = null;
@@ -90,6 +115,18 @@ public partial class LoginViewModel : ViewModelBase
         LoginCommand.NotifyCanExecuteChanged();
         SaveProfileCommand.NotifyCanExecuteChanged();
         DeleteProfileCommand.NotifyCanExecuteChanged();
+    }
+
+    partial void OnSelectedAuthMethodChanged(AuthMethod value)
+    {
+        OnPropertyChanged(nameof(IsClientSecretVisible));
+        LoginCommand.NotifyCanExecuteChanged();
+        SaveProfileCommand.NotifyCanExecuteChanged();
+    }
+
+    partial void OnDeviceCodeMessageChanged(string value)
+    {
+        OnPropertyChanged(nameof(IsDeviceCodeMessageVisible));
     }
 
     [RelayCommand(CanExecute = nameof(CanSaveProfile))]
@@ -106,9 +143,7 @@ public partial class LoginViewModel : ViewModelBase
                 SelectedProfile.ClientId = ClientId.Trim();
                 SelectedProfile.ClientSecret = ClientSecret.Trim();
                 SelectedProfile.Cloud = SelectedCloud;
-                SelectedProfile.AuthMethod = string.IsNullOrWhiteSpace(ClientSecret)
-                    ? AuthMethod.Interactive
-                    : AuthMethod.ClientSecret;
+                SelectedProfile.AuthMethod = SelectedAuthMethod;
             }
             else
             {
@@ -120,9 +155,7 @@ public partial class LoginViewModel : ViewModelBase
                     ClientId = ClientId.Trim(),
                     ClientSecret = ClientSecret.Trim(),
                     Cloud = SelectedCloud,
-                    AuthMethod = string.IsNullOrWhiteSpace(ClientSecret)
-                        ? AuthMethod.Interactive
-                        : AuthMethod.ClientSecret
+                    AuthMethod = SelectedAuthMethod
                 };
                 _profileService.AddProfile(profile);
                 SavedProfiles.Add(profile);
@@ -138,6 +171,7 @@ public partial class LoginViewModel : ViewModelBase
             ClientId = string.Empty;
             ClientSecret = string.Empty;
             SelectedCloud = CloudEnvironment.Commercial;
+            SelectedAuthMethod = AuthMethod.Interactive;
             TenantIdError = null;
             ClientIdError = null;
         }
@@ -164,9 +198,11 @@ public partial class LoginViewModel : ViewModelBase
         ClientId = string.Empty;
         ClientSecret = string.Empty;
         SelectedCloud = CloudEnvironment.Commercial;
+        SelectedAuthMethod = AuthMethod.Interactive;
         TenantIdError = null;
         ClientIdError = null;
         StatusMessage = string.Empty;
+        DeviceCodeMessage = string.Empty;
         ClearError();
     }
 
@@ -202,7 +238,13 @@ public partial class LoginViewModel : ViewModelBase
     {
         ClearError();
         IsBusy = true;
-        StatusMessage = "Authenticating...";
+        DeviceCodeMessage = string.Empty;
+        StatusMessage = SelectedAuthMethod switch
+        {
+            AuthMethod.DeviceCode => "Waiting for device code...",
+            AuthMethod.Interactive => "Opening browser...",
+            _ => "Authenticating..."
+        };
 
         try
         {
@@ -212,10 +254,22 @@ public partial class LoginViewModel : ViewModelBase
 
             var profile = SelectedProfile!;
 
+            Func<DeviceCodeInfo, CancellationToken, Task>? deviceCodeCallback = null;
+            if (profile.AuthMethod == AuthMethod.DeviceCode)
+            {
+                deviceCodeCallback = (info, _) =>
+                {
+                    DeviceCodeMessage = info.Message;
+                    StatusMessage = "Complete sign-in in your browser, then return here.";
+                    return Task.CompletedTask;
+                };
+            }
+
             // Test the connection
-            var client = await _graphClientFactory.CreateClientAsync(profile, cancellationToken);
+            var client = await _graphClientFactory.CreateClientAsync(profile, deviceCodeCallback, cancellationToken);
             await client.DeviceManagement.GetAsync(cancellationToken: cancellationToken);
 
+            DeviceCodeMessage = string.Empty;
             StatusMessage = "Connected successfully!";
             profile.LastUsed = DateTime.UtcNow;
             _profileService.SetActiveProfile(profile.Id);
@@ -225,6 +279,7 @@ public partial class LoginViewModel : ViewModelBase
         }
         catch (Exception ex)
         {
+            DeviceCodeMessage = string.Empty;
             SetError($"Authentication failed: {ex.Message}");
             StatusMessage = string.Empty;
         }

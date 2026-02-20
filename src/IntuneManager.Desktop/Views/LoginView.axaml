@@ -78,6 +78,14 @@
             </StackPanel>
 
             <StackPanel Spacing="4">
+                <TextBlock Text="Auth Method" FontSize="12" />
+                <ComboBox ItemsSource="{Binding AvailableAuthMethods}"
+                          SelectedItem="{Binding SelectedAuthMethod}"
+                          HorizontalAlignment="Stretch"
+                          IsEnabled="{Binding !IsBusy}" />
+            </StackPanel>
+
+            <StackPanel Spacing="4" IsVisible="{Binding IsClientSecretVisible}">
                 <TextBlock Text="Client Secret" FontSize="12" />
                 <TextBox Text="{Binding ClientSecret}"
                          PasswordChar="●"
@@ -108,6 +116,18 @@
                     HorizontalContentAlignment="Center"
                     Classes="accent"
                     Margin="0,8,0,0" />
+
+            <!-- Device Code instructions -->
+            <Border BorderBrush="{DynamicResource SystemControlForegroundAccentBrush}"
+                    BorderThickness="1"
+                    Background="{DynamicResource SystemControlBackgroundChromeMediumLowBrush}"
+                    CornerRadius="4" Padding="12"
+                    IsVisible="{Binding IsDeviceCodeMessageVisible}">
+                <TextBlock Text="{Binding DeviceCodeMessage}"
+                           TextWrapping="Wrap"
+                           FontSize="12"
+                           FontFamily="Consolas, Courier New, monospace" />
+            </Border>
 
             <!-- Status -->
             <TextBlock Text="{Binding StatusMessage}"
