@@ -21,15 +21,29 @@ public static class ServiceCollectionExtensions
 
         // One-time migration: copy DataProtection key XML files from the legacy
         // location to the new one so existing encrypted profiles remain readable.
-        if (Directory.Exists(legacyKeysPath) && !Directory.Exists(keysPath))
+        var legacyKeyFiles = Directory.Exists(legacyKeysPath)
+            ? Directory.GetFiles(legacyKeysPath, "*.xml")
+            : Array.Empty<string>();
+
+        var newKeyDirectoryHasKeys = Directory.Exists(keysPath)
+            && Directory.GetFiles(keysPath, "*.xml").Length > 0;
+
+        if (legacyKeyFiles.Length > 0 && !newKeyDirectoryHasKeys)
         {
-            try
+            Directory.CreateDirectory(keysPath);
+
+            foreach (var file in legacyKeyFiles)
             {
-                Directory.CreateDirectory(keysPath);
-                foreach (var file in Directory.GetFiles(legacyKeysPath, "*.xml"))
-                    File.Copy(file, Path.Combine(keysPath, Path.GetFileName(file)), overwrite: false);
+                var destinationPath = Path.Combine(keysPath, Path.GetFileName(file));
+                if (File.Exists(destinationPath))
+                    continue;
+
+                try
+                {
+                    File.Copy(file, destinationPath, overwrite: false);
+                }
+                catch { /* best-effort — continue copying remaining keys */ }
             }
-            catch { /* best-effort — new keys will be generated if copy fails */ }
         }
 
         services.AddDataProtection()

@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using Microsoft.AspNetCore.DataProtection;
 
 namespace Intune.Commander.Core.Services;
@@ -40,7 +41,7 @@ public class ProfileEncryptionService : IProfileEncryptionService
         {
             return _protector.Unprotect(cipherText);
         }
-        catch
+        catch (CryptographicException)
         {
             // Fall back to legacy purpose — will throw if both fail
             return _legacyProtector.Unprotect(cipherText);

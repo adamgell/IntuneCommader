@@ -70,7 +70,7 @@ public class ProfileEncryptionServiceTests : IDisposable
         services.AddDataProtection()
             .SetApplicationName("IntuneManager-Tests")
             .PersistKeysToFileSystem(new DirectoryInfo(_keysDir));
-        var sp = services.BuildServiceProvider();
+        using var sp = services.BuildServiceProvider();
         var provider = sp.GetRequiredService<Microsoft.AspNetCore.DataProtection.IDataProtectionProvider>();
 
         // Encrypt directly under the legacy purpose (bypassing ProfileEncryptionService.Encrypt)
@@ -83,7 +83,6 @@ public class ProfileEncryptionServiceTests : IDisposable
         var decrypted = _encryption.Decrypt(legacyEncrypted);
 
         Assert.Equal(plainText, decrypted);
-        sp.Dispose();
     }
 }
 
