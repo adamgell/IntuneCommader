@@ -72,7 +72,7 @@ Per PR feedback, proceed with **Option B (full technical rename)**.
 ## Option B split into issues and pull requests
 
 ### Issue 1: Rename solution/projects and namespaces
-- **Scope:** rename `Intune.Commander.sln`, project names/folders, namespaces/usings, and test project references.
+- **Scope:** rename solution file from `IntuneManager.sln` to `Intune.Commander.sln`, and update project names/folders, namespaces/usings, and test project references.
 - **PR:** `rename/option-b-01-solution-project-namespace`
 - **Exit criteria:** `dotnet build` and `dotnet test --filter "Category!=Integration"` pass.
 

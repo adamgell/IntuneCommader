@@ -95,15 +95,15 @@ Cloud endpoints in `CloudEndpoints.cs`:
 
 ### Caching
 
-`CacheService` uses LiteDB with an AES-encrypted database file at `%LocalAppData%\Intune.Commander\cache.db`. The DB password is generated once and stored encrypted via `Microsoft.AspNetCore.DataProtection` in `cache-key.bin`. Cache entries have a 24-hour default TTL and are keyed by tenant ID + data-type string.
+`CacheService` uses LiteDB with an AES-encrypted database file at `%LocalAppData%\IntuneManager\cache.db`. The DB password is generated once and stored encrypted via `Microsoft.AspNetCore.DataProtection` in `cache-key.bin`. Cache entries have a 24-hour default TTL and are keyed by tenant ID + data-type string.
 
-> **Legacy note (Phase 3):** Existing installations store data under `%LocalAppData%\IntuneManager\`. Runtime migration (Phase 3) will detect and migrate legacy data to the new path on first launch.
+> **Phase 3 migration plan:** A future runtime migration will move the cache to `%LocalAppData%\Intune.Commander\cache.db` and, on first launch after upgrade, detect and migrate existing data from the legacy `%LocalAppData%\IntuneManager\` path.
 
 ### Profile storage
 
-`ProfileService` persists `ProfileStore` (list of `TenantProfile`) to `%LocalAppData%\Intune.Commander\profiles.json`. When `IProfileEncryptionService` is injected (always the case in production), the file is prefixed with an encryption marker and the payload is DataProtection-encrypted. Plaintext files are migrated to encrypted on next save.
+`ProfileService` currently persists `ProfileStore` (list of `TenantProfile`) to `%LocalAppData%\IntuneManager\profiles.json`. When `IProfileEncryptionService` is injected (always the case in production), the file is prefixed with an encryption marker and the payload is DataProtection-encrypted. Plaintext files are migrated to encrypted on next save.
 
-> **Legacy note (Phase 3):** The legacy encryption marker `INTUNEMANAGER_ENC:` and DataProtection purpose strings `IntuneManager.Profiles.v1` / `IntuneManager.Cache.Password.v1` are preserved as read-only compatibility constants until Phase 3 migration is complete.
+> **Legacy note (Phase 3):** Profile storage will be migrated at runtime from `%LocalAppData%\IntuneManager\profiles.json` to `%LocalAppData%\Intune.Commander\profiles.json`, similar to the cache path migration. The legacy encryption marker `INTUNEMANAGER_ENC:` and DataProtection purpose strings `IntuneManager.Profiles.v1` / `IntuneManager.Cache.Password.v1` are preserved as read-only compatibility constants until this Phase 3 migration is complete.
 
 ### DebugLogService
 

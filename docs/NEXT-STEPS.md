@@ -99,13 +99,13 @@ dotnet new avalonia.app -n IntuneManager.Desktop -f net10.0
 dotnet new xunit -n IntuneManager.Core.Tests -f net10.0
 
 # Add projects to solution
-dotnet sln add Intune.Commander.Core/IntuneManager.Core.csproj
-dotnet sln add Intune.Commander.Desktop/IntuneManager.Desktop.csproj
-dotnet sln add Intune.Commander.Core.Tests/IntuneManager.Core.Tests.csproj
+dotnet sln add Intune.Commander.Core/Intune.Commander.Core.csproj
+dotnet sln add Intune.Commander.Desktop/Intune.Commander.Desktop.csproj
+dotnet sln add Intune.Commander.Core.Tests/Intune.Commander.Core.Tests.csproj
 
 # Add project references
-dotnet add Intune.Commander.Desktop/IntuneManager.Desktop.csproj reference Intune.Commander.Core/IntuneManager.Core.csproj
-dotnet add Intune.Commander.Core.Tests/IntuneManager.Core.Tests.csproj reference Intune.Commander.Core/IntuneManager.Core.csproj
+dotnet add Intune.Commander.Desktop/Intune.Commander.Desktop.csproj reference Intune.Commander.Core/Intune.Commander.Core.csproj
+dotnet add Intune.Commander.Core.Tests/Intune.Commander.Core.Tests.csproj reference Intune.Commander.Core/Intune.Commander.Core.csproj
 ```
 
 ### 5. Install Initial Dependencies
