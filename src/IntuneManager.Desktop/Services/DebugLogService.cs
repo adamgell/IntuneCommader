@@ -1,6 +1,7 @@
 using System;
 using System.Collections.ObjectModel;
 using Avalonia.Threading;
+using IntuneManager.Desktop.Models;
 
 namespace IntuneManager.Desktop.Services;
 
@@ -9,7 +10,7 @@ public sealed class DebugLogService
     private static readonly Lazy<DebugLogService> _instance = new(() => new DebugLogService());
     public static DebugLogService Instance => _instance.Value;
 
-    public ObservableCollection<string> Entries { get; } = new();
+    public ObservableCollection<DebugLogEntry> Entries { get; } = new();
 
     private const int MaxEntries = 2000;
 
@@ -17,28 +18,17 @@ public sealed class DebugLogService
 
     public void Log(string message)
     {
-        var entry = $"[{DateTime.Now:HH:mm:ss.fff}] {message}";
-
-        if (Dispatcher.UIThread.CheckAccess())
-        {
-            AddEntry(entry);
-        }
-        else
-        {
-            Dispatcher.UIThread.Post(() => AddEntry(entry));
-        }
+        Log(DebugLogLevel.Info, "App", message);
     }
 
     public void Log(string category, string message)
     {
-        Log($"[{category}] {message}");
+        Log(DebugLogLevel.Info, category, message);
     }
 
-    public void LogError(string message, Exception? ex = null)
+    public void Log(DebugLogLevel level, string category, string message)
     {
-        var entry = ex != null
-            ? $"[{DateTime.Now:HH:mm:ss.fff}] ERROR: {message} — {ex.GetType().Name}: {ex.Message}"
-            : $"[{DateTime.Now:HH:mm:ss.fff}] ERROR: {message}";
+        var entry = new DebugLogEntry(DateTime.Now, category, level, message);
 
         if (Dispatcher.UIThread.CheckAccess())
         {
@@ -48,6 +38,12 @@ public sealed class DebugLogService
         {
             Dispatcher.UIThread.Post(() => AddEntry(entry));
         }
+    }
+
+    public void LogError(string message, Exception? ex = null)
+    {
+        var detail = ex != null ? $"{message} — {ex.GetType().Name}: {ex.Message}" : message;
+        Log(DebugLogLevel.Error, "Error", detail);
     }
 
     public void Clear()
@@ -62,7 +58,7 @@ public sealed class DebugLogService
         }
     }
 
-    private void AddEntry(string entry)
+    private void AddEntry(DebugLogEntry entry)
     {
         Entries.Add(entry);
         while (Entries.Count > MaxEntries)

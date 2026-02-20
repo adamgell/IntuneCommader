@@ -19,8 +19,21 @@
         <Border DockPanel.Dock="Top" Background="{DynamicResource SystemControlBackgroundChromeMediumBrush}"
                 Padding="8,6">
             <DockPanel>
-                <TextBlock Text="Debug Log" FontSize="14" FontWeight="SemiBold"
-                           VerticalAlignment="Center" />
+                <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                    <TextBlock Text="Debug Log" FontSize="14" FontWeight="SemiBold" />
+                    <TextBox Width="200" Watermark="Search..."
+                             Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}" />
+                    <ComboBox Width="140"
+                              ItemsSource="{Binding Categories}"
+                              SelectedItem="{Binding SelectedCategory}" />
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <CheckBox Content="Debug" IsChecked="{Binding ShowDebug}" />
+                        <CheckBox Content="Info" IsChecked="{Binding ShowInfo}" />
+                        <CheckBox Content="Warn" IsChecked="{Binding ShowWarning}" />
+                        <CheckBox Content="Error" IsChecked="{Binding ShowError}" />
+                        <ToggleSwitch Content="Auto-scroll" IsChecked="{Binding AutoScroll}" />
+                    </StackPanel>
+                </StackPanel>
                 <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="8"
                             HorizontalAlignment="Right">
                     <Button Content="Copy Selected" Click="OnCopySelected"
@@ -36,21 +49,61 @@
         </Border>
 
         <!-- Log entries -->
-        <ListBox ItemsSource="{Binding LogEntries}"
-                 x:Name="LogListBox"
-                 Background="{DynamicResource SystemControlBackgroundAltHighBrush}"
-                 Padding="4"
-                 SelectionMode="Extended"
-                 ScrollViewer.HorizontalScrollBarVisibility="Auto">
-            <ListBox.ItemTemplate>
-                <DataTemplate>
-                    <SelectableTextBlock Text="{Binding}"
-                               FontFamily="Cascadia Code, Consolas, Courier New, monospace"
-                               FontSize="12"
-                               TextWrapping="NoWrap"
-                               Padding="2,1" />
-                </DataTemplate>
-            </ListBox.ItemTemplate>
-        </ListBox>
+        <Grid RowDefinitions="*,Auto" ColumnDefinitions="2* , *" Margin="6">
+            <ListBox Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2"
+                     ItemsSource="{Binding FilteredEntries}"
+                     x:Name="LogListBox"
+                     Background="{DynamicResource SystemControlBackgroundAltHighBrush}"
+                     Padding="4"
+                     SelectionMode="Extended"
+                     ScrollViewer.HorizontalScrollBarVisibility="Auto">
+                <ListBox.ItemTemplate>
+                    <DataTemplate>
+                        <Border Padding="4,2">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <TextBlock Text="{Binding Timestamp, StringFormat='{}{0:HH:mm:ss.fff}'}"
+                                           FontFamily="Cascadia Code, Consolas, Courier New, monospace"
+                                           FontSize="12" />
+                                <Border Background="{DynamicResource SystemControlBackgroundChromeMediumLowBrush}"
+                                        CornerRadius="4" Padding="4,1">
+                                    <TextBlock Text="{Binding Category}" FontSize="11" />
+                                </Border>
+                                <TextBlock Text="{Binding Level}"
+                                           FontSize="11" FontWeight="SemiBold" />
+                                <SelectableTextBlock Text="{Binding Message}"
+                                           FontFamily="Cascadia Code, Consolas, Courier New, monospace"
+                                           FontSize="12"
+                                           TextWrapping="NoWrap" />
+                            </StackPanel>
+                        </Border>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+
+            <ScrollViewer Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2"
+                          VerticalScrollBarVisibility="Auto" Margin="0,8,0,0">
+                <StackPanel Spacing="6">
+                    <TextBlock Text="Modules" FontWeight="SemiBold" />
+                    <ItemsControl ItemsSource="{Binding GroupedEntries}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Expander Header="{Binding Category}" IsExpanded="True">
+                                    <ItemsControl ItemsSource="{Binding Entries}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <SelectableTextBlock Text="{Binding Formatted}"
+                                                            FontFamily="Cascadia Code, Consolas, Courier New, monospace"
+                                                            FontSize="12"
+                                                            Padding="4,1" />
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </Expander>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </ScrollViewer>
+        </Grid>
     </DockPanel>
 </Window>

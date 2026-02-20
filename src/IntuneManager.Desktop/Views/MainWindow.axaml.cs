@@ -55,6 +55,16 @@ public partial class MainWindow : Window
         AttachViewModelIfAvailable("Loaded");
     }
 
+    protected override void OnKeyDown(KeyEventArgs e)
+    {
+        base.OnKeyDown(e);
+        if (e.Key == Key.F12)
+        {
+            OnDebugLogLinkPressed(this, null!);
+            e.Handled = true;
+        }
+    }
+
     private void OnDataContextChanged(object? sender, EventArgs e)
     {
         AttachViewModelIfAvailable("DataContextChanged");
