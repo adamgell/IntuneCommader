@@ -30,7 +30,7 @@ public class CacheService : ICacheService
     {
         var appDataPath = basePath ?? Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "IntuneManager");
+            "Intune.Commander");
         Directory.CreateDirectory(appDataPath);
 
         var dbPath = Path.Combine(appDataPath, "cache.db");

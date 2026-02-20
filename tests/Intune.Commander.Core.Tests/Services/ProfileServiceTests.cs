@@ -167,6 +167,57 @@ public class ProfileServiceTests : IDisposable
         Assert.Empty(service.Profiles);
     }
 
+    [Fact]
+    public async Task Load_LegacyPath_MigratesToPrimaryPath()
+    {
+        // Arrange — write a profile to the "legacy" location only
+        var legacyDir = Path.Combine(Path.GetTempPath(), $"intunemanager-legacy-{Guid.NewGuid():N}");
+        var legacyPath = Path.Combine(legacyDir, "profiles.json");
+        var newPath = Path.Combine(Path.GetTempPath(), $"intunemanager-new-{Guid.NewGuid():N}", "profiles.json");
+        try
+        {
+            Directory.CreateDirectory(legacyDir);
+            var legacyService = new ProfileService(legacyPath);
+            legacyService.AddProfile(CreateTestProfile("LegacyUser"));
+            await legacyService.SaveAsync();
+
+            // Act — create service pointing at new path with legacy fallback
+            var service = new ProfileService(newPath, legacyProfilePath: legacyPath);
+            await service.LoadAsync();
+
+            // Profiles loaded from legacy location
+            Assert.Single(service.Profiles);
+            Assert.Equal("LegacyUser", service.Profiles[0].Name);
+
+            // New path was written (migration happened)
+            Assert.True(File.Exists(newPath));
+
+            // Legacy file still present (we don't delete it)
+            Assert.True(File.Exists(legacyPath));
+
+            // Subsequent load from new path works without legacy
+            var reloaded = new ProfileService(newPath);
+            await reloaded.LoadAsync();
+            Assert.Single(reloaded.Profiles);
+            Assert.Equal("LegacyUser", reloaded.Profiles[0].Name);
+        }
+        finally
+        {
+            try { Directory.Delete(legacyDir, true); } catch { }
+            var newDir = Path.GetDirectoryName(newPath);
+            if (newDir != null) try { Directory.Delete(newDir, true); } catch { }
+        }
+    }
+
+    [Fact]
+    public async Task Load_NoLegacyPath_ReturnsEmpty()
+    {
+        // When neither new nor legacy path exists, should get empty store
+        var service = new ProfileService(_tempPath, legacyProfilePath: null);
+        await service.LoadAsync();
+        Assert.Empty(service.Profiles);
+    }
+
     private static TenantProfile CreateTestProfile(string name) => new()
     {
         Name = name,

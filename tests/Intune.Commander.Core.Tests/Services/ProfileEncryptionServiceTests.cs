@@ -60,6 +60,30 @@ public class ProfileEncryptionServiceTests : IDisposable
     {
         Assert.ThrowsAny<Exception>(() => _encryption.Decrypt("not-valid-encrypted-data"));
     }
+
+    [Fact]
+    public void Decrypt_LegacyPurpose_SucceedsViaFallback()
+    {
+        // Simulate data that was encrypted before the rename using the legacy purpose string.
+        // The service must fall back to "IntuneManager.Profiles.v1" and decrypt it successfully.
+        var services = new Microsoft.Extensions.DependencyInjection.ServiceCollection();
+        services.AddDataProtection()
+            .SetApplicationName("IntuneManager-Tests")
+            .PersistKeysToFileSystem(new DirectoryInfo(_keysDir));
+        using var sp = services.BuildServiceProvider();
+        var provider = sp.GetRequiredService<Microsoft.AspNetCore.DataProtection.IDataProtectionProvider>();
+
+        // Encrypt directly under the legacy purpose (bypassing ProfileEncryptionService.Encrypt)
+        var legacyProtector = provider.CreateProtector("IntuneManager.Profiles.v1");
+        var plainText = "{\"profiles\":[],\"activeProfileId\":null}";
+        var legacyEncrypted = legacyProtector.Protect(plainText);
+
+        // The service (which normally uses "Intune.Commander.Profiles.v1") must fall back
+        // and successfully decrypt the legacy-purpose ciphertext.
+        var decrypted = _encryption.Decrypt(legacyEncrypted);
+
+        Assert.Equal(plainText, decrypted);
+    }
 }
 
 public class EncryptedProfileServiceTests : IDisposable
