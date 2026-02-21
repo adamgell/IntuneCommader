@@ -879,4 +879,141 @@ public class ExportServiceTests : IDisposable
 
         Assert.Empty(table.Entries);
     }
+
+    [Fact]
+    public async Task ExportDeviceManagementScript_CreatesJsonFile()
+    {
+        var script = new DeviceManagementScript { Id = "dms-id", DisplayName = "PS Script" };
+        var table = new MigrationTable();
+
+        await _service.ExportDeviceManagementScriptAsync(script, _tempDir, table);
+
+        Assert.True(File.Exists(Path.Combine(_tempDir, "DeviceManagementScripts", "PS Script.json")));
+        Assert.Contains(table.Entries, e => e.ObjectType == "DeviceManagementScript" && e.OriginalId == "dms-id");
+    }
+
+    [Fact]
+    public async Task ExportDeviceManagementScript_NullDisplayName_FallsBackToId()
+    {
+        var script = new DeviceManagementScript { Id = "fallback-dms-id", DisplayName = null };
+        var table = new MigrationTable();
+
+        await _service.ExportDeviceManagementScriptAsync(script, _tempDir, table);
+
+        var folder = Path.Combine(_tempDir, "DeviceManagementScripts");
+        var files = Directory.GetFiles(folder, "*.json");
+        Assert.Single(files);
+        Assert.Contains("fallback-dms-id", files[0]);
+    }
+
+    [Fact]
+    public async Task ExportDeviceManagementScript_NullId_SkipsMigrationTableEntry()
+    {
+        var script = new DeviceManagementScript { Id = null, DisplayName = "No Id Script" };
+        var table = new MigrationTable();
+
+        await _service.ExportDeviceManagementScriptAsync(script, _tempDir, table);
+
+        Assert.Empty(table.Entries);
+    }
+
+    [Fact]
+    public async Task ExportDeviceManagementScripts_ExportsMultipleAndWritesMigrationTable()
+    {
+        var scripts = new List<DeviceManagementScript>
+        {
+            new() { Id = "dms-1", DisplayName = "Script One" },
+            new() { Id = "dms-2", DisplayName = "Script Two" }
+        };
+
+        await _service.ExportDeviceManagementScriptsAsync(scripts, _tempDir);
+
+        var folder = Path.Combine(_tempDir, "DeviceManagementScripts");
+        Assert.True(File.Exists(Path.Combine(folder, "Script One.json")));
+        Assert.True(File.Exists(Path.Combine(folder, "Script Two.json")));
+        Assert.True(File.Exists(Path.Combine(_tempDir, "migration-table.json")));
+    }
+
+    [Fact]
+    public async Task ExportDeviceShellScript_CreatesJsonFile()
+    {
+        var script = new DeviceShellScript { Id = "dss-id", DisplayName = "Shell Script" };
+        var table = new MigrationTable();
+
+        await _service.ExportDeviceShellScriptAsync(script, _tempDir, table);
+
+        Assert.True(File.Exists(Path.Combine(_tempDir, "DeviceShellScripts", "Shell Script.json")));
+        Assert.Contains(table.Entries, e => e.ObjectType == "DeviceShellScript" && e.OriginalId == "dss-id");
+    }
+
+    [Fact]
+    public async Task ExportDeviceShellScript_NullDisplayName_FallsBackToId()
+    {
+        var script = new DeviceShellScript { Id = "fallback-dss-id", DisplayName = null };
+        var table = new MigrationTable();
+
+        await _service.ExportDeviceShellScriptAsync(script, _tempDir, table);
+
+        var folder = Path.Combine(_tempDir, "DeviceShellScripts");
+        var files = Directory.GetFiles(folder, "*.json");
+        Assert.Single(files);
+        Assert.Contains("fallback-dss-id", files[0]);
+    }
+
+    [Fact]
+    public async Task ExportDeviceShellScript_NullId_SkipsMigrationTableEntry()
+    {
+        var script = new DeviceShellScript { Id = null, DisplayName = "No Id Shell Script" };
+        var table = new MigrationTable();
+
+        await _service.ExportDeviceShellScriptAsync(script, _tempDir, table);
+
+        Assert.Empty(table.Entries);
+    }
+
+    [Fact]
+    public async Task ExportDeviceShellScripts_ExportsMultipleAndWritesMigrationTable()
+    {
+        var scripts = new List<DeviceShellScript>
+        {
+            new() { Id = "dss-1", DisplayName = "Shell One" },
+            new() { Id = "dss-2", DisplayName = "Shell Two" }
+        };
+
+        await _service.ExportDeviceShellScriptsAsync(scripts, _tempDir);
+
+        var folder = Path.Combine(_tempDir, "DeviceShellScripts");
+        Assert.True(File.Exists(Path.Combine(folder, "Shell One.json")));
+        Assert.True(File.Exists(Path.Combine(folder, "Shell Two.json")));
+        Assert.True(File.Exists(Path.Combine(_tempDir, "migration-table.json")));
+    }
+
+    [Fact]
+    public async Task ExportComplianceScript_CreatesJsonFile()
+    {
+        var script = new DeviceComplianceScript { Id = "cs-id", DisplayName = "Compliance Script" };
+        var table = new MigrationTable();
+
+        await _service.ExportComplianceScriptAsync(script, _tempDir, table);
+
+        Assert.True(File.Exists(Path.Combine(_tempDir, "ComplianceScripts", "Compliance Script.json")));
+        Assert.Contains(table.Entries, e => e.ObjectType == "ComplianceScript" && e.OriginalId == "cs-id");
+    }
+
+    [Fact]
+    public async Task ExportComplianceScripts_ExportsMultipleAndWritesMigrationTable()
+    {
+        var scripts = new List<DeviceComplianceScript>
+        {
+            new() { Id = "cs-1", DisplayName = "Script A" },
+            new() { Id = "cs-2", DisplayName = "Script B" }
+        };
+
+        await _service.ExportComplianceScriptsAsync(scripts, _tempDir);
+
+        var folder = Path.Combine(_tempDir, "ComplianceScripts");
+        Assert.True(File.Exists(Path.Combine(folder, "Script A.json")));
+        Assert.True(File.Exists(Path.Combine(folder, "Script B.json")));
+        Assert.True(File.Exists(Path.Combine(_tempDir, "migration-table.json")));
+    }
 }

@@ -1501,6 +1501,139 @@ public class ImportServiceTests : IDisposable
         Assert.Equal("Unknown", table.Entries[0].Name);
     }
 
+    [Fact]
+    public async Task ReadDeviceManagementScriptsFromFolderAsync_MissingFolder_ReturnsEmpty()
+    {
+        var sut = new ImportService(new StubConfigurationService());
+        var result = await sut.ReadDeviceManagementScriptsFromFolderAsync(_tempDir);
+        Assert.Empty(result);
+    }
+
+    [Fact]
+    public async Task ReadDeviceManagementScriptsFromFolderAsync_ReadsAllJsonFiles()
+    {
+        var folder = Path.Combine(_tempDir, "DeviceManagementScripts");
+        Directory.CreateDirectory(folder);
+
+        var s1 = new DeviceManagementScript { Id = "dms1", DisplayName = "Script1" };
+        var s2 = new DeviceManagementScript { Id = "dms2", DisplayName = "Script2" };
+        await File.WriteAllTextAsync(Path.Combine(folder, "s1.json"), System.Text.Json.JsonSerializer.Serialize(s1));
+        await File.WriteAllTextAsync(Path.Combine(folder, "s2.json"), System.Text.Json.JsonSerializer.Serialize(s2));
+
+        var sut = new ImportService(new StubConfigurationService());
+        var result = await sut.ReadDeviceManagementScriptsFromFolderAsync(_tempDir);
+
+        Assert.Equal(2, result.Count);
+    }
+
+    [Fact]
+    public async Task ImportDeviceManagementScriptAsync_UpdatesMigration()
+    {
+        var scriptService = new StubDeviceManagementScriptService
+        {
+            CreateResult = new DeviceManagementScript { Id = "new-dms", DisplayName = "Created Script" }
+        };
+        var sut = new ImportService(new StubConfigurationService(), null, deviceManagementScriptService: scriptService);
+        var table = new MigrationTable();
+
+        var script = new DeviceManagementScript
+        {
+            Id = "old-dms",
+            DisplayName = "Source Script",
+            CreatedDateTime = DateTimeOffset.UtcNow,
+            LastModifiedDateTime = DateTimeOffset.UtcNow
+        };
+
+        var created = await sut.ImportDeviceManagementScriptAsync(script, table);
+
+        Assert.Equal("new-dms", created.Id);
+        Assert.NotNull(scriptService.LastCreatedScript);
+        Assert.Null(scriptService.LastCreatedScript!.Id);
+        Assert.Single(table.Entries);
+        Assert.Equal("DeviceManagementScript", table.Entries[0].ObjectType);
+        Assert.Equal("old-dms", table.Entries[0].OriginalId);
+        Assert.Equal("new-dms", table.Entries[0].NewId);
+    }
+
+    [Fact]
+    public async Task ReadDeviceShellScriptsFromFolderAsync_MissingFolder_ReturnsEmpty()
+    {
+        var sut = new ImportService(new StubConfigurationService());
+        var result = await sut.ReadDeviceShellScriptsFromFolderAsync(_tempDir);
+        Assert.Empty(result);
+    }
+
+    [Fact]
+    public async Task ReadDeviceShellScriptsFromFolderAsync_ReadsAllJsonFiles()
+    {
+        var folder = Path.Combine(_tempDir, "DeviceShellScripts");
+        Directory.CreateDirectory(folder);
+
+        var s1 = new DeviceShellScript { Id = "dss1", DisplayName = "Shell1" };
+        var s2 = new DeviceShellScript { Id = "dss2", DisplayName = "Shell2" };
+        await File.WriteAllTextAsync(Path.Combine(folder, "s1.json"), System.Text.Json.JsonSerializer.Serialize(s1));
+        await File.WriteAllTextAsync(Path.Combine(folder, "s2.json"), System.Text.Json.JsonSerializer.Serialize(s2));
+
+        var sut = new ImportService(new StubConfigurationService());
+        var result = await sut.ReadDeviceShellScriptsFromFolderAsync(_tempDir);
+
+        Assert.Equal(2, result.Count);
+    }
+
+    [Fact]
+    public async Task ImportDeviceShellScriptAsync_UpdatesMigration()
+    {
+        var scriptService = new StubDeviceShellScriptService
+        {
+            CreateResult = new DeviceShellScript { Id = "new-dss", DisplayName = "Created Shell" }
+        };
+        var sut = new ImportService(new StubConfigurationService(), null, deviceShellScriptService: scriptService);
+        var table = new MigrationTable();
+
+        var script = new DeviceShellScript
+        {
+            Id = "old-dss",
+            DisplayName = "Source Shell",
+            CreatedDateTime = DateTimeOffset.UtcNow,
+            LastModifiedDateTime = DateTimeOffset.UtcNow
+        };
+
+        var created = await sut.ImportDeviceShellScriptAsync(script, table);
+
+        Assert.Equal("new-dss", created.Id);
+        Assert.NotNull(scriptService.LastCreatedScript);
+        Assert.Null(scriptService.LastCreatedScript!.Id);
+        Assert.Single(table.Entries);
+        Assert.Equal("DeviceShellScript", table.Entries[0].ObjectType);
+        Assert.Equal("old-dss", table.Entries[0].OriginalId);
+        Assert.Equal("new-dss", table.Entries[0].NewId);
+    }
+
+    [Fact]
+    public async Task ReadComplianceScriptsFromFolderAsync_MissingFolder_ReturnsEmpty()
+    {
+        var sut = new ImportService(new StubConfigurationService());
+        var result = await sut.ReadComplianceScriptsFromFolderAsync(_tempDir);
+        Assert.Empty(result);
+    }
+
+    [Fact]
+    public async Task ReadComplianceScriptsFromFolderAsync_ReadsAllJsonFiles()
+    {
+        var folder = Path.Combine(_tempDir, "ComplianceScripts");
+        Directory.CreateDirectory(folder);
+
+        var s1 = new DeviceComplianceScript { Id = "cs1", DisplayName = "CS1" };
+        var s2 = new DeviceComplianceScript { Id = "cs2", DisplayName = "CS2" };
+        await File.WriteAllTextAsync(Path.Combine(folder, "s1.json"), System.Text.Json.JsonSerializer.Serialize(s1));
+        await File.WriteAllTextAsync(Path.Combine(folder, "s2.json"), System.Text.Json.JsonSerializer.Serialize(s2));
+
+        var sut = new ImportService(new StubConfigurationService());
+        var result = await sut.ReadComplianceScriptsFromFolderAsync(_tempDir);
+
+        Assert.Equal(2, result.Count);
+    }
+
     private sealed class StubConfigurationService : IConfigurationProfileService
     {
         public DeviceConfiguration? LastCreatedConfig { get; private set; }
@@ -2056,5 +2189,59 @@ public class ImportServiceTests : IDisposable
 
         public Task DeleteAuthenticationContextAsync(string id, CancellationToken cancellationToken = default)
             => Task.CompletedTask;
+    }
+
+    private sealed class StubDeviceManagementScriptService : IDeviceManagementScriptService
+    {
+        public DeviceManagementScript? LastCreatedScript { get; private set; }
+        public DeviceManagementScript CreateResult { get; set; } = new() { Id = "created-dms", DisplayName = "Created" };
+
+        public Task<List<DeviceManagementScript>> ListDeviceManagementScriptsAsync(CancellationToken cancellationToken = default)
+            => Task.FromResult(new List<DeviceManagementScript>());
+
+        public Task<DeviceManagementScript?> GetDeviceManagementScriptAsync(string id, CancellationToken cancellationToken = default)
+            => Task.FromResult<DeviceManagementScript?>(null);
+
+        public Task<DeviceManagementScript> CreateDeviceManagementScriptAsync(DeviceManagementScript script, CancellationToken cancellationToken = default)
+        {
+            LastCreatedScript = script;
+            return Task.FromResult(CreateResult);
+        }
+
+        public Task<DeviceManagementScript> UpdateDeviceManagementScriptAsync(DeviceManagementScript script, CancellationToken cancellationToken = default)
+            => Task.FromResult(script);
+
+        public Task DeleteDeviceManagementScriptAsync(string id, CancellationToken cancellationToken = default)
+            => Task.CompletedTask;
+
+        public Task<List<DeviceManagementScriptAssignment>> GetAssignmentsAsync(string scriptId, CancellationToken cancellationToken = default)
+            => Task.FromResult(new List<DeviceManagementScriptAssignment>());
+    }
+
+    private sealed class StubDeviceShellScriptService : IDeviceShellScriptService
+    {
+        public DeviceShellScript? LastCreatedScript { get; private set; }
+        public DeviceShellScript CreateResult { get; set; } = new() { Id = "created-dss", DisplayName = "Created" };
+
+        public Task<List<DeviceShellScript>> ListDeviceShellScriptsAsync(CancellationToken cancellationToken = default)
+            => Task.FromResult(new List<DeviceShellScript>());
+
+        public Task<DeviceShellScript?> GetDeviceShellScriptAsync(string id, CancellationToken cancellationToken = default)
+            => Task.FromResult<DeviceShellScript?>(null);
+
+        public Task<DeviceShellScript> CreateDeviceShellScriptAsync(DeviceShellScript script, CancellationToken cancellationToken = default)
+        {
+            LastCreatedScript = script;
+            return Task.FromResult(CreateResult);
+        }
+
+        public Task<DeviceShellScript> UpdateDeviceShellScriptAsync(DeviceShellScript script, CancellationToken cancellationToken = default)
+            => Task.FromResult(script);
+
+        public Task DeleteDeviceShellScriptAsync(string id, CancellationToken cancellationToken = default)
+            => Task.CompletedTask;
+
+        public Task<List<DeviceManagementScriptAssignment>> GetAssignmentsAsync(string scriptId, CancellationToken cancellationToken = default)
+            => Task.FromResult(new List<DeviceManagementScriptAssignment>());
     }
 }

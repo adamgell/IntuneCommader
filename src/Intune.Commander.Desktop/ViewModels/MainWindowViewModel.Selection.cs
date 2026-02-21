@@ -1908,6 +1908,8 @@ public partial class MainWindowViewModel : ViewModelBase
 
             case AllDevicesAssignmentTarget:
 
+                return new AssignmentDisplayItem { Target = "All Devices", TargetKind = "Include" };
+
             case AllLicensedUsersAssignmentTarget:
 
                 return new AssignmentDisplayItem { Target = "All Users", TargetKind = "Include" };
