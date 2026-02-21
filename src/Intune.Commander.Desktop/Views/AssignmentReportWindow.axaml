@@ -112,6 +112,9 @@
                                  x:Name="UserSearchBox"
                                  KeyDown="OnUserSearchBoxKeyDown" />
                     </DockPanel>
+                    <TextBlock Text="No users found — try a different name or full UPN."
+                               IsVisible="{Binding ShowNoUserResults}"
+                               FontSize="12" Opacity="0.6" FontStyle="Italic" Margin="64,0,0,0" />
                     <Border IsVisible="{Binding UserSearchResults.Count}"
                             MaxHeight="150" BorderThickness="1"
                             BorderBrush="{DynamicResource SystemControlForegroundBaseMediumLowBrush}"
@@ -141,10 +144,10 @@
                 <!-- Device input (mode 2) -->
                 <StackPanel IsVisible="{Binding ShowDeviceInput}"
                             Orientation="Horizontal" Spacing="8">
-                    <TextBlock Text="Device Name(s):"
+                    <TextBlock Text="Device Name Prefix(es):"
                                VerticalAlignment="Center" Width="180" />
                     <TextBox Text="{Binding DeviceInput}"
-                             Watermark="DeviceName  (comma-separate for multiple)"
+                             Watermark="e.g. LAPTOP-  (partial OK, comma-separate for multiple)"
                              Width="460" x:Name="DeviceInputBox"
                              KeyDown="OnDeviceInputBoxKeyDown" />
                 </StackPanel>

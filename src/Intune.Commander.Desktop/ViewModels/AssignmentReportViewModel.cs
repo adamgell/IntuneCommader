@@ -57,6 +57,8 @@ public partial class AssignmentReportViewModel : ViewModelBase
     private bool _isSearchingUser;
     [ObservableProperty]
     private string _selectedUsersInfo = "";
+    [ObservableProperty]
+    private bool _showNoUserResults;
     public ObservableCollection<User> UserSearchResults { get; } = [];
     public ObservableCollection<User> SelectedUsers { get; } = [];
 
@@ -161,6 +163,7 @@ public partial class AssignmentReportViewModel : ViewModelBase
     {
         if (string.IsNullOrWhiteSpace(UserSearchQuery)) return;
         IsSearchingUser = true;
+        ShowNoUserResults = false;
         UserSearchResults.Clear();
         SelectedUsers.Clear();
         SelectedUsersInfo = "";
@@ -171,6 +174,8 @@ public partial class AssignmentReportViewModel : ViewModelBase
             // Auto-select when exactly one result, mirroring group search behaviour
             if (users.Count == 1)
                 UpdateSelectedUsers([users[0]]);
+            else if (users.Count == 0)
+                ShowNoUserResults = true;
         }
         catch (Exception ex) { SetError($"User search failed: {ex.Message}"); }
         finally { IsSearchingUser = false; }
@@ -212,6 +217,7 @@ public partial class AssignmentReportViewModel : ViewModelBase
         UserSearchResults.Clear();
         SelectedUsers.Clear();
         SelectedUsersInfo = "";
+        ShowNoUserResults = false;
         ClearError();
         OnPropertyChanged(nameof(CanExport));
         StatusText = IsAutoRunMode
@@ -223,7 +229,7 @@ public partial class AssignmentReportViewModel : ViewModelBase
     {
         0 => "Search for users by name or UPN, select one or more, then click Run Report.",
         1 => "Search for a group by name or GUID, select it, then click Run Report.",
-        2 => "Enter a device name (Azure AD device display name) and click Run Report.",
+        2 => "Enter a device name prefix (e.g. 'LAPTOP-') and click Run Report. Matches all devices with that prefix.",
         8 => "Search for two groups to compare, select them, then click Run Report.",
         _ => "Click 'Run Report' to fetch data."
     };
@@ -461,23 +467,17 @@ public partial class AssignmentReportViewModel : ViewModelBase
     {
         var deviceName = DeviceInput.Trim();
         if (string.IsNullOrEmpty(deviceName))
-            throw new InvalidOperationException("Please enter a device name.");
+            throw new InvalidOperationException("Please enter a device name prefix.");
 
-        var names = deviceName.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        // Support comma-separated multiple search terms (each may match multiple devices)
+        var terms = deviceName.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
         var all = new List<AssignmentReportRow>();
-        var multiDevice = names.Length > 1;
-        foreach (var d in names)
+        foreach (var term in terms)
         {
-            ReportProgress($"Checking assignments for device {d}...");
-            var deviceName2 = d;
-            Action<AssignmentReportRow> rowCallback = multiDevice
-                ? r => onRow(r with { TargetDevice = deviceName2 })
-                : onRow;
-            var rows = await _checkerService.GetDeviceAssignmentsAsync(d, ReportProgress, rowCallback, ct);
-            if (multiDevice)
-                foreach (var r in rows) all.Add(r with { TargetDevice = d });
-            else
-                all.AddRange(rows);
+            ReportProgress($"Searching devices matching '{term}'...");
+            // Service already stamps TargetDevice and streams rows via onRow
+            var rows = await _checkerService.GetDeviceAssignmentsAsync(term, ReportProgress, onRow, ct);
+            all.AddRange(rows);
         }
         return all;
     }

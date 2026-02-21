@@ -17,7 +17,7 @@ public class UserService(GraphServiceClient graphClient) : IUserService
 
         var trimmed = query.Trim();
 
-        // If the query looks like a UPN, try a direct lookup first
+        // If the query looks like a UPN, try a direct lookup first (fast path)
         if (trimmed.Contains('@'))
         {
             try
@@ -29,25 +29,45 @@ public class UserService(GraphServiceClient graphClient) : IUserService
             }
             catch
             {
-                // Fall through to displayName search
+                // Fall through to search
             }
         }
 
-        // Search by displayName or userPrincipalName startsWith
-        var escaped = trimmed.Replace("'", "''");
-        var response = await _graphClient.Users.GetAsync(req =>
+        // Use $search which works reliably without advanced query constraints.
+        // $search on users requires ConsistencyLevel: eventual header.
+        var escaped = trimmed.Replace("\"", "\\\"");
+        try
         {
-            req.QueryParameters.Filter =
-                $"startsWith(displayName,'{escaped}') or startsWith(userPrincipalName,'{escaped}')";
-            req.QueryParameters.Select = UserSelect;
-            req.QueryParameters.Top = 25;
-            req.QueryParameters.Orderby = ["displayName"];
-            req.Headers.Add("ConsistencyLevel", "eventual");
-            req.QueryParameters.Count = true;
-        }, cancellationToken);
+            var response = await _graphClient.Users.GetAsync(req =>
+            {
+                req.QueryParameters.Search = $"\"displayName:{escaped}\"";
+                req.QueryParameters.Select = UserSelect;
+                req.QueryParameters.Top = 25;
+                req.QueryParameters.Orderby = ["displayName"];
+                req.Headers.Add("ConsistencyLevel", "eventual");
+                req.QueryParameters.Count = true;
+            }, cancellationToken);
 
-        if (response?.Value != null)
-            result.AddRange(response.Value);
+            if (response?.Value != null)
+                result.AddRange(response.Value);
+        }
+        catch
+        {
+            // $search may not be available in all tenants; fall back to startsWith $filter
+            var escapedFilter = trimmed.Replace("'", "''");
+            var fallback = await _graphClient.Users.GetAsync(req =>
+            {
+                req.QueryParameters.Filter =
+                    $"startsWith(displayName,'{escapedFilter}') or startsWith(userPrincipalName,'{escapedFilter}')";
+                req.QueryParameters.Select = UserSelect;
+                req.QueryParameters.Top = 25;
+                req.Headers.Add("ConsistencyLevel", "eventual");
+                req.QueryParameters.Count = true;
+            }, cancellationToken);
+
+            if (fallback?.Value != null)
+                result.AddRange(fallback.Value);
+        }
 
         return result;
     }

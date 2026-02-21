@@ -16,7 +16,7 @@ public class AssignmentCheckerService : IAssignmentCheckerService
     private readonly ICacheService? _cacheService;
     private readonly string? _tenantId;
     private readonly ConcurrentDictionary<string, string> _groupNameCache = new(StringComparer.OrdinalIgnoreCase);
-    private const int MaxConcurrency = 5;
+    private const int MaxConcurrency = 10;
 
     public AssignmentCheckerService(GraphServiceClient graphClient,
         ICacheService? cacheService = null, string? tenantId = null)
@@ -81,24 +81,58 @@ public class AssignmentCheckerService : IAssignmentCheckerService
         Action<AssignmentReportRow>? onRow = null,
         CancellationToken cancellationToken = default)
     {
-        progress?.Invoke($"Looking up device {deviceName}...");
+        progress?.Invoke($"Searching for devices matching '{deviceName}'...");
         var escaped = deviceName.Replace("'", "''");
+
+        // Use startsWith for partial-name matching
+        var devices = new List<Device>();
         var devicesPage = await _graphClient.Devices
             .GetAsync(req =>
             {
-                req.QueryParameters.Filter = $"displayName eq '{escaped}'";
+                req.QueryParameters.Filter = $"startsWith(displayName,'{escaped}')";
                 req.QueryParameters.Select = ["id", "displayName", "operatingSystem"];
-                req.QueryParameters.Top = 5;
+                req.QueryParameters.Top = 50;
+                req.Headers.Add("ConsistencyLevel", "eventual");
+                req.QueryParameters.Count = true;
             }, cancellationToken);
+        while (devicesPage != null)
+        {
+            if (devicesPage.Value != null) devices.AddRange(devicesPage.Value);
+            if (!string.IsNullOrEmpty(devicesPage.OdataNextLink))
+                devicesPage = await _graphClient.Devices
+                    .WithUrl(devicesPage.OdataNextLink).GetAsync(cancellationToken: cancellationToken);
+            else break;
+        }
 
-        var device = devicesPage?.Value?.FirstOrDefault();
-        if (device?.Id == null)
-            throw new InvalidOperationException($"Device not found in Azure AD: {deviceName}");
+        if (devices.Count == 0)
+            throw new InvalidOperationException($"No devices found in Azure AD matching '{deviceName}'. Try a shorter prefix.");
 
-        progress?.Invoke("Fetching device group memberships...");
-        var groupIds = await GetDeviceTransitiveMemberGroupIdsAsync(device.Id, cancellationToken);
+        progress?.Invoke($"Found {devices.Count} device(s). Fetching assignments in parallel...");
 
-        return await GetEntityAssignmentsAsync(groupIds, isUser: false, progress, onRow, cancellationToken);
+        var allRows = new List<AssignmentReportRow>();
+        using var sem = new SemaphoreSlim(MaxConcurrency, MaxConcurrency);
+        var tasks = devices.Select(async device =>
+        {
+            await sem.WaitAsync(cancellationToken);
+            try
+            {
+                if (device.Id == null) return;
+                var dName = device.DisplayName ?? device.Id;
+                var groupIds = await GetDeviceTransitiveMemberGroupIdsAsync(device.Id, cancellationToken);
+                var rows = await GetEntityAssignmentsAsync(groupIds, isUser: false, null, null, cancellationToken);
+                foreach (var r in rows)
+                {
+                    var stamped = r with { TargetDevice = dName };
+                    lock (allRows) allRows.Add(stamped);
+                    onRow?.Invoke(stamped);
+                }
+            }
+            finally { sem.Release(); }
+        });
+        await Task.WhenAll(tasks);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        return allRows;
     }
 
     public async Task<List<AssignmentReportRow>> GetAllPoliciesWithAssignmentsAsync(
@@ -203,11 +237,14 @@ public class AssignmentCheckerService : IAssignmentCheckerService
         Action<AssignmentReportRow>? onRow = null,
         CancellationToken cancellationToken = default)
     {
-        progress?.Invoke($"Scanning assignments for {groupName1}...");
-        var g1 = await GetGroupAssignmentsAsync(groupId1, groupName1, cancellationToken: cancellationToken);
+        // Scan both groups in parallel — major speed-up vs sequential
+        progress?.Invoke($"Scanning assignments for {groupName1} and {groupName2} in parallel...");
+        var t1 = GetGroupAssignmentsAsync(groupId1, groupName1, cancellationToken: cancellationToken);
+        var t2 = GetGroupAssignmentsAsync(groupId2, groupName2, cancellationToken: cancellationToken);
+        await Task.WhenAll(t1, t2);
 
-        progress?.Invoke($"Scanning assignments for {groupName2}...");
-        var g2 = await GetGroupAssignmentsAsync(groupId2, groupName2, cancellationToken: cancellationToken);
+        var g1 = t1.Result;
+        var g2 = t2.Result;
 
         var g1Map = g1.ToDictionary(r => r.PolicyId + "|" + r.PolicyType);
         var g2Map = g2.ToDictionary(r => r.PolicyId + "|" + r.PolicyType);
@@ -233,6 +270,7 @@ public class AssignmentCheckerService : IAssignmentCheckerService
         }
 
         result.Sort(PolicyTypeNameComparer);
+        // Stream rows to the UI immediately (they're already sorted)
         foreach (var row in result) onRow?.Invoke(row);
         return result;
     }
@@ -413,208 +451,217 @@ public class AssignmentCheckerService : IAssignmentCheckerService
         var entityCtx = context as EntityContext;
         var emptyCtx = context as EmptyGroupContext;
 
-        // ── Device Configurations ──
-        progress?.Invoke("Scanning device configurations...");
-        await ScanPolicyTypeAsync(rows, mode, directGroupId, entityCtx, emptyCtx, ct,
-            "Device Configuration",
-            () => FetchDeviceConfigurationsAsync(ct),
-            p => p.Id!, p => p.DisplayName ?? p.Id!,
-            p => PlatformFromOData(p.OdataType),
-            async id => await FetchAllAssignmentPagesAsync(
-                () => _graphClient.DeviceManagement.DeviceConfigurations[id]
-                    .Assignments.GetAsync(cancellationToken: ct),
-                r => r.OdataNextLink, r => r.Value,
-                url => _graphClient.DeviceManagement.DeviceConfigurations[id]
-                    .Assignments.WithUrl(url).GetAsync(cancellationToken: ct)),
-            onRow);
+        // Fetch all policy lists in parallel first (all lightweight list calls)
+        progress?.Invoke("Fetching policy lists in parallel...");
+        var fetchConfigsTask    = FetchDeviceConfigurationsAsync(ct);
+        var fetchScTask         = FetchSettingsCatalogAsync(ct);     // shared by ES + SC
+        var fetchAdminTask      = FetchAdminTemplatesAsync(ct);
+        var fetchComplianceTask = FetchCompliancePoliciesAsync(ct);
+        var fetchAppProtTask    = FetchAppProtectionPoliciesAsync(ct);
+        var fetchAppConfigTask  = FetchMobileAppConfigurationsAsync(ct);
+        var fetchAppsTask       = FetchApplicationsAsync(ct);
+        var fetchScriptsTask    = FetchPlatformScriptsAsync(ct);
+        var fetchHealthTask     = FetchHealthScriptsAsync(ct);
+        var fetchIntentsTask    = FetchEndpointSecurityIntentsAsync(ct);
+        var fetchEnrollTask     = FetchEnrollmentConfigurationsAsync(ct);
 
-        // ── Settings Catalog ──
-        progress?.Invoke("Scanning settings catalog policies...");
-        await ScanPolicyTypeAsync(rows, mode, directGroupId, entityCtx, emptyCtx, ct,
-            "Settings Catalog",
-            () => FetchSettingsCatalogAsync(ct),
-            p => p.Id!, p => p.Name ?? p.Id!,
-            p => p.Platforms?.ToString() ?? "",
-            async id => await FetchAllAssignmentPagesAsync(
-                () => _graphClient.DeviceManagement.ConfigurationPolicies[id]
-                    .Assignments.GetAsync(cancellationToken: ct),
-                r => r.OdataNextLink, r => r.Value,
-                url => _graphClient.DeviceManagement.ConfigurationPolicies[id]
-                    .Assignments.WithUrl(url).GetAsync(cancellationToken: ct)),
-            onRow);
+        await Task.WhenAll(
+            fetchConfigsTask, fetchScTask, fetchAdminTask, fetchComplianceTask,
+            fetchAppProtTask, fetchAppConfigTask, fetchAppsTask,
+            fetchScriptsTask, fetchHealthTask, fetchIntentsTask, fetchEnrollTask);
+        ct.ThrowIfCancellationRequested();
 
-        // ── Administrative Templates ──
-        progress?.Invoke("Scanning administrative templates...");
-        await ScanPolicyTypeAsync(rows, mode, directGroupId, entityCtx, emptyCtx, ct,
-            "Administrative Template",
-            () => FetchAdminTemplatesAsync(ct),
-            p => p.Id!, p => p.DisplayName ?? p.Id!,
-            _ => "Windows",
-            async id => await FetchAllAssignmentPagesAsync(
-                () => _graphClient.DeviceManagement.GroupPolicyConfigurations[id]
-                    .Assignments.GetAsync(cancellationToken: ct),
-                r => r.OdataNextLink, r => r.Value,
-                url => _graphClient.DeviceManagement.GroupPolicyConfigurations[id]
-                    .Assignments.WithUrl(url).GetAsync(cancellationToken: ct)),
-            onRow);
-
-        // ── Compliance Policies ──
-        progress?.Invoke("Scanning compliance policies...");
-        await ScanPolicyTypeAsync(rows, mode, directGroupId, entityCtx, emptyCtx, ct,
-            "Compliance Policy",
-            () => FetchCompliancePoliciesAsync(ct),
-            p => p.Id!, p => p.DisplayName ?? p.Id!,
-            p => PlatformFromOData(p.OdataType),
-            async id => await FetchAllAssignmentPagesAsync(
-                () => _graphClient.DeviceManagement.DeviceCompliancePolicies[id]
-                    .Assignments.GetAsync(cancellationToken: ct),
-                r => r.OdataNextLink, r => r.Value,
-                url => _graphClient.DeviceManagement.DeviceCompliancePolicies[id]
-                    .Assignments.WithUrl(url).GetAsync(cancellationToken: ct)),
-            onRow);
-
-        // ── App Protection Policies ──
-        progress?.Invoke("Scanning app protection policies...");
-        var appProtectionPolicies = await FetchAppProtectionPoliciesAsync(ct);
-        using (var appProtSem = new SemaphoreSlim(MaxConcurrency, MaxConcurrency))
-        {
-            var appProtTasks = appProtectionPolicies.Select(async policy =>
-            {
-                try
-                {
-                    await appProtSem.WaitAsync(ct);
-                    try
-                    {
-                        if (policy.Id == null) return;
-                        var flat = await FetchAppProtectionAssignmentsAsync(policy, ct);
-                        if (mode == ScanMode.AllPolicies)
-                            await ResolveGroupNamesAsync(flat, ct);
-                        var row = BuildRow("App Protection Policy", policy.Id, policy.DisplayName ?? policy.Id,
-                            PlatformFromOData(policy.OdataType), flat, mode, directGroupId, entityCtx, emptyCtx,
-                            mode == ScanMode.AllPolicies ? _groupNameCache : null);
-                        if (row != null) { lock (rows) rows.Add(row); onRow?.Invoke(row); }
-                    }
-                    finally { appProtSem.Release(); }
-                }
-                catch (OperationCanceledException) { /* consolidated into single throw below */ }
-            });
-            await Task.WhenAll(appProtTasks);
-            ct.ThrowIfCancellationRequested();
-        }
-
-        // ── App Configuration Policies ──
-        progress?.Invoke("Scanning app configuration policies...");
-        await ScanPolicyTypeAsync(rows, mode, directGroupId, entityCtx, emptyCtx, ct,
-            "App Configuration Policy",
-            () => FetchMobileAppConfigurationsAsync(ct),
-            p => p.Id!, p => p.DisplayName ?? p.Id!,
-            p => PlatformFromOData(p.OdataType),
-            async id => await FetchAllAssignmentPagesAsync(
-                () => _graphClient.DeviceAppManagement.MobileAppConfigurations[id]
-                    .Assignments.GetAsync(cancellationToken: ct),
-                r => r.OdataNextLink, r => r.Value,
-                url => _graphClient.DeviceAppManagement.MobileAppConfigurations[id]
-                    .Assignments.WithUrl(url).GetAsync(cancellationToken: ct)),
-            onRow);
-
-        // ── Applications ──
-        progress?.Invoke("Scanning applications...");
-        await ScanPolicyTypeAsync(rows, mode, directGroupId, entityCtx, emptyCtx, ct,
-            "Application",
-            () => FetchApplicationsAsync(ct),
-            p => p.Id!, p => p.DisplayName ?? p.Id!,
-            p => PlatformFromOData(p.OdataType),
-            async id => await FetchAllAssignmentPagesAsync(
-                () => _graphClient.DeviceAppManagement.MobileApps[id]
-                    .Assignments.GetAsync(cancellationToken: ct),
-                r => r.OdataNextLink, r => r.Value,
-                url => _graphClient.DeviceAppManagement.MobileApps[id]
-                    .Assignments.WithUrl(url).GetAsync(cancellationToken: ct)),
-            onRow);
-
-        // ── Platform Scripts ──
-        progress?.Invoke("Scanning platform scripts...");
-        await ScanPolicyTypeAsync(rows, mode, directGroupId, entityCtx, emptyCtx, ct,
-            "Platform Script",
-            () => FetchPlatformScriptsAsync(ct),
-            p => p.Id!, p => p.DisplayName ?? p.Id!,
-            _ => "Windows",
-            async id => await FetchAllAssignmentPagesAsync(
-                () => _graphClient.DeviceManagement.DeviceManagementScripts[id]
-                    .Assignments.GetAsync(cancellationToken: ct),
-                r => r.OdataNextLink, r => r.Value,
-                url => _graphClient.DeviceManagement.DeviceManagementScripts[id]
-                    .Assignments.WithUrl(url).GetAsync(cancellationToken: ct)),
-            onRow);
-
-        // ── Health Scripts ──
-        progress?.Invoke("Scanning health scripts...");
-        await ScanPolicyTypeAsync(rows, mode, directGroupId, entityCtx, emptyCtx, ct,
-            "Health Script",
-            () => FetchHealthScriptsAsync(ct),
-            p => p.Id!, p => p.DisplayName ?? p.Id!,
-            _ => "Windows",
-            async id => await FetchAllAssignmentPagesAsync(
-                () => _graphClient.DeviceManagement.DeviceHealthScripts[id]
-                    .Assignments.GetAsync(cancellationToken: ct),
-                r => r.OdataNextLink, r => r.Value,
-                url => _graphClient.DeviceManagement.DeviceHealthScripts[id]
-                    .Assignments.WithUrl(url).GetAsync(cancellationToken: ct)),
-            onRow);
-
-        // ── Endpoint Security (Settings Catalog families) ──
-        progress?.Invoke("Scanning endpoint security policies...");
         var endpointFamilies = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
             "endpointSecurityAntivirus", "endpointSecurityDiskEncryption",
             "endpointSecurityFirewall", "endpointSecurityEndpointDetectionAndResponse",
             "endpointSecurityAttackSurfaceReduction", "endpointSecurityAccountProtection"
         };
-        var allConfigPolicies = await FetchSettingsCatalogAsync(ct);
+        var allConfigPolicies = fetchScTask.Result;
         var esPolicies = allConfigPolicies
             .Where(p => p.TemplateReference?.TemplateFamily != null &&
                         endpointFamilies.Contains(p.TemplateReference.TemplateFamily.ToString()!))
             .ToList();
-        await ScanPolicyTypeAsync(rows, mode, directGroupId, entityCtx, emptyCtx, ct,
-            "Endpoint Security",
-            () => Task.FromResult(esPolicies),
-            p => p.Id!, p => p.Name ?? p.Id!,
-            p => p.Platforms?.ToString() ?? "",
-            async id => await FetchAllAssignmentPagesAsync(
-                () => _graphClient.DeviceManagement.ConfigurationPolicies[id]
-                    .Assignments.GetAsync(cancellationToken: ct),
-                r => r.OdataNextLink, r => r.Value,
-                url => _graphClient.DeviceManagement.ConfigurationPolicies[id]
-                    .Assignments.WithUrl(url).GetAsync(cancellationToken: ct)),
-            onRow);
 
-        // ── Endpoint Security Intents (legacy) ──
-        await ScanPolicyTypeAsync(rows, mode, directGroupId, entityCtx, emptyCtx, ct,
-            "Endpoint Security (Legacy)",
-            () => FetchEndpointSecurityIntentsAsync(ct),
-            p => p.Id!, p => p.DisplayName ?? p.Id!,
-            _ => "",
-            async id => await FetchAllAssignmentPagesAsync(
-                () => _graphClient.DeviceManagement.Intents[id]
-                    .Assignments.GetAsync(cancellationToken: ct),
-                r => r.OdataNextLink, r => r.Value,
-                url => _graphClient.DeviceManagement.Intents[id]
-                    .Assignments.WithUrl(url).GetAsync(cancellationToken: ct)),
-            onRow);
+        // Now scan all policy types in parallel — each type uses its own internal concurrency
+        progress?.Invoke("Scanning all policy types in parallel...");
+        var scanTasks = new List<Task>
+        {
+            ScanPolicyTypeAsync(rows, mode, directGroupId, entityCtx, emptyCtx, ct,
+                "Device Configuration",
+                () => Task.FromResult(fetchConfigsTask.Result),
+                p => p.Id!, p => p.DisplayName ?? p.Id!,
+                p => PlatformFromOData(p.OdataType),
+                async id => await FetchAllAssignmentPagesAsync(
+                    () => _graphClient.DeviceManagement.DeviceConfigurations[id]
+                        .Assignments.GetAsync(cancellationToken: ct),
+                    r => r.OdataNextLink, r => r.Value,
+                    url => _graphClient.DeviceManagement.DeviceConfigurations[id]
+                        .Assignments.WithUrl(url).GetAsync(cancellationToken: ct)),
+                onRow),
 
-        // ── Enrollment Configurations ──
-        progress?.Invoke("Scanning enrollment configurations...");
-        await ScanPolicyTypeAsync(rows, mode, directGroupId, entityCtx, emptyCtx, ct,
-            "Enrollment Configuration",
-            () => FetchEnrollmentConfigurationsAsync(ct),
-            p => p.Id!, p => p.DisplayName ?? p.Id!,
-            _ => "",
-            async id => await FetchAllAssignmentPagesAsync(
-                () => _graphClient.DeviceManagement.DeviceEnrollmentConfigurations[id]
-                    .Assignments.GetAsync(cancellationToken: ct),
-                r => r.OdataNextLink, r => r.Value,
-                url => _graphClient.DeviceManagement.DeviceEnrollmentConfigurations[id]
-                    .Assignments.WithUrl(url).GetAsync(cancellationToken: ct)));
+            ScanPolicyTypeAsync(rows, mode, directGroupId, entityCtx, emptyCtx, ct,
+                "Settings Catalog",
+                () => Task.FromResult(allConfigPolicies),
+                p => p.Id!, p => p.Name ?? p.Id!,
+                p => p.Platforms?.ToString() ?? "",
+                async id => await FetchAllAssignmentPagesAsync(
+                    () => _graphClient.DeviceManagement.ConfigurationPolicies[id]
+                        .Assignments.GetAsync(cancellationToken: ct),
+                    r => r.OdataNextLink, r => r.Value,
+                    url => _graphClient.DeviceManagement.ConfigurationPolicies[id]
+                        .Assignments.WithUrl(url).GetAsync(cancellationToken: ct)),
+                onRow),
+
+            ScanPolicyTypeAsync(rows, mode, directGroupId, entityCtx, emptyCtx, ct,
+                "Administrative Template",
+                () => Task.FromResult(fetchAdminTask.Result),
+                p => p.Id!, p => p.DisplayName ?? p.Id!,
+                _ => "Windows",
+                async id => await FetchAllAssignmentPagesAsync(
+                    () => _graphClient.DeviceManagement.GroupPolicyConfigurations[id]
+                        .Assignments.GetAsync(cancellationToken: ct),
+                    r => r.OdataNextLink, r => r.Value,
+                    url => _graphClient.DeviceManagement.GroupPolicyConfigurations[id]
+                        .Assignments.WithUrl(url).GetAsync(cancellationToken: ct)),
+                onRow),
+
+            ScanPolicyTypeAsync(rows, mode, directGroupId, entityCtx, emptyCtx, ct,
+                "Compliance Policy",
+                () => Task.FromResult(fetchComplianceTask.Result),
+                p => p.Id!, p => p.DisplayName ?? p.Id!,
+                p => PlatformFromOData(p.OdataType),
+                async id => await FetchAllAssignmentPagesAsync(
+                    () => _graphClient.DeviceManagement.DeviceCompliancePolicies[id]
+                        .Assignments.GetAsync(cancellationToken: ct),
+                    r => r.OdataNextLink, r => r.Value,
+                    url => _graphClient.DeviceManagement.DeviceCompliancePolicies[id]
+                        .Assignments.WithUrl(url).GetAsync(cancellationToken: ct)),
+                onRow),
+
+            // App Protection Policies (type-specific endpoints, handled inline)
+            Task.Run(async () =>
+            {
+                using var appProtSem = new SemaphoreSlim(MaxConcurrency, MaxConcurrency);
+                var appProtTasks = fetchAppProtTask.Result.Select(async policy =>
+                {
+                    try
+                    {
+                        await appProtSem.WaitAsync(ct);
+                        try
+                        {
+                            if (policy.Id == null) return;
+                            var flat = await FetchAppProtectionAssignmentsAsync(policy, ct);
+                            if (mode == ScanMode.AllPolicies)
+                                await ResolveGroupNamesAsync(flat, ct);
+                            var row = BuildRow("App Protection Policy", policy.Id,
+                                policy.DisplayName ?? policy.Id,
+                                PlatformFromOData(policy.OdataType), flat, mode, directGroupId,
+                                entityCtx, emptyCtx,
+                                mode == ScanMode.AllPolicies ? _groupNameCache : null);
+                            if (row != null) { lock (rows) rows.Add(row); onRow?.Invoke(row); }
+                        }
+                        finally { appProtSem.Release(); }
+                    }
+                    catch (OperationCanceledException) { }
+                });
+                await Task.WhenAll(appProtTasks);
+                ct.ThrowIfCancellationRequested();
+            }, ct),
+
+            ScanPolicyTypeAsync(rows, mode, directGroupId, entityCtx, emptyCtx, ct,
+                "App Configuration Policy",
+                () => Task.FromResult(fetchAppConfigTask.Result),
+                p => p.Id!, p => p.DisplayName ?? p.Id!,
+                p => PlatformFromOData(p.OdataType),
+                async id => await FetchAllAssignmentPagesAsync(
+                    () => _graphClient.DeviceAppManagement.MobileAppConfigurations[id]
+                        .Assignments.GetAsync(cancellationToken: ct),
+                    r => r.OdataNextLink, r => r.Value,
+                    url => _graphClient.DeviceAppManagement.MobileAppConfigurations[id]
+                        .Assignments.WithUrl(url).GetAsync(cancellationToken: ct)),
+                onRow),
+
+            ScanPolicyTypeAsync(rows, mode, directGroupId, entityCtx, emptyCtx, ct,
+                "Application",
+                () => Task.FromResult(fetchAppsTask.Result),
+                p => p.Id!, p => p.DisplayName ?? p.Id!,
+                p => PlatformFromOData(p.OdataType),
+                async id => await FetchAllAssignmentPagesAsync(
+                    () => _graphClient.DeviceAppManagement.MobileApps[id]
+                        .Assignments.GetAsync(cancellationToken: ct),
+                    r => r.OdataNextLink, r => r.Value,
+                    url => _graphClient.DeviceAppManagement.MobileApps[id]
+                        .Assignments.WithUrl(url).GetAsync(cancellationToken: ct)),
+                onRow),
+
+            ScanPolicyTypeAsync(rows, mode, directGroupId, entityCtx, emptyCtx, ct,
+                "Platform Script",
+                () => Task.FromResult(fetchScriptsTask.Result),
+                p => p.Id!, p => p.DisplayName ?? p.Id!,
+                _ => "Windows",
+                async id => await FetchAllAssignmentPagesAsync(
+                    () => _graphClient.DeviceManagement.DeviceManagementScripts[id]
+                        .Assignments.GetAsync(cancellationToken: ct),
+                    r => r.OdataNextLink, r => r.Value,
+                    url => _graphClient.DeviceManagement.DeviceManagementScripts[id]
+                        .Assignments.WithUrl(url).GetAsync(cancellationToken: ct)),
+                onRow),
+
+            ScanPolicyTypeAsync(rows, mode, directGroupId, entityCtx, emptyCtx, ct,
+                "Health Script",
+                () => Task.FromResult(fetchHealthTask.Result),
+                p => p.Id!, p => p.DisplayName ?? p.Id!,
+                _ => "Windows",
+                async id => await FetchAllAssignmentPagesAsync(
+                    () => _graphClient.DeviceManagement.DeviceHealthScripts[id]
+                        .Assignments.GetAsync(cancellationToken: ct),
+                    r => r.OdataNextLink, r => r.Value,
+                    url => _graphClient.DeviceManagement.DeviceHealthScripts[id]
+                        .Assignments.WithUrl(url).GetAsync(cancellationToken: ct)),
+                onRow),
+
+            ScanPolicyTypeAsync(rows, mode, directGroupId, entityCtx, emptyCtx, ct,
+                "Endpoint Security",
+                () => Task.FromResult(esPolicies),
+                p => p.Id!, p => p.Name ?? p.Id!,
+                p => p.Platforms?.ToString() ?? "",
+                async id => await FetchAllAssignmentPagesAsync(
+                    () => _graphClient.DeviceManagement.ConfigurationPolicies[id]
+                        .Assignments.GetAsync(cancellationToken: ct),
+                    r => r.OdataNextLink, r => r.Value,
+                    url => _graphClient.DeviceManagement.ConfigurationPolicies[id]
+                        .Assignments.WithUrl(url).GetAsync(cancellationToken: ct)),
+                onRow),
+
+            ScanPolicyTypeAsync(rows, mode, directGroupId, entityCtx, emptyCtx, ct,
+                "Endpoint Security (Legacy)",
+                () => Task.FromResult(fetchIntentsTask.Result),
+                p => p.Id!, p => p.DisplayName ?? p.Id!,
+                _ => "",
+                async id => await FetchAllAssignmentPagesAsync(
+                    () => _graphClient.DeviceManagement.Intents[id]
+                        .Assignments.GetAsync(cancellationToken: ct),
+                    r => r.OdataNextLink, r => r.Value,
+                    url => _graphClient.DeviceManagement.Intents[id]
+                        .Assignments.WithUrl(url).GetAsync(cancellationToken: ct)),
+                onRow),
+
+            ScanPolicyTypeAsync(rows, mode, directGroupId, entityCtx, emptyCtx, ct,
+                "Enrollment Configuration",
+                () => Task.FromResult(fetchEnrollTask.Result),
+                p => p.Id!, p => p.DisplayName ?? p.Id!,
+                _ => "",
+                async id => await FetchAllAssignmentPagesAsync(
+                    () => _graphClient.DeviceManagement.DeviceEnrollmentConfigurations[id]
+                        .Assignments.GetAsync(cancellationToken: ct),
+                    r => r.OdataNextLink, r => r.Value,
+                    url => _graphClient.DeviceManagement.DeviceEnrollmentConfigurations[id]
+                        .Assignments.WithUrl(url).GetAsync(cancellationToken: ct)))
+        };
+
+        await Task.WhenAll(scanTasks);
+        ct.ThrowIfCancellationRequested();
 
         rows.Sort(PolicyTypeNameComparer);
     }

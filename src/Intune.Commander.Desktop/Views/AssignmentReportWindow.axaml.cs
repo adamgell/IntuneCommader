@@ -65,7 +65,8 @@ public partial class AssignmentReportWindow : Window
             ["Group ID"]           = vm.ShowGroupColumns,
             ["Group 1 Status"]     = vm.ShowCompareColumns,
             ["Group 2 Status"]     = vm.ShowCompareColumns,
-            ["Device"]             = vm.ShowFailureColumns,
+            // Device column: show for both Device Assignments mode (2) and Failed Assignments (9)
+            ["Device"]             = vm.ShowFailureColumns || vm.SelectedModeIndex == 2,
             ["Status"]             = vm.ShowFailureColumns,
             ["User"]               = vm.ShowFailureColumns || vm.SelectedModeIndex == 0,
             ["Last Reported"]      = vm.ShowFailureColumns,
