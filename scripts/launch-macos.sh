@@ -4,7 +4,7 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-PROJECT="$REPO_ROOT/src/IntuneManager.Desktop/IntuneManager.Desktop.csproj"
+PROJECT="$REPO_ROOT/src/Intune.Commander.Desktop/Intune.Commander.Desktop.csproj"
 
 # Detect CPU architecture
 ARCH="$(uname -m)"
@@ -15,7 +15,7 @@ case "$ARCH" in
 esac
 
 PUBLISH_DIR="$REPO_ROOT/publish/$RID"
-BINARY="$PUBLISH_DIR/IntuneManager.Desktop"
+BINARY="$PUBLISH_DIR/Intune.Commander.Desktop"
 
 # Publish if binary doesn't exist or --rebuild is passed
 if [ ! -f "$BINARY" ] || [ "${1:-}" = "--rebuild" ]; then

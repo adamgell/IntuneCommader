@@ -1,6 +1,8 @@
 using System;
 using System.Threading.Tasks;
 using Avalonia.Controls;
+using Avalonia.Input;
+using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
 using Intune.Commander.Desktop.ViewModels;
 using MsBox.Avalonia;
@@ -64,5 +66,26 @@ public partial class LoginView : UserControl
         });
 
         return files.Count > 0 ? files[0].Path.LocalPath : null;
+    }
+
+    private async void OnCopyDeviceCodeClick(object? sender, RoutedEventArgs e)
+    {
+        if (_vm is null || string.IsNullOrEmpty(_vm.DeviceUserCode)) return;
+
+        try
+        {
+            var clipboard = TopLevel.GetTopLevel(this)?.Clipboard;
+            if (clipboard != null)
+            {
+                await clipboard.SetTextAsync(_vm.DeviceUserCode);
+                if (sender is Button btn)
+                {
+                    btn.Content = "Copied!";
+                    await Task.Delay(1500);
+                    btn.Content = "Copy Code";
+                }
+            }
+        }
+        catch { /* clipboard not available */ }
     }
 }

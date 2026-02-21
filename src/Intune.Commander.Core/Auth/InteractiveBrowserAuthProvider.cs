@@ -47,6 +47,9 @@ public class InteractiveBrowserAuthProvider : IAuthenticationProvider
                 TenantId = profile.TenantId,
                 ClientId = profile.ClientId,
                 AuthorityHost = authorityHost,
+                // Use a high port to avoid requiring root on macOS (port 80).
+                // Azure ignores port for localhost redirect URI matching per RFC 8252.
+                RedirectUri = new Uri("http://localhost:45132"),
                 TokenCachePersistenceOptions = tokenCacheOptions
             }),
         };

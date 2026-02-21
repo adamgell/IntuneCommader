@@ -11,18 +11,24 @@
         <vm:LoginViewModel />
     </Design.DataContext>
 
-    <Border Padding="40" MaxWidth="450" VerticalAlignment="Center" HorizontalAlignment="Center">
-        <StackPanel Spacing="16">
+    <ScrollViewer VerticalScrollBarVisibility="Auto"
+                  HorizontalScrollBarVisibility="Disabled"
+                  HorizontalContentAlignment="Center">
+        <StackPanel Spacing="12" MaxWidth="420"
+                    Margin="40,24"
+                    HorizontalAlignment="Center">
+
+            <!-- Header -->
             <TextBlock Text="Intune Commander"
                        FontSize="28" FontWeight="Bold"
                        HorizontalAlignment="Center"
-                       Margin="0,0,0,8" />
+                       Margin="0,0,0,4" />
 
             <TextBlock Text="Connect to your Intune tenant"
                        FontSize="14"
                        HorizontalAlignment="Center"
                        Foreground="{DynamicResource AppTextSecondaryBrush}"
-                       Margin="0,0,0,16" />
+                       Margin="0,0,0,8" />
 
             <!-- Saved Profiles -->
             <StackPanel Spacing="4">
@@ -42,6 +48,7 @@
 
             <Separator />
 
+            <!-- Profile Name -->
             <StackPanel Spacing="4">
                 <TextBlock Text="Profile Name (optional)" FontSize="12" />
                 <TextBox Text="{Binding ProfileName}"
@@ -49,6 +56,7 @@
                          IsEnabled="{Binding !IsBusy}" />
             </StackPanel>
 
+            <!-- Tenant ID -->
             <StackPanel Spacing="4">
                 <TextBlock Text="Tenant ID" FontSize="12" />
                 <TextBox Text="{Binding TenantId}"
@@ -59,14 +67,25 @@
                            IsVisible="{Binding TenantIdError, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
             </StackPanel>
 
-            <StackPanel Spacing="4">
-                <TextBlock Text="Cloud Environment" FontSize="12" />
-                <ComboBox ItemsSource="{Binding AvailableClouds}"
-                          SelectedItem="{Binding SelectedCloud}"
-                          HorizontalAlignment="Stretch"
-                          IsEnabled="{Binding !IsBusy}" />
-            </StackPanel>
+            <!-- Cloud Environment + Auth Method side by side -->
+            <Grid ColumnDefinitions="*,12,*">
+                <StackPanel Spacing="4" Grid.Column="0">
+                    <TextBlock Text="Cloud Environment" FontSize="12" />
+                    <ComboBox ItemsSource="{Binding AvailableClouds}"
+                              SelectedItem="{Binding SelectedCloud}"
+                              HorizontalAlignment="Stretch"
+                              IsEnabled="{Binding !IsBusy}" />
+                </StackPanel>
+                <StackPanel Spacing="4" Grid.Column="2">
+                    <TextBlock Text="Auth Method" FontSize="12" />
+                    <ComboBox ItemsSource="{Binding AvailableAuthMethods}"
+                              SelectedItem="{Binding SelectedAuthMethod}"
+                              HorizontalAlignment="Stretch"
+                              IsEnabled="{Binding !IsBusy}" />
+                </StackPanel>
+            </Grid>
 
+            <!-- Client ID -->
             <StackPanel Spacing="4">
                 <TextBlock Text="Client ID (App Registration)" FontSize="12" />
                 <TextBox Text="{Binding ClientId}"
@@ -77,14 +96,16 @@
                            IsVisible="{Binding ClientIdError, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
             </StackPanel>
 
-            <StackPanel Spacing="4">
-                <TextBlock Text="Auth Method" FontSize="12" />
-                <ComboBox ItemsSource="{Binding AvailableAuthMethods}"
-                          SelectedItem="{Binding SelectedAuthMethod}"
-                          HorizontalAlignment="Stretch"
-                          IsEnabled="{Binding !IsBusy}" />
+            <!-- Client Secret (conditional) -->
+            <StackPanel Spacing="4" IsVisible="{Binding IsClientSecretVisible}">
+                <TextBlock Text="Client Secret" FontSize="12" />
+                <TextBox Text="{Binding ClientSecret}"
+                         PasswordChar="●"
+                         Watermark="Enter client secret value"
+                         IsEnabled="{Binding !IsBusy}" />
             </StackPanel>
 
+            <!-- Help expander -->
             <Expander Header="Where do I find these values?" FontSize="12" Padding="0">
                 <Border Background="{DynamicResource SystemControlBackgroundAltHighBrush}"
                         CornerRadius="4" Padding="12,8" Margin="0,4,0,0">
@@ -105,48 +126,67 @@
                 </Border>
             </Expander>
 
-            <StackPanel Spacing="4" IsVisible="{Binding IsClientSecretVisible}">
-                <TextBlock Text="Client Secret" FontSize="12" />
-                <TextBox Text="{Binding ClientSecret}"
-                         PasswordChar="●"
-                         Watermark="Enter client secret value"
-                         IsEnabled="{Binding !IsBusy}" />
-            </StackPanel>
-
-            <!-- Save / Delete / New / Import -->
-            <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
+            <!-- Profile action buttons -->
+            <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center"
+                        Margin="0,4,0,0">
                 <Button Content="New"
                         Command="{Binding NewProfileCommand}"
                         MinWidth="80" />
                 <Button Content="Save Profile"
                         Command="{Binding SaveProfileCommand}"
-                        MinWidth="120" />
+                        MinWidth="100" />
                 <Button Content="Delete"
                         Command="{Binding DeleteProfileCommand}"
                         MinWidth="80" />
                 <Button Content="Import Profiles"
                         Command="{Binding ImportProfilesCommand}"
                         IsEnabled="{Binding !IsBusy}"
-                        MinWidth="120" />
+                        MinWidth="100" />
             </StackPanel>
 
+            <!-- Connect -->
             <Button Content="Connect"
                     Command="{Binding LoginCommand}"
                     HorizontalAlignment="Stretch"
                     HorizontalContentAlignment="Center"
                     Classes="accent"
-                    Margin="0,8,0,0" />
+                    Margin="0,4,0,0" />
 
             <!-- Device Code instructions -->
             <Border BorderBrush="{DynamicResource SystemControlForegroundAccentBrush}"
                     BorderThickness="1"
                     Background="{DynamicResource SystemControlBackgroundChromeMediumLowBrush}"
-                    CornerRadius="4" Padding="12"
+                    CornerRadius="8" Padding="16"
                     IsVisible="{Binding IsDeviceCodeMessageVisible}">
-                <TextBlock Text="{Binding DeviceCodeMessage}"
-                           TextWrapping="Wrap"
-                           FontSize="12"
-                           FontFamily="Consolas, Courier New, monospace" />
+                <StackPanel Spacing="12">
+                    <TextBlock Text="Enter this code at the sign-in page:"
+                               FontSize="12"
+                               HorizontalAlignment="Center"
+                               Foreground="{DynamicResource AppTextSecondaryBrush}" />
+
+                    <!-- Large code display with copy button -->
+                    <StackPanel Orientation="Horizontal" Spacing="12"
+                                HorizontalAlignment="Center">
+                        <SelectableTextBlock Text="{Binding DeviceUserCode}"
+                                             FontSize="28" FontWeight="Bold"
+                                             FontFamily="Consolas, Courier New, monospace"
+                                             VerticalAlignment="Center"
+                                             LetterSpacing="4" />
+                        <Button x:Name="CopyDeviceCodeButton"
+                                Content="Copy Code"
+                                Click="OnCopyDeviceCodeClick"
+                                VerticalAlignment="Center"
+                                Padding="12,6"
+                                FontSize="12" />
+                    </StackPanel>
+
+                    <!-- Verification URL -->
+                    <SelectableTextBlock Text="{Binding DeviceVerificationUrl}"
+                                         FontSize="12"
+                                         HorizontalAlignment="Center"
+                                         Foreground="{DynamicResource SystemControlForegroundAccentBrush}"
+                                         FontFamily="Consolas, Courier New, monospace" />
+                </StackPanel>
             </Border>
 
             <!-- Status -->
@@ -169,5 +209,5 @@
                            FontSize="12" />
             </Border>
         </StackPanel>
-    </Border>
+    </ScrollViewer>
 </UserControl>
