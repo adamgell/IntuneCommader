@@ -84,7 +84,11 @@ public partial class AssignmentReportWindow : Window
     private void OnUserSearchBoxKeyDown(object? sender, KeyEventArgs e)
     {
         if (e.Key != Key.Enter || DataContext is not AssignmentReportViewModel vm) return;
-        if (vm.SearchUserCommand.CanExecute(null))
+        // If users are already selected, Enter runs the report instead of re-searching
+        // (re-searching would clear the selection and lose it)
+        if (vm.SelectedUsers.Count > 0)
+            ExecuteRunReport();
+        else if (vm.SearchUserCommand.CanExecute(null))
             vm.SearchUserCommand.Execute(null);
     }
 
@@ -102,21 +106,31 @@ public partial class AssignmentReportWindow : Window
     private void OnGroupSearchBoxKeyDown(object? sender, KeyEventArgs e)
     {
         if (e.Key != Key.Enter || DataContext is not AssignmentReportViewModel vm) return;
-        if (vm.SearchGroupCommand.CanExecute(null))
+        // If a group is already selected, Enter runs the report instead of re-searching
+        // (re-searching clears SelectedGroup first, destroying the selection)
+        if (vm.SelectedGroup != null)
+            ExecuteRunReport();
+        else if (vm.SearchGroupCommand.CanExecute(null))
             vm.SearchGroupCommand.Execute(null);
     }
 
     private void OnCompare1BoxKeyDown(object? sender, KeyEventArgs e)
     {
         if (e.Key != Key.Enter || DataContext is not AssignmentReportViewModel vm) return;
-        if (vm.SearchCompareGroup1Command.CanExecute(null))
+        // If both compare groups are already selected, Enter runs the report
+        if (vm.SelectedCompareGroup1 != null && vm.SelectedCompareGroup2 != null)
+            ExecuteRunReport();
+        else if (vm.SearchCompareGroup1Command.CanExecute(null))
             vm.SearchCompareGroup1Command.Execute(null);
     }
 
     private void OnCompare2BoxKeyDown(object? sender, KeyEventArgs e)
     {
         if (e.Key != Key.Enter || DataContext is not AssignmentReportViewModel vm) return;
-        if (vm.SearchCompareGroup2Command.CanExecute(null))
+        // If both compare groups are already selected, Enter runs the report
+        if (vm.SelectedCompareGroup1 != null && vm.SelectedCompareGroup2 != null)
+            ExecuteRunReport();
+        else if (vm.SearchCompareGroup2Command.CanExecute(null))
             vm.SearchCompareGroup2Command.Execute(null);
     }
 

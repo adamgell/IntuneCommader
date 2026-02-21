@@ -168,6 +168,9 @@ public partial class AssignmentReportViewModel : ViewModelBase
         {
             var users = await _userService.SearchUsersAsync(UserSearchQuery.Trim(), cancellationToken);
             foreach (var u in users) UserSearchResults.Add(u);
+            // Auto-select when exactly one result, mirroring group search behaviour
+            if (users.Count == 1)
+                UpdateSelectedUsers([users[0]]);
         }
         catch (Exception ex) { SetError($"User search failed: {ex.Message}"); }
         finally { IsSearchingUser = false; }
