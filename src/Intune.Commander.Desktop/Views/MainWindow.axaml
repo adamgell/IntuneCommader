@@ -25,16 +25,16 @@
                     <Separator />
                     <MenuItem Header="_Disconnect" Command="{Binding DisconnectCommand}" />
                 </MenuItem>
+                <MenuItem Header="_Help">
+                    <MenuItem Header="Check for _Updates..." x:Name="MenuCheckUpdates" Click="OnCheckForUpdatesClick" />
+                    <Separator />
+                    <MenuItem Header="_About Intune Commander" x:Name="MenuAbout" Click="OnAboutClick" />
+                </MenuItem>
                 <MenuItem Header="_View">
                     <MenuItem Header="_Theme">
                         <MenuItem Header="_Fluent" x:Name="MenuThemeFluent" Click="OnThemeFluentClick" />
                         <MenuItem Header="_Classic (Windows 9x)" x:Name="MenuThemeClassic" Click="OnThemeClassicClick" />
                     </MenuItem>
-                </MenuItem>
-                <MenuItem Header="_Help">
-                    <MenuItem Header="Check for _Updates..." x:Name="MenuCheckUpdates" Click="OnCheckForUpdatesClick" />
-                    <Separator />
-                    <MenuItem Header="_About Intune Commander" x:Name="MenuAbout" Click="OnAboutClick" />
                 </MenuItem>
         </Menu>
 

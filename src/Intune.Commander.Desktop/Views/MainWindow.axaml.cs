@@ -636,31 +636,6 @@ public partial class MainWindow : Window
         }
     }
 
-    private void OnThemeFluentClick(object? sender, RoutedEventArgs e)
-    {
-        App.ApplyTheme(Intune.Commander.Desktop.Models.AppTheme.Fluent);
-        UpdateThemeCheckmarks();
-    }
-
-    private void OnThemeClassicClick(object? sender, RoutedEventArgs e)
-    {
-        App.ApplyTheme(Intune.Commander.Desktop.Models.AppTheme.Classic);
-        UpdateThemeCheckmarks();
-    }
-
-    private void UpdateThemeCheckmarks()
-    {
-        var isFluent = App.CurrentTheme == Intune.Commander.Desktop.Models.AppTheme.Fluent;
-        if (this.FindControl<MenuItem>("MenuThemeFluent") is { } fluent)
-        {
-            fluent.IsChecked = isFluent;
-        }
-        if (this.FindControl<MenuItem>("MenuThemeClassic") is { } classic)
-        {
-            classic.IsChecked = !isFluent;
-        }
-    }
-
     private void OnCheckForUpdatesClick(object? sender, RoutedEventArgs e)
     {
         OpenUrl("https://github.com/adamgell/IntuneCommader/releases");
@@ -745,5 +720,30 @@ public partial class MainWindow : Window
         });
 
         return file?.Path.LocalPath;
+    }
+
+    private void OnThemeFluentClick(object? sender, RoutedEventArgs e)
+    {
+        App.ApplyTheme(Models.AppTheme.Fluent);
+        UpdateThemeCheckmarks();
+    }
+
+    private void OnThemeClassicClick(object? sender, RoutedEventArgs e)
+    {
+        App.ApplyTheme(Models.AppTheme.Classic);
+        UpdateThemeCheckmarks();
+    }
+
+    private void UpdateThemeCheckmarks()
+    {
+        var isFluent = App.CurrentTheme == Models.AppTheme.Fluent;
+        if (this.FindControl<MenuItem>("MenuThemeFluent") is { } fluent)
+        {
+            fluent.IsChecked = isFluent;
+        }
+        if (this.FindControl<MenuItem>("MenuThemeClassic") is { } classic)
+        {
+            classic.IsChecked = !isFluent;
+        }
     }
 }
