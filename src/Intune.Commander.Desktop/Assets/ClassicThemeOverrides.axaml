@@ -1,0 +1,32 @@
+<ResourceDictionary xmlns="https://github.com/avaloniaui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <!--
+        Classic theme override brushes.
+        These redefine Fluent-specific SystemControl* resource keys so that MainWindow
+        renders correctly when the Classic (Windows 9x) theme is active.
+        Windows classic palette: face=#C0C0C0, shadow=#808080, highlight=#FFFFFF, text=#000000
+    -->
+
+    <!-- Nav / toolbar / status bar backgrounds (classic button-face gray) -->
+    <SolidColorBrush x:Key="SystemControlBackgroundChromeMediumBrush" Color="#C0C0C0" />
+    <SolidColorBrush x:Key="SystemControlBackgroundChromeMediumLowBrush" Color="#D4D0C8" />
+    <SolidColorBrush x:Key="SystemControlBackgroundAltHighBrush" Color="#FFFFFF" />
+
+    <!-- Separator / divider color -->
+    <SolidColorBrush x:Key="SystemControlForegroundBaseMediumLowBrush" Color="#808080" />
+
+    <!-- Primary text (used in status bar cache label etc.) -->
+    <SolidColorBrush x:Key="SystemControlForegroundBaseHighBrush" Color="#000000" />
+
+    <!-- Hover highlight (list row hover) -->
+    <SolidColorBrush x:Key="SystemControlHighlightListLowBrush" Color="#000080" Opacity="0.12" />
+
+    <!-- Accent color (selection indicator bar, links) -->
+    <Color x:Key="SystemAccentColor">#000080</Color>
+
+    <!-- App-specific brushes that normally live in ThemeDictionaries Light/Dark -->
+    <SolidColorBrush x:Key="AppNavTextBrush" Color="#000000" />
+    <SolidColorBrush x:Key="AppTextSecondaryBrush" Color="#444444" />
+    <SolidColorBrush x:Key="AppErrorTextBrush" Color="#CC0000" />
+    <SolidColorBrush x:Key="AppErrorBackgroundBrush" Color="#1AFF0000" />
+</ResourceDictionary>

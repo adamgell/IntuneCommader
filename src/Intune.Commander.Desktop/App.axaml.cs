@@ -25,6 +25,8 @@ public partial class App : Application
     public static ServiceProvider? Services { get; private set; }
     public static AppTheme CurrentTheme { get; private set; } = AppTheme.Fluent;
 
+    private const string ClassicOverridesUri = "avares://Intune.Commander.Desktop/Assets/ClassicThemeOverrides.axaml";
+
     public static void ApplyTheme(AppTheme theme)
     {
         CurrentTheme = theme;
@@ -68,6 +70,26 @@ public partial class App : Application
             app.Styles[dataGridIndex] = newDataGrid;
         else
             app.Styles.Insert(themeIndex + 1, newDataGrid);
+
+        // Apply or remove Classic brush overrides.
+        // The overrides redefine Fluent-specific SystemControl* resource keys so that
+        // the nav panel, toolbar, and status bar render correctly under Classic theme.
+        var overridesKey = new Uri(ClassicOverridesUri);
+        var existingOverrides = app.Resources.MergedDictionaries
+            .OfType<ResourceInclude>()
+            .FirstOrDefault(r => r.Source == overridesKey);
+
+        if (theme == AppTheme.Classic && existingOverrides == null)
+        {
+            app.Resources.MergedDictionaries.Add(new ResourceInclude(overridesKey)
+            {
+                Source = overridesKey
+            });
+        }
+        else if (theme != AppTheme.Classic && existingOverrides != null)
+        {
+            app.Resources.MergedDictionaries.Remove(existingOverrides);
+        }
 
         AppSettingsService.Save(new AppSettings { Theme = theme });
     }
