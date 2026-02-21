@@ -67,7 +67,7 @@
                            IsVisible="{Binding TenantIdError, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
             </StackPanel>
 
-            <!-- Cloud + Client ID side by side -->
+            <!-- Cloud Environment + Auth Method side by side -->
             <Grid ColumnDefinitions="*,12,*">
                 <StackPanel Spacing="4" Grid.Column="0">
                     <TextBlock Text="Cloud Environment" FontSize="12" />

@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using Avalonia.Threading;
 using Azure.Identity;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -287,10 +288,13 @@ public partial class LoginViewModel : ViewModelBase
             {
                 deviceCodeCallback = (info, _) =>
                 {
-                    DeviceCodeMessage = info.Message;
-                    DeviceUserCode = info.UserCode;
-                    DeviceVerificationUrl = info.VerificationUri.ToString();
-                    StatusMessage = "Complete sign-in in your browser, then return here.";
+                    Dispatcher.UIThread.Post(() =>
+                    {
+                        DeviceCodeMessage = info.Message;
+                        DeviceUserCode = info.UserCode;
+                        DeviceVerificationUrl = info.VerificationUri.ToString();
+                        StatusMessage = "Complete sign-in in your browser, then return here.";
+                    });
                     return Task.CompletedTask;
                 };
             }
