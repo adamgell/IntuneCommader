@@ -1,3 +1,6 @@
 [submodule "IntuneManagement"]
 	path = IntuneManagement
 	url = https://github.com/Micke-K/IntuneManagement
+[submodule "IntuneAssignmentChecker"]
+	path = IntuneAssignmentChecker
+	url = https://github.com/adamgell/IntuneAssignmentChecker
