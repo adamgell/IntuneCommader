@@ -624,14 +624,10 @@ public partial class MainWindow : Window
         var isFluent = App.CurrentTheme == IntuneManager.Desktop.Models.AppTheme.Fluent;
         if (this.FindControl<MenuItem>("MenuThemeFluent") is { } fluent)
         {
-            fluent.IsCheckable = true;
-            fluent.ToggleType = MenuItemToggleMode.Radio;
             fluent.IsChecked = isFluent;
         }
         if (this.FindControl<MenuItem>("MenuThemeClassic") is { } classic)
         {
-            classic.IsCheckable = true;
-            classic.ToggleType = MenuItemToggleMode.Radio;
             classic.IsChecked = !isFluent;
         }
     }

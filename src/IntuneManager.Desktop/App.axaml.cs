@@ -6,6 +6,7 @@ using Avalonia.Data.Core;
 using Avalonia.Data.Core.Plugins;
 using Avalonia.Markup.Xaml;
 using Avalonia.Markup.Xaml.Styling;
+using Avalonia.Styling;
 using Avalonia.Themes.Fluent;
 using Classic.Avalonia.Theme;
 using IntuneManager.Core.Extensions;
@@ -28,22 +29,44 @@ public partial class App : Application
         CurrentTheme = theme;
         var app = Application.Current!;
 
-        if (theme == AppTheme.Classic)
-        {
-            app.Styles[0] = new ClassicTheme();
-            app.Styles[1] = new StyleInclude(new Uri("avares://IntuneManager.Desktop"))
-            {
-                Source = new Uri("avares://Classic.Avalonia.Theme.DataGrid/Classic.axaml")
-            };
-        }
+        // Locate existing main theme style (ClassicTheme or FluentTheme) by type
+        var themeIndex = app.Styles
+            .Select((s, i) => new { s, i })
+            .FirstOrDefault(x => x.s is ClassicTheme || x.s is FluentTheme)
+            ?.i ?? -1;
+
+        IStyle newTheme = theme == AppTheme.Classic ? new ClassicTheme() : new FluentTheme();
+        if (themeIndex >= 0)
+            app.Styles[themeIndex] = newTheme;
         else
         {
-            app.Styles[0] = new FluentTheme();
-            app.Styles[1] = new StyleInclude(new Uri("avares://IntuneManager.Desktop"))
-            {
-                Source = new Uri("avares://Avalonia.Controls.DataGrid/Themes/Fluent.xaml")
-            };
+            app.Styles.Insert(0, newTheme);
+            themeIndex = 0;
         }
+
+        // Locate existing DataGrid style include by source URI
+        const string classicDataGrid = "avares://Classic.Avalonia.Theme.DataGrid/Classic.axaml";
+        const string fluentDataGrid = "avares://Avalonia.Controls.DataGrid/Themes/Fluent.xaml";
+        var dataGridIndex = app.Styles
+            .Select((s, i) => new { s, i })
+            .FirstOrDefault(x =>
+            {
+                if (x.s is not StyleInclude si || si.Source == null) return false;
+                var src = si.Source.ToString();
+                return src.Contains("Classic.Avalonia.Theme.DataGrid", StringComparison.OrdinalIgnoreCase) ||
+                       src.Contains("Avalonia.Controls.DataGrid/Themes", StringComparison.OrdinalIgnoreCase);
+            })
+            ?.i ?? -1;
+
+        var newDataGrid = new StyleInclude(new Uri("avares://IntuneManager.Desktop"))
+        {
+            Source = new Uri(theme == AppTheme.Classic ? classicDataGrid : fluentDataGrid)
+        };
+
+        if (dataGridIndex >= 0)
+            app.Styles[dataGridIndex] = newDataGrid;
+        else
+            app.Styles.Insert(themeIndex + 1, newDataGrid);
 
         AppSettingsService.Save(new AppSettings { Theme = theme });
     }

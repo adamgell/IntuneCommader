@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using IntuneManager.Desktop.Models;
 
 namespace IntuneManager.Desktop.Services;
@@ -12,7 +13,11 @@ public static class AppSettingsService
         "IntuneManager",
         "settings.json");
 
-    private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
+    private static readonly JsonSerializerOptions JsonOptions = new()
+    {
+        WriteIndented = true,
+        Converters = { new JsonStringEnumConverter() }
+    };
 
     public static AppSettings Load()
     {
@@ -21,10 +26,13 @@ public static class AppSettingsService
             if (File.Exists(SettingsPath))
             {
                 var json = File.ReadAllText(SettingsPath);
-                return JsonSerializer.Deserialize<AppSettings>(json) ?? new AppSettings();
+                return JsonSerializer.Deserialize<AppSettings>(json, JsonOptions) ?? new AppSettings();
             }
         }
-        catch { /* fall through to default */ }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Failed to load app settings from '{SettingsPath}': {ex}");
+        }
         return new AppSettings();
     }
 
@@ -51,9 +59,9 @@ public static class AppSettingsService
                 File.Move(tempPath, SettingsPath);
             }
         }
-        catch
+        catch (Exception ex)
         {
-            // best effort
+            System.Diagnostics.Debug.WriteLine($"Failed to save app settings to '{SettingsPath}': {ex}");
         }
     }
 }
