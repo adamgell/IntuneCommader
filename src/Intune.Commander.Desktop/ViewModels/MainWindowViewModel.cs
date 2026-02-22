@@ -122,6 +122,8 @@ public partial class MainWindowViewModel : ViewModelBase
 
     private const string CacheKeyComplianceScripts = "ComplianceScripts";
 
+    private const string CacheKeyUsers = "Users";
+
 
 
     private GraphServiceClient? _graphClient;
@@ -182,6 +184,7 @@ public partial class MainWindowViewModel : ViewModelBase
     private IDeviceShellScriptService? _deviceShellScriptService;
     private IComplianceScriptService? _complianceScriptService;
     private IConditionalAccessPptExportService? _conditionalAccessPptExportService;
+    private IUserService? _userService;
 
 
 
@@ -218,6 +221,21 @@ public partial class MainWindowViewModel : ViewModelBase
     [ObservableProperty]
 
     private string _cacheStatusText = "";
+
+
+
+    // --- Download All to Cache ---
+
+    [ObservableProperty]
+    private bool _isDownloadingAll;
+
+    [ObservableProperty]
+    private string _downloadProgress = "";
+
+    [ObservableProperty]
+    private double _downloadProgressPercent;
+
+    private CancellationTokenSource? _downloadAllCts;
 
 
 

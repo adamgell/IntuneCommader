@@ -110,6 +110,20 @@
                             <Button Content="Export Selected" Command="{Binding ExportSelectedCommand}" />
                             <Button Content="Export All" Command="{Binding ExportAllCommand}" />
                             <Button Content="Import" x:Name="ImportButton" />
+                            <Border Width="1" Background="{DynamicResource SystemControlForegroundBaseMediumLowBrush}" Margin="4,2" />
+                            <Button Content="&#9660; Download All to Cache"
+                                    Command="{Binding DownloadAllToCacheCommand}"
+                                    IsVisible="{Binding !IsDownloadingAll}"
+                                    ToolTip.Tip="Downloads all Intune data types into the local cache"
+                                    Padding="16,6"
+                                    FontSize="13"
+                                    FontWeight="SemiBold"
+                                    Background="#1A6B3C"
+                                    Foreground="White" />
+                            <Button Content="⬛ Cancel Download"
+                                    Command="{Binding CancelDownloadAllCommand}"
+                                    IsVisible="{Binding IsDownloadingAll}"
+                                    Padding="12,6" />
                         </StackPanel>
                         <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
                             <ComboBox ItemsSource="{Binding SwitcherProfiles}"
@@ -127,6 +141,24 @@
                         </StackPanel>
                     </DockPanel>
                 </Border>
+
+                <!-- Download All Progress -->
+                <ProgressBar DockPanel.Dock="Top"
+                             IsIndeterminate="False"
+                             Maximum="100"
+                             Value="{Binding DownloadProgressPercent}"
+                             IsVisible="{Binding IsDownloadingAll}"
+                             Height="4"
+                             Foreground="#00CC55"
+                             Background="#224400"
+                             CornerRadius="0" />
+                <TextBlock DockPanel.Dock="Top"
+                           Text="{Binding DownloadProgress}"
+                           IsVisible="{Binding IsDownloadingAll}"
+                           FontSize="12"
+                           HorizontalAlignment="Center"
+                           Margin="0,2,0,0"
+                           Foreground="{DynamicResource SystemControlForegroundBaseHighBrush}" />
 
                 <!-- Body: Left Nav + Content + Details -->
                 <Grid ColumnDefinitions="220,Auto,*,Auto,350">

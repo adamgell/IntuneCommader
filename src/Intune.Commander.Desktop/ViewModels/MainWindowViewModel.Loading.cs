@@ -1036,5 +1036,358 @@ public partial class MainWindowViewModel : ViewModelBase
             DebugLog.LogError($"Failed to save to cache: {ex.Message}", ex);
         }
     }
+
+    // ─── Download All to Cache ─────────────────────────────────────────────
+
+    [RelayCommand]
+    private async Task DownloadAllToCacheAsync(CancellationToken cancellationToken)
+    {
+        if (!IsConnected || IsDownloadingAll) return;
+
+        var tenantId = ActiveProfile?.TenantId;
+        if (string.IsNullOrEmpty(tenantId)) return;
+
+        IsDownloadingAll = true;
+        DownloadProgress = "Preparing download...";
+        DownloadProgressPercent = 0;
+        ClearError();
+
+        _downloadAllCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        var ct = _downloadAllCts.Token;
+
+        var completed = 0;
+        var failed = 0;
+        var errors = new List<string>();
+
+        // Build the 32-type task list
+        var downloadTasks = BuildDownloadTaskList(tenantId, ct);
+        var total = downloadTasks.Count;
+
+        DebugLog.Log("DownloadAll", $"Starting download of {total} data types (parallel=5)");
+
+        try
+        {
+            using var semaphore = new SemaphoreSlim(5, 5);
+
+            var tasks = downloadTasks.Select(async entry =>
+            {
+                await semaphore.WaitAsync(ct);
+                try
+                {
+                    ct.ThrowIfCancellationRequested();
+                    await entry.Action();
+
+                    var current = Interlocked.Increment(ref completed);
+                    Dispatcher.UIThread.Post(() =>
+                    {
+                        DownloadProgress = $"Downloading {current + failed} of {total}...";
+                        DownloadProgressPercent = ((current + failed) / (double)total) * 100;
+                    });
+                    DebugLog.Log("DownloadAll", $"Completed: {entry.Name} ({current}/{total})");
+                }
+                catch (OperationCanceledException)
+                {
+                    throw; // Let cancellation propagate
+                }
+                catch (Exception ex)
+                {
+                    Interlocked.Increment(ref failed);
+                    var detail = FormatGraphError(ex);
+                    DebugLog.LogError($"Failed to download {entry.Name}: {detail}", ex);
+                    lock (errors) { errors.Add($"{entry.Name}: {detail}"); }
+
+                    var current = Interlocked.Add(ref completed, 0);
+                    Dispatcher.UIThread.Post(() =>
+                    {
+                        DownloadProgress = $"Downloading {current + failed} of {total}...";
+                        DownloadProgressPercent = ((current + failed) / (double)total) * 100;
+                    });
+                }
+                finally
+                {
+                    semaphore.Release();
+                }
+            }).ToList();
+
+            await Task.WhenAll(tasks);
+
+            ApplyFilter();
+
+            if (errors.Count > 0)
+            {
+                DownloadProgress = $"Completed with {errors.Count} error(s) — {completed} of {total} succeeded";
+                SetError($"Some downloads failed: {string.Join("; ", errors.Take(5))}");
+            }
+            else
+            {
+                DownloadProgress = $"Downloaded all {total} data types";
+            }
+            DownloadProgressPercent = 100;
+
+            DebugLog.Log("DownloadAll", $"Finished: {completed} succeeded, {failed} failed");
+        }
+        catch (OperationCanceledException)
+        {
+            DownloadProgress = $"Cancelled — {completed} of {total} completed";
+            DebugLog.Log("DownloadAll", $"Cancelled after {completed} of {total}");
+        }
+        catch (Exception ex)
+        {
+            DownloadProgress = $"Error — {completed} of {total} completed";
+            SetError($"Download failed: {FormatGraphError(ex)}");
+            DebugLog.LogError($"Download all failed: {FormatGraphError(ex)}", ex);
+        }
+        finally
+        {
+            IsDownloadingAll = false;
+            _downloadAllCts?.Dispose();
+            _downloadAllCts = null;
+        }
+    }
+
+    [RelayCommand]
+    private void CancelDownloadAll()
+    {
+        _downloadAllCts?.Cancel();
+        DebugLog.Log("DownloadAll", "Cancel requested by user");
+    }
+
+    private record struct DownloadTask(string Name, Func<Task> Action);
+
+    private List<DownloadTask> BuildDownloadTaskList(string tenantId, CancellationToken ct)
+    {
+        var tasks = new List<DownloadTask>();
+
+        // Helper to add a simple service→collection→cache task
+        void AddTask<T>(string name, object? service, Func<CancellationToken, Task<List<T>>> fetch,
+            Action<ObservableCollection<T>> setCollection, Action? setLoadedFlag, string cacheKey)
+        {
+            if (service == null) return;
+            tasks.Add(new DownloadTask(name, async () =>
+            {
+                var items = await fetch(ct);
+                Dispatcher.UIThread.Post(() =>
+                {
+                    setCollection(new ObservableCollection<T>(items));
+                    setLoadedFlag?.Invoke();
+                });
+                _cacheService.Set(tenantId, cacheKey, items);
+            }));
+        }
+
+        // --- 4 core types ---
+        AddTask("Device Configurations", _configProfileService,
+            c => _configProfileService!.ListDeviceConfigurationsAsync(c),
+            items => DeviceConfigurations = items, null, CacheKeyDeviceConfigs);
+
+        AddTask("Compliance Policies", _compliancePolicyService,
+            c => _compliancePolicyService!.ListCompliancePoliciesAsync(c),
+            items => CompliancePolicies = items, null, CacheKeyCompliancePolicies);
+
+        AddTask("Applications", _applicationService,
+            c => _applicationService!.ListApplicationsAsync(c),
+            items => Applications = items, null, CacheKeyApplications);
+
+        AddTask("Settings Catalog", _settingsCatalogService,
+            c => _settingsCatalogService!.ListSettingsCatalogPoliciesAsync(c),
+            items => SettingsCatalogPolicies = items, null, CacheKeySettingsCatalog);
+
+        // --- 25 lazy types ---
+        AddTask("Conditional Access", _conditionalAccessPolicyService,
+            c => _conditionalAccessPolicyService!.ListPoliciesAsync(c),
+            items => ConditionalAccessPolicies = items,
+            () => _conditionalAccessLoaded = true, CacheKeyConditionalAccess);
+
+        AddTask("Assignment Filters", _assignmentFilterService,
+            c => _assignmentFilterService!.ListFiltersAsync(c),
+            items => AssignmentFilters = items,
+            () => _assignmentFiltersLoaded = true, CacheKeyAssignmentFilters);
+
+        AddTask("Policy Sets", _policySetService,
+            c => _policySetService!.ListPolicySetsAsync(c),
+            items => PolicySets = items,
+            () => _policySetsLoaded = true, CacheKeyPolicySets);
+
+        AddTask("Endpoint Security", _endpointSecurityService,
+            c => _endpointSecurityService!.ListEndpointSecurityIntentsAsync(c),
+            items => EndpointSecurityIntents = items,
+            () => _endpointSecurityLoaded = true, CacheKeyEndpointSecurity);
+
+        AddTask("Administrative Templates", _administrativeTemplateService,
+            c => _administrativeTemplateService!.ListAdministrativeTemplatesAsync(c),
+            items => AdministrativeTemplates = items,
+            () => _administrativeTemplatesLoaded = true, CacheKeyAdministrativeTemplates);
+
+        AddTask("Enrollment Configurations", _enrollmentConfigurationService,
+            c => _enrollmentConfigurationService!.ListEnrollmentConfigurationsAsync(c),
+            items => EnrollmentConfigurations = items,
+            () => _enrollmentConfigurationsLoaded = true, CacheKeyEnrollmentConfigurations);
+
+        AddTask("App Protection Policies", _appProtectionPolicyService,
+            c => _appProtectionPolicyService!.ListAppProtectionPoliciesAsync(c),
+            items => AppProtectionPolicies = items,
+            () => _appProtectionPoliciesLoaded = true, CacheKeyAppProtectionPolicies);
+
+        AddTask("Managed Device App Configurations", _managedAppConfigurationService,
+            c => _managedAppConfigurationService!.ListManagedDeviceAppConfigurationsAsync(c),
+            items => ManagedDeviceAppConfigurations = items,
+            () => _managedDeviceAppConfigurationsLoaded = true, CacheKeyManagedDeviceAppConfigurations);
+
+        AddTask("Targeted Managed App Configurations", _managedAppConfigurationService,
+            c => _managedAppConfigurationService!.ListTargetedManagedAppConfigurationsAsync(c),
+            items => TargetedManagedAppConfigurations = items,
+            () => _targetedManagedAppConfigurationsLoaded = true, CacheKeyTargetedManagedAppConfigurations);
+
+        AddTask("Terms and Conditions", _termsAndConditionsService,
+            c => _termsAndConditionsService!.ListTermsAndConditionsAsync(c),
+            items => TermsAndConditionsCollection = items,
+            () => _termsAndConditionsLoaded = true, CacheKeyTermsAndConditions);
+
+        AddTask("Scope Tags", _scopeTagService,
+            c => _scopeTagService!.ListScopeTagsAsync(c),
+            items => ScopeTags = items,
+            () => _scopeTagsLoaded = true, CacheKeyScopeTags);
+
+        AddTask("Role Definitions", _roleDefinitionService,
+            c => _roleDefinitionService!.ListRoleDefinitionsAsync(c),
+            items => RoleDefinitions = items,
+            () => _roleDefinitionsLoaded = true, CacheKeyRoleDefinitions);
+
+        AddTask("Intune Branding Profiles", _intuneBrandingService,
+            c => _intuneBrandingService!.ListIntuneBrandingProfilesAsync(c),
+            items => IntuneBrandingProfiles = items,
+            () => _intuneBrandingProfilesLoaded = true, CacheKeyIntuneBrandingProfiles);
+
+        AddTask("Azure Branding Localizations", _azureBrandingService,
+            c => _azureBrandingService!.ListBrandingLocalizationsAsync(c),
+            items => AzureBrandingLocalizations = items,
+            () => _azureBrandingLocalizationsLoaded = true, CacheKeyAzureBrandingLocalizations);
+
+        AddTask("Autopilot Profiles", _autopilotService,
+            c => _autopilotService!.ListAutopilotProfilesAsync(c),
+            items => AutopilotProfiles = items,
+            () => _autopilotProfilesLoaded = true, CacheKeyAutopilotProfiles);
+
+        AddTask("Device Health Scripts", _deviceHealthScriptService,
+            c => _deviceHealthScriptService!.ListDeviceHealthScriptsAsync(c),
+            items => DeviceHealthScripts = items,
+            () => _deviceHealthScriptsLoaded = true, CacheKeyDeviceHealthScripts);
+
+        AddTask("Mac Custom Attributes", _macCustomAttributeService,
+            c => _macCustomAttributeService!.ListMacCustomAttributesAsync(c),
+            items => MacCustomAttributes = items,
+            () => _macCustomAttributesLoaded = true, CacheKeyMacCustomAttributes);
+
+        AddTask("Feature Update Profiles", _featureUpdateProfileService,
+            c => _featureUpdateProfileService!.ListFeatureUpdateProfilesAsync(c),
+            items => FeatureUpdateProfiles = items,
+            () => _featureUpdateProfilesLoaded = true, CacheKeyFeatureUpdateProfiles);
+
+        AddTask("Named Locations", _namedLocationService,
+            c => _namedLocationService!.ListNamedLocationsAsync(c),
+            items => NamedLocations = items,
+            () => _namedLocationsLoaded = true, CacheKeyNamedLocations);
+
+        AddTask("Authentication Strength Policies", _authenticationStrengthService,
+            c => _authenticationStrengthService!.ListAuthenticationStrengthPoliciesAsync(c),
+            items => AuthenticationStrengthPolicies = items,
+            () => _authenticationStrengthPoliciesLoaded = true, CacheKeyAuthenticationStrengths);
+
+        AddTask("Authentication Contexts", _authenticationContextService,
+            c => _authenticationContextService!.ListAuthenticationContextsAsync(c),
+            items => AuthenticationContextClassReferences = items,
+            () => _authenticationContextClassReferencesLoaded = true, CacheKeyAuthenticationContexts);
+
+        AddTask("Terms of Use Agreements", _termsOfUseService,
+            c => _termsOfUseService!.ListTermsOfUseAgreementsAsync(c),
+            items => TermsOfUseAgreements = items,
+            () => _termsOfUseAgreementsLoaded = true, CacheKeyTermsOfUseAgreements);
+
+        AddTask("Device Management Scripts", _deviceManagementScriptService,
+            c => _deviceManagementScriptService!.ListDeviceManagementScriptsAsync(c),
+            items => DeviceManagementScripts = items,
+            () => _deviceManagementScriptsLoaded = true, CacheKeyDeviceManagementScripts);
+
+        AddTask("Device Shell Scripts", _deviceShellScriptService,
+            c => _deviceShellScriptService!.ListDeviceShellScriptsAsync(c),
+            items => DeviceShellScripts = items,
+            () => _deviceShellScriptsLoaded = true, CacheKeyDeviceShellScripts);
+
+        AddTask("Compliance Scripts", _complianceScriptService,
+            c => _complianceScriptService!.ListComplianceScriptsAsync(c),
+            items => ComplianceScripts = items,
+            () => _complianceScriptsLoaded = true, CacheKeyComplianceScripts);
+
+        // --- 2 group types (special: require member-count enrichment) ---
+        if (_groupService != null)
+        {
+            tasks.Add(new DownloadTask("Dynamic Groups", async () =>
+            {
+                var groups = await _groupService.ListDynamicGroupsAsync(ct);
+                var rows = await EnrichGroupRowsAsync(_groupService, groups, ct);
+                Dispatcher.UIThread.Post(() =>
+                {
+                    DynamicGroupRows = new ObservableCollection<GroupRow>(rows);
+                    _dynamicGroupsLoaded = true;
+                });
+                _cacheService.Set(tenantId, CacheKeyDynamicGroups, rows);
+            }));
+
+            tasks.Add(new DownloadTask("Assigned Groups", async () =>
+            {
+                var groups = await _groupService.ListAssignedGroupsAsync(ct);
+                var rows = await EnrichGroupRowsAsync(_groupService, groups, ct);
+                Dispatcher.UIThread.Post(() =>
+                {
+                    AssignedGroupRows = new ObservableCollection<GroupRow>(rows);
+                    _assignedGroupsLoaded = true;
+                });
+                _cacheService.Set(tenantId, CacheKeyAssignedGroups, rows);
+            }));
+        }
+
+        // --- 1 user type (cache-only, no UI tab) ---
+        if (_userService != null)
+        {
+            tasks.Add(new DownloadTask("Users", async () =>
+            {
+                var users = await _userService.ListUsersAsync(ct);
+                _cacheService.Set(tenantId, CacheKeyUsers, users);
+            }));
+        }
+
+        return tasks;
+    }
+
+    /// <summary>
+    /// Enriches a list of groups with member counts to produce GroupRow objects.
+    /// Uses SemaphoreSlim(5) internally for parallel member-count lookups.
+    /// </summary>
+    private static async Task<List<GroupRow>> EnrichGroupRowsAsync(
+        IGroupService groupService,
+        List<Microsoft.Graph.Beta.Models.Group> groups,
+        CancellationToken ct)
+    {
+        var rows = new List<GroupRow>();
+        using var semaphore = new SemaphoreSlim(5, 5);
+
+        var tasks = groups.Select(async group =>
+        {
+            await semaphore.WaitAsync(ct);
+            try
+            {
+                var counts = group.Id != null
+                    ? await groupService.GetMemberCountsAsync(group.Id, ct)
+                    : new GroupMemberCounts(0, 0, 0, 0);
+                var row = BuildGroupRow(group, counts);
+                lock (rows) { rows.Add(row); }
+            }
+            finally { semaphore.Release(); }
+        }).ToList();
+
+        await Task.WhenAll(tasks);
+        rows.Sort((a, b) => string.Compare(a.GroupName, b.GroupName, StringComparison.OrdinalIgnoreCase));
+        return rows;
+    }
 }
 
