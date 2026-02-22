@@ -59,14 +59,18 @@
                             Padding="16,6" />
                 </StackPanel>
 
-                <!-- Progress bar -->
-                <ProgressBar IsIndeterminate="True"
-                             IsVisible="{Binding IsRunning}"
-                             Height="6" VerticalAlignment="Center"
-                             Foreground="#00CC55" Background="#224400"
-                             CornerRadius="3" Margin="8,0" />
             </DockPanel>
-        </Border>
+        </Border>  <!-- end of Top toolbar Border -->
+
+        <!-- ── Progress bar (full width, below toolbar) ─────────────── -->
+        <ProgressBar DockPanel.Dock="Top"
+                     IsIndeterminate="True"
+                     IsVisible="{Binding IsRunning}"
+                     Height="4" 
+                     Foreground="#00CC55" Background="#224400"
+                     CornerRadius="0" />
+
+        <!-- ── Status bar ──── ... -->
 
         <!-- ── Status bar ───────────────────────────────────────────── -->
         <Border DockPanel.Dock="Bottom"
