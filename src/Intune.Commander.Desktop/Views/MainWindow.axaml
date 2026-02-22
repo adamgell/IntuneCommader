@@ -25,6 +25,9 @@
                     <Separator />
                     <MenuItem Header="_Disconnect" Command="{Binding DisconnectCommand}" />
                 </MenuItem>
+                <MenuItem Header="_Reports">
+                    <MenuItem Header="_Assignment Report..." x:Name="MenuAssignmentReport" Click="OnAssignmentReportClick" IsEnabled="{Binding IsConnected}" />
+                </MenuItem>
                 <MenuItem Header="_Help">
                     <MenuItem Header="Check for _Updates..." x:Name="MenuCheckUpdates" Click="OnCheckForUpdatesClick" />
                     <Separator />

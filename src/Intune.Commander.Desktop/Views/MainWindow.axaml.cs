@@ -588,6 +588,20 @@ public partial class MainWindow : Window
         }
     }
 
+    private void OnAssignmentReportClick(object? sender, RoutedEventArgs e)
+    {
+        if (_vm == null) return;
+
+        var reportVm = _vm.CreateAssignmentReportViewModel();
+        if (reportVm == null) return;
+
+        var window = new AssignmentReportWindow
+        {
+            DataContext = reportVm
+        };
+        window.Show(this);
+    }
+
     private void OnGroupLookupClick(object? sender, RoutedEventArgs e)
     {
         if (_vm == null) return;

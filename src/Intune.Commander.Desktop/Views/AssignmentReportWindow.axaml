@@ -1,0 +1,357 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:Intune.Commander.Desktop.ViewModels"
+        xmlns:m="using:Microsoft.Graph.Beta.Models"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d"
+        x:Class="Intune.Commander.Desktop.Views.AssignmentReportWindow"
+        x:DataType="vm:AssignmentReportViewModel"
+        Title="Assignment Report"
+        Width="1200" Height="800"
+        MinWidth="900" MinHeight="600"
+        WindowStartupLocation="CenterOwner">
+
+    <DockPanel>
+
+        <!-- ── Top toolbar ──────────────────────────────────────────── -->
+        <Border DockPanel.Dock="Top"
+                Background="{DynamicResource SystemControlBackgroundChromeMediumLowBrush}"
+                Padding="12,8">
+            <DockPanel>
+                <TextBlock DockPanel.Dock="Left" Text="Report Mode:" FontWeight="SemiBold"
+                           VerticalAlignment="Center" Margin="0,0,8,0" />
+                <ComboBox DockPanel.Dock="Left"
+                          ItemsSource="{Binding ReportModeItems}"
+                          SelectedIndex="{Binding SelectedModeIndex}"
+                          MinWidth="240" VerticalAlignment="Center"
+                          Margin="0,0,12,0" />
+
+                <!-- Run / Cancel / Export -->
+                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="8"
+                            VerticalAlignment="Center">
+                    <Button Content="⬛  Cancel"
+                            Command="{Binding CancelReportCommand}"
+                            IsVisible="{Binding IsRunning}"
+                            Padding="12,6" />
+                    <Button Content="&#128196; HTML Report"
+                            x:Name="ExportHtmlButton"
+                            Click="OnExportHtmlClick"
+                            IsEnabled="{Binding CanExport}"
+                            Padding="12,6" />
+                    <Button Content="⬇ Export CSV"
+                            x:Name="ExportCsvButton"
+                            Click="OnExportCsvClick"
+                            IsEnabled="{Binding CanExport}"
+                            Padding="12,6" />
+                    <Button Content="&#9660; Download All to Cache"
+                            Command="{Binding PrefetchAllCommand}"
+                            IsEnabled="{Binding !IsRunning}"
+                            ToolTip.Tip="Pre-downloads all policy lists from Graph into the local cache so reports run faster"
+                            Padding="16,6"
+                            FontSize="13"
+                            FontWeight="SemiBold"
+                            Background="#1A6B3C"
+                            Foreground="White" />
+                    <Button Content="▶  Run Report"
+                            Command="{Binding RunReportCommand}"
+                            IsEnabled="{Binding !IsRunning}"
+                            Padding="16,6" />
+                </StackPanel>
+
+            </DockPanel>
+        </Border>  <!-- end of Top toolbar Border -->
+
+        <!-- ── Progress bar (full width, below toolbar) ─────────────── -->
+        <ProgressBar DockPanel.Dock="Top"
+                     IsIndeterminate="True"
+                     IsVisible="{Binding IsRunning}"
+                     Height="4" 
+                     Foreground="#00CC55" Background="#224400"
+                     CornerRadius="0" />
+
+        <!-- ── Status bar ──── ... -->
+
+        <!-- ── Status bar ───────────────────────────────────────────── -->
+        <Border DockPanel.Dock="Bottom"
+                Background="{DynamicResource SystemControlBackgroundChromeMediumBrush}"
+                Padding="12,4">
+            <DockPanel>
+                <TextBlock DockPanel.Dock="Right"
+                           Text="{Binding ResultSummary}"
+                           FontSize="12" Opacity="0.7"
+                           VerticalAlignment="Center" Margin="12,0,0,0" />
+                <TextBlock Text="{Binding StatusText}"
+                           FontSize="12" VerticalAlignment="Center"
+                           TextTrimming="CharacterEllipsis" />
+            </DockPanel>
+        </Border>
+
+        <!-- ── Error banner ─────────────────────────────────────────── -->
+        <Border DockPanel.Dock="Bottom"
+                IsVisible="{Binding ErrorMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                Background="{DynamicResource AppErrorBackgroundBrush}"
+                Padding="12,6">
+            <TextBlock Text="{Binding ErrorMessage}"
+                       Foreground="{DynamicResource AppErrorTextBrush}"
+                       FontSize="12" TextWrapping="Wrap" />
+        </Border>
+
+        <!-- ── Input panel ──────────────────────────────────────────── -->
+        <Border DockPanel.Dock="Top"
+                Padding="12,8"
+                Background="{DynamicResource SystemControlBackgroundAltHighBrush}">
+            <StackPanel Spacing="8">
+
+                <!-- User search (mode 0) -->
+                <StackPanel IsVisible="{Binding ShowUserInput}" Spacing="6">
+                    <DockPanel>
+                        <TextBlock Text="User:" VerticalAlignment="Center" Width="60" />
+                        <Button DockPanel.Dock="Right" Content="Search"
+                                Command="{Binding SearchUserCommand}"
+                                IsEnabled="{Binding !IsSearchingUser}"
+                                Padding="12,4" Margin="8,0,0,0" />
+                        <TextBox Text="{Binding UserSearchQuery}"
+                                 Watermark="Name, UPN, or email..."
+                                 x:Name="UserSearchBox"
+                                 KeyDown="OnUserSearchBoxKeyDown" />
+                    </DockPanel>
+                    <TextBlock Text="No users found — try a different name or full UPN."
+                               IsVisible="{Binding ShowNoUserResults}"
+                               FontSize="12" Opacity="0.6" FontStyle="Italic" Margin="64,0,0,0" />
+                    <Border IsVisible="{Binding UserSearchResults.Count}"
+                            MaxHeight="150" BorderThickness="1"
+                            BorderBrush="{DynamicResource SystemControlForegroundBaseMediumLowBrush}"
+                            CornerRadius="4">
+                        <ListBox x:Name="UserResultsList"
+                                 ItemsSource="{Binding UserSearchResults}"
+                                 SelectionMode="Multiple"
+                                 SelectionChanged="OnUserResultsSelectionChanged"
+                                 ScrollViewer.VerticalScrollBarVisibility="Auto">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate x:DataType="m:User">
+                                    <StackPanel Orientation="Horizontal" Spacing="12" Margin="4,2">
+                                        <TextBlock Text="{Binding DisplayName}"
+                                                   FontWeight="SemiBold" />
+                                        <TextBlock Text="{Binding UserPrincipalName}"
+                                                   Opacity="0.6" FontSize="11" />
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </Border>
+                    <TextBlock Text="{Binding SelectedUsersInfo}"
+                               IsVisible="{Binding SelectedUsersInfo, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                               FontSize="12" Opacity="0.8" TextWrapping="Wrap" />
+                </StackPanel>
+
+                <!-- Device input (mode 2) -->
+                <StackPanel IsVisible="{Binding ShowDeviceInput}"
+                            Orientation="Horizontal" Spacing="8">
+                    <TextBlock Text="Device Name Prefix(es):"
+                               VerticalAlignment="Center" Width="180" />
+                    <TextBox Text="{Binding DeviceInput}"
+                             Watermark="e.g. LAPTOP-  (partial OK, comma-separate for multiple)"
+                             Width="460" x:Name="DeviceInputBox"
+                             KeyDown="OnDeviceInputBoxKeyDown" />
+                </StackPanel>
+
+                <!-- Group assignment search (mode 1) -->
+                <StackPanel IsVisible="{Binding ShowGroupSearch}" Spacing="6">
+                    <DockPanel>
+                        <TextBlock Text="Group:" VerticalAlignment="Center" Width="60" />
+                        <Button DockPanel.Dock="Right" Content="Search"
+                                Command="{Binding SearchGroupCommand}"
+                                IsEnabled="{Binding !IsSearchingGroup}"
+                                Padding="12,4" Margin="8,0,0,0" />
+                        <TextBox Text="{Binding GroupSearchQuery}"
+                                 Watermark="Group name or GUID..."
+                                 x:Name="GroupSearchBox"
+                                 KeyDown="OnGroupSearchBoxKeyDown" />
+                    </DockPanel>
+                    <Border IsVisible="{Binding GroupSearchResults.Count}"
+                            MaxHeight="120" BorderThickness="1"
+                            BorderBrush="{DynamicResource SystemControlForegroundBaseMediumLowBrush}"
+                            CornerRadius="4">
+                        <ListBox ItemsSource="{Binding GroupSearchResults}"
+                                 SelectedItem="{Binding SelectedGroup}"
+                                 ScrollViewer.VerticalScrollBarVisibility="Auto">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <StackPanel Orientation="Horizontal" Spacing="12" Margin="4,2">
+                                        <TextBlock Text="{Binding DisplayName}"
+                                                   FontWeight="SemiBold" />
+                                        <TextBlock Text="{Binding Id}"
+                                                   Opacity="0.4" FontSize="11" />
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </Border>
+                    <TextBlock Text="{Binding SelectedGroupInfo}"
+                               IsVisible="{Binding SelectedGroupInfo, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                               FontSize="12" Opacity="0.8" />
+                </StackPanel>
+
+                <!-- Compare Groups inputs (mode 8) -->
+                <Grid IsVisible="{Binding ShowCompareGroupInputs}"
+                      ColumnDefinitions="*,40,*" RowDefinitions="Auto,Auto,Auto">
+
+                    <!-- Group 1 -->
+                    <StackPanel Grid.Row="0" Grid.Column="0" Spacing="4">
+                        <TextBlock Text="Group 1:" FontWeight="SemiBold" />
+                        <DockPanel>
+                            <Button DockPanel.Dock="Right" Content="Search"
+                                    Command="{Binding SearchCompareGroup1Command}"
+                                    IsEnabled="{Binding !IsSearchingCompareGroup1}"
+                                    Padding="10,4" Margin="6,0,0,0" />
+                            <TextBox Text="{Binding CompareGroup1Query}"
+                                     Watermark="Group 1 name or GUID..."
+                                     x:Name="Compare1Box"
+                                     KeyDown="OnCompare1BoxKeyDown" />
+                        </DockPanel>
+                        <Border IsVisible="{Binding CompareGroup1Results.Count}"
+                                MaxHeight="100" BorderThickness="1"
+                                BorderBrush="{DynamicResource SystemControlForegroundBaseMediumLowBrush}"
+                                CornerRadius="4">
+                            <ListBox ItemsSource="{Binding CompareGroup1Results}"
+                                     SelectedItem="{Binding SelectedCompareGroup1}">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <StackPanel Orientation="Horizontal" Spacing="8">
+                                            <TextBlock Text="{Binding DisplayName}"
+                                                       FontWeight="SemiBold" />
+                                            <TextBlock Text="{Binding Id}"
+                                                       Opacity="0.4" FontSize="11" />
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                        </Border>
+                        <TextBlock Text="{Binding SelectedCompareGroup1Info}"
+                                   IsVisible="{Binding SelectedCompareGroup1Info, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                                   FontSize="11" Opacity="0.8" />
+                    </StackPanel>
+
+                    <TextBlock Grid.Row="0" Grid.Column="1"
+                               Text="vs" FontSize="20" FontWeight="Bold"
+                               VerticalAlignment="Center"
+                               HorizontalAlignment="Center" />
+
+                    <!-- Group 2 -->
+                    <StackPanel Grid.Row="0" Grid.Column="2" Spacing="4">
+                        <TextBlock Text="Group 2:" FontWeight="SemiBold" />
+                        <DockPanel>
+                            <Button DockPanel.Dock="Right" Content="Search"
+                                    Command="{Binding SearchCompareGroup2Command}"
+                                    IsEnabled="{Binding !IsSearchingCompareGroup2}"
+                                    Padding="10,4" Margin="6,0,0,0" />
+                            <TextBox Text="{Binding CompareGroup2Query}"
+                                     Watermark="Group 2 name or GUID..."
+                                     x:Name="Compare2Box"
+                                     KeyDown="OnCompare2BoxKeyDown" />
+                        </DockPanel>
+                        <Border IsVisible="{Binding CompareGroup2Results.Count}"
+                                MaxHeight="100" BorderThickness="1"
+                                BorderBrush="{DynamicResource SystemControlForegroundBaseMediumLowBrush}"
+                                CornerRadius="4">
+                            <ListBox ItemsSource="{Binding CompareGroup2Results}"
+                                     SelectedItem="{Binding SelectedCompareGroup2}">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <StackPanel Orientation="Horizontal" Spacing="8">
+                                            <TextBlock Text="{Binding DisplayName}"
+                                                       FontWeight="SemiBold" />
+                                            <TextBlock Text="{Binding Id}"
+                                                       Opacity="0.4" FontSize="11" />
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                        </Border>
+                        <TextBlock Text="{Binding SelectedCompareGroup2Info}"
+                                   IsVisible="{Binding SelectedCompareGroup2Info, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                                   FontSize="11" Opacity="0.8" />
+                    </StackPanel>
+                </Grid>
+
+            </StackPanel>
+        </Border>
+
+        <!-- ── Results DataGrid ─────────────────────────────────────── -->
+        <ScrollViewer HorizontalScrollBarVisibility="Auto"
+                      VerticalScrollBarVisibility="Auto">
+            <DataGrid x:Name="ResultsGrid"
+                      ItemsSource="{Binding Results}"
+                      IsReadOnly="True"
+                      GridLinesVisibility="Horizontal"
+                      CanUserReorderColumns="True"
+                      CanUserResizeColumns="True"
+                      CanUserSortColumns="True"
+                      AutoGenerateColumns="False"
+                      HorizontalAlignment="Stretch">
+                <DataGrid.Columns>
+
+                    <DataGridTextColumn Header="Policy Name"
+                                       Binding="{Binding PolicyName}"
+                                       Width="260" />
+
+                    <DataGridTextColumn Header="Type"
+                                       Binding="{Binding PolicyType}"
+                                       Width="190" />
+
+                    <DataGridTextColumn Header="Platform"
+                                       Binding="{Binding Platform}"
+                                       Width="90" />
+
+                    <!-- Overview: show all assignment targets -->
+                    <DataGridTextColumn Header="Assignments"
+                                       Binding="{Binding AssignmentSummary}"
+                                       Width="320" />
+
+                    <!-- Entity modes: assignment reason (All Users / Group / Excluded) -->
+                    <DataGridTextColumn Header="Assignment Reason"
+                                       Binding="{Binding AssignmentReason}"
+                                       Width="180" />
+
+                    <!-- Empty-group mode -->
+                    <DataGridTextColumn Header="Empty Group"
+                                       Binding="{Binding GroupName}"
+                                       Width="200" />
+
+                    <DataGridTextColumn Header="Group ID"
+                                       Binding="{Binding GroupId}"
+                                       Width="280" />
+
+                    <!-- Compare-groups mode -->
+                    <DataGridTextColumn Header="Group 1 Status"
+                                       Binding="{Binding Group1Status}"
+                                       Width="140" />
+
+                    <DataGridTextColumn Header="Group 2 Status"
+                                       Binding="{Binding Group2Status}"
+                                       Width="140" />
+
+                    <!-- Failed-assignments mode -->
+                    <DataGridTextColumn Header="Device"
+                                       Binding="{Binding TargetDevice}"
+                                       Width="180" />
+
+                    <DataGridTextColumn Header="Status"
+                                       Binding="{Binding Status}"
+                                       Width="120" />
+
+                    <DataGridTextColumn Header="User"
+                                       Binding="{Binding UserPrincipalName}"
+                                       Width="200" />
+
+                    <DataGridTextColumn Header="Last Reported"
+                                       Binding="{Binding LastReported}"
+                                       Width="140" />
+
+                </DataGrid.Columns>
+            </DataGrid>
+        </ScrollViewer>
+
+    </DockPanel>
+</Window>
