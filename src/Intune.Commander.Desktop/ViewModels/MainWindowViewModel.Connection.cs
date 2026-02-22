@@ -166,6 +166,8 @@ public partial class MainWindowViewModel : ViewModelBase
 
             _complianceScriptService = new ComplianceScriptService(_graphClient);
 
+            _userService = new UserService(_graphClient);
+
             _conditionalAccessPptExportService = new ConditionalAccessPptExportService(
                 _conditionalAccessPolicyService,
                 _namedLocationService,
@@ -663,11 +665,21 @@ public partial class MainWindowViewModel : ViewModelBase
 
         _complianceScriptService = null;
 
+        _userService = null;
+
         _importService = null;
 
         _groupNameCache.Clear();
 
         CacheStatusText = "";
+
+        // Reset download-all state
+        _downloadAllCts?.Cancel();
+        _downloadAllCts?.Dispose();
+        _downloadAllCts = null;
+        IsDownloadingAll = false;
+        DownloadProgress = "";
+        DownloadProgressPercent = 0;
 
     }
 

@@ -1,5 +1,6 @@
 using Microsoft.Graph.Beta;
 using Microsoft.Graph.Beta.Models;
+using Microsoft.Kiota.Abstractions;
 
 namespace Intune.Commander.Core.Services;
 
@@ -67,6 +68,36 @@ public class UserService(GraphServiceClient graphClient) : IUserService
 
             if (fallback?.Value != null)
                 result.AddRange(fallback.Value);
+        }
+
+        return result;
+    }
+
+    public async Task<List<User>> ListUsersAsync(CancellationToken cancellationToken = default)
+    {
+        var result = new List<User>();
+
+        var response = await _graphClient.Users.GetAsync(req =>
+        {
+            req.QueryParameters.Top = 999;
+            req.QueryParameters.Select = UserSelect;
+        }, cancellationToken);
+
+        while (response != null)
+        {
+            if (response.Value != null)
+                result.AddRange(response.Value);
+
+            if (!string.IsNullOrEmpty(response.OdataNextLink))
+            {
+                response = await _graphClient.Users
+                    .WithUrl(response.OdataNextLink)
+                    .GetAsync(cancellationToken: cancellationToken);
+            }
+            else
+            {
+                break;
+            }
         }
 
         return result;
