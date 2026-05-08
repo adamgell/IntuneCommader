@@ -18,7 +18,7 @@
     </PackageReference>
     <PackageReference Include="Microsoft.AspNetCore.DataProtection" Version="8.0.12" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.3" />
-    <PackageReference Include="Microsoft.Kiota.Abstractions" Version="1.21.1" />
+    <PackageReference Include="Microsoft.Kiota.Abstractions" Version="1.22.0" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.8.0" />
     <PackageReference Include="NSubstitute" Version="5.3.0" />
     <PackageReference Include="xunit" Version="2.5.3" />
