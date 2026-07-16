@@ -1,6 +1,6 @@
 {
   "$schema": "https://www.masterpackager.com/support-master-packager-dev/mpdev-schema.json",
-  "outputTypes": [ "msi", "msix" ],
+  "outputTypes": [ "msi" ],
   "outputDirectory": "publish\\installer",
   "outputFileName": "IntuneCommander-$.version-x64",
   "packageName": "IntuneCommander",

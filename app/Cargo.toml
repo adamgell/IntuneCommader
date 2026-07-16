@@ -7,6 +7,13 @@ edition = "2024"
 license.workspace = true
 authors.workspace = true
 
+[features]
+# Release builds enable this to bundle the Windows App SDK runtime next to the
+# exe (self-contained — runs on a machine with no runtime installed). Dev builds
+# omit it and stay framework-dependent (faster; uses the installed runtime).
+# build.rs and main.rs both key off it and MUST stay in sync.
+self-contained = []
+
 [dependencies]
 api-types = { path = "../crates/api-types" }
 serde_json.workspace = true

@@ -95,7 +95,11 @@ fn main() -> Result<()> {
     // Start (or reuse) the .NET sidecar — the app owns its lifecycle, so there's no
     // separate process to launch. Held for the app's lifetime; killed on exit.
     let _sidecar = sidecar::ensure_running();
-    // Initialize the Windows App SDK bootstrapper before touching any WinUI types.
+    // Framework-dependent builds must initialize the Windows App SDK bootstrapper to
+    // locate the installed runtime before touching any WinUI types. Self-contained
+    // builds bundle the runtime and MUST NOT call it (no bootstrap shim is shipped,
+    // and the call would re-introduce a load-time dependency on it) — see build.rs.
+    #[cfg(not(feature = "self-contained"))]
     let _bootstrap_handle = bootstrap()?;
     App::new()
         .title("IntuneCommander")

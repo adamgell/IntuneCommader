@@ -196,8 +196,8 @@ jobs:
           Start-Process msiexec.exe -ArgumentList "/i `"$msi`" /quiet /norestart" -Wait
           "C:\Program Files\Master Packager Ltd\Master Packager Dev" | Out-File -FilePath $env:GITHUB_PATH -Append -Encoding utf8
 
-      - name: Build Rust client
-        run: cargo build --release --package app --target ${{ matrix.rust_target }}
+      - name: Build Rust client (self-contained Windows App SDK runtime)
+        run: cargo build --release --package app --target ${{ matrix.rust_target }} --features self-contained
 
       - name: Publish .NET sidecar (self-contained)
         run: >-
@@ -243,7 +243,18 @@ jobs:
         run: |
           $bundle = Join-Path $PWD "staging/IntuneCommander-$($env:VERSION)-${{ matrix.arch }}"
           New-Item -ItemType Directory -Force -Path $bundle | Out-Null
-          Copy-Item "target/${{ matrix.rust_target }}/release/app.exe" (Join-Path $bundle "IntuneCommander.exe") -Force
+          # Copy the ENTIRE self-contained client output — app.exe PLUS the bundled Windows App SDK
+          # runtime DLLs, the ~80 language folders, and resources.pri. Copying only app.exe ships a
+          # client that crashes on launch with "microsoft.windowsappruntime.bootstrap.dll not found"
+          # on any machine without the runtime. Exclude Rust build artifacts; rename exe to the product.
+          $rel = "target/${{ matrix.rust_target }}/release"
+          $skipDir = @('deps','build','.fingerprint','incremental','examples')
+          $skipExt = @('.pdb','.d','.rlib','.rmeta','.exp','.lib')
+          Get-ChildItem -LiteralPath $rel | Where-Object {
+            if ($_.PSIsContainer) { $skipDir -notcontains $_.Name }
+            else { ($skipExt -notcontains $_.Extension) -and ($_.Name -ne '.cargo-lock') }
+          } | Copy-Item -Destination $bundle -Recurse -Force
+          Rename-Item (Join-Path $bundle "app.exe") "IntuneCommander.exe" -Force
           Copy-Item "publish/service" (Join-Path $bundle "sidecar") -Recurse -Force
           New-Item -ItemType Directory -Force -Path (Join-Path $bundle "docs") | Out-Null
           Copy-Item "docs/RUNBOOK.md" (Join-Path $bundle "docs") -Force
@@ -264,7 +275,7 @@ jobs:
           Set-Content (Join-Path $bundle "Start-IntuneCommander.cmd") $launcher -Encoding ascii
           "bundle_dir=$bundle" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
 
-      - name: Build signed MSI + MSIX (mpdev)
+      - name: Build signed MSI (mpdev)
         shell: pwsh
         env:
           IC_BUNDLE_DIR: ${{ steps.stage.outputs.bundle_dir }}
@@ -288,7 +299,7 @@ jobs:
       - name: Verify installer output
         shell: pwsh
         run: |
-          foreach ($ext in 'msi','msix') {
+          foreach ($ext in @('msi')) {
             $f = "publish/installer/IntuneCommander-$($env:VERSION)-${{ matrix.arch }}.$ext"
             if (-not (Test-Path $f)) { Get-ChildItem publish/installer; throw "Expected installer not found: $f" }
           }
@@ -296,9 +307,7 @@ jobs:
       - name: Attest build provenance
         uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4.1.0
         with:
-          subject-path: |
-            publish/installer/IntuneCommander-${{ env.VERSION }}-${{ matrix.arch }}.msi
-            publish/installer/IntuneCommander-${{ env.VERSION }}-${{ matrix.arch }}.msix
+          subject-path: publish/installer/IntuneCommander-${{ env.VERSION }}-${{ matrix.arch }}.msi
 
       - name: Upload workflow artifacts
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -314,7 +323,6 @@ jobs:
         run: |
           $assets = @(
             "publish/installer/IntuneCommander-$($env:VERSION)-${{ matrix.arch }}.msi",
-            "publish/installer/IntuneCommander-$($env:VERSION)-${{ matrix.arch }}.msix",
             "publish/installer/IntuneCommander-$($env:VERSION)-win-${{ matrix.arch }}.zip"
           )
           gh release upload $env:TAG_NAME @assets --clobber
