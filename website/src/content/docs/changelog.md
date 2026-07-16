@@ -16,4 +16,4 @@ _Prerelease._ First published build.
   audit/drift [time-machine](/using/time-machine/).
 - Bundled launcher (`Start-IntuneCommander.cmd`) starts the sidecar, then the client.
 
-[Release notes ›](https://github.com/gellorg/intunecommander-release/releases/tag/v0.1.0)
+[Release notes ›](https://github.com/adamgell/IntuneCommander/releases/tag/v0.1.0)
