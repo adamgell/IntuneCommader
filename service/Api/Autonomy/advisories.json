@@ -1,0 +1,42 @@
+{
+  "advisories": [
+    {
+      "id": "ADV-2026-001",
+      "title": "Legacy authentication is not blocked",
+      "severity": "high",
+      "matchCategory": "Conditional Access",
+      "matchKeyword": "legacy",
+      "guidance": "Block legacy authentication protocols with a Conditional Access policy (CIS 1.1.2)."
+    },
+    {
+      "id": "ADV-2026-002",
+      "title": "Administrators are not required to use MFA",
+      "severity": "critical",
+      "matchCategory": "Conditional Access",
+      "matchKeyword": "mfa",
+      "guidance": "Require MFA for administrative roles via Conditional Access (CIS 1.1.3)."
+    },
+    {
+      "id": "ADV-2026-003",
+      "title": "Disk encryption is not enforced",
+      "severity": "high",
+      "matchCategory": "Endpoint Security",
+      "matchKeyword": "encryption",
+      "guidance": "Require BitLocker / FileVault via an endpoint-security or compliance policy (CIS 3.1.3).",
+      "remediation": {
+        "verb": "create",
+        "path": "/compliance-policies",
+        "objectId": null,
+        "bodyJson": "{\"@odata.type\":\"#microsoft.graph.windows10CompliancePolicy\",\"displayName\":\"Require BitLocker (autonomy advisory ADV-2026-003)\",\"description\":\"Proposed by the autonomy advisory signal; approve to enforce disk encryption.\",\"bitLockerEnabled\":true,\"secureBootEnabled\":true}"
+      }
+    },
+    {
+      "id": "ADV-2026-004",
+      "title": "No app protection (MAM) policy is assigned",
+      "severity": "medium",
+      "matchCategory": "App Protection",
+      "matchKeyword": "protection",
+      "guidance": "Assign an app protection policy to prevent corporate data leakage (CIS 4.1.1)."
+    }
+  ]
+}

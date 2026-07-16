@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Integration tests for the cmProjectX sidecar. These are BLACK-BOX HTTP tests:
+    the fixture reuses a running sidecar on 127.0.0.1:5099 (or starts the built
+    Api.dll), signs in (silent client-secret), and then hits every management
+    endpoint to confirm each service returns well-formed JSON. They exercise the
+    LIVE tenant (read-only GETs), so they require a valid, non-expired Entra secret.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
+    <PackageReference Include="xunit" Version="2.9.2" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" />
+  </ItemGroup>
+
+</Project>

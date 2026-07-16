@@ -1,0 +1,21 @@
+# Phase 0 Windows Reactor risk-gate — THROWAWAY, standalone (detached from the
+# cmProjectX workspace via the empty [workspace] table below).
+#
+# windows-reactor landed in microsoft/windows-rs (PR #4479, merged 2026-05-28)
+# and is NOT published to crates.io (only a 0.0.0 name-reservation placeholder),
+# so it must be consumed as a git dependency pinned to a commit.
+[workspace]
+
+[package]
+name = "reactor-gate"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+windows-reactor = { git = "https://github.com/microsoft/windows-rs", rev = "cf58d5cfe7deccb73a55aeb4aa6799dc1b06544c" }
+# Local CMTrace parser (the upstream OSS seam) for the live-tail half of the gate.
+cmtraceopen-parser = { path = "../../../cmtraceopen/crates/cmtraceopen-parser" }
+
+[build-dependencies]
+windows-reactor-setup = { git = "https://github.com/microsoft/windows-rs", rev = "cf58d5cfe7deccb73a55aeb4aa6799dc1b06544c" }

@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "tenantId": "11111111-2222-3333-4444-555555555555",
+  "tenantDomain": "contoso.onmicrosoft.com",
+  "pulledUtc": "2026-06-24T14:02:11Z",
+  "pulledBy": "acgell995@gmail.com",
+  "cmpxVersion": "0.15.0",
+  "surfaces": {
+    "CompliancePolicies": 2,
+    "DeviceConfigurations": 2,
+    "SettingsCatalog": 1
+  },
+  "objectCount": 5,
+  "contentHash": "sha256:9f2ca17b"
+}

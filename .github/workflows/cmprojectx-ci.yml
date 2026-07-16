@@ -1,0 +1,99 @@
+name: "CMProjectX: CI"
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+  DOTNET_NOLOGO: true
+
+jobs:
+  rust:
+    name: Rust Build & Test
+    # The WinUI client (windows-reactor) is Windows-only, so the workspace must
+    # build on Windows. windows-latest has MSVC + the Windows SDK preinstalled.
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      # Two sibling checkouts are required next to the repo: the Cargo path-dep
+      # cmtraceopen-parser (../../cmtraceopen) and the root [patch] target for
+      # windows-reactor (../windows-rs). Junction both into the parent directory.
+      - name: Checkout parser dependency (cmtraceopen)
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          repository: adamgell/cmtraceopen
+          # Pin the upstream parser to the commit the app is written against. Its
+          # Severity enum drifted on main (a new `Success` variant) which breaks
+          # logview.rs's exhaustive matches. Bump this deliberately when adopting a
+          # newer parser (and add the matching Severity arms in the same change).
+          ref: 67633ea043a561c0d1ca5c3d75ed7f3e65a8af27
+          path: cmtraceopen
+
+      - name: Checkout Windows Reactor fork (windows-rs)
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          repository: adamgell/windows-rs
+          ref: cmprojectx-reactor-patch
+          path: windows-rs
+
+      - name: Link sibling checkouts
+        shell: pwsh
+        run: |
+          $parent = Split-Path $env:GITHUB_WORKSPACE -Parent
+          cmd /c mklink /J "$parent\cmtraceopen" "$env:GITHUB_WORKSPACE\cmtraceopen"
+          cmd /c mklink /J "$parent\windows-rs"  "$env:GITHUB_WORKSPACE\windows-rs"
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
+
+      - name: Cache Rust dependencies
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('Cargo.toml', 'app/Cargo.toml', 'crates/api-types/Cargo.toml') }}
+          restore-keys: ${{ runner.os }}-cargo-
+
+      - name: Rust build
+        run: cargo build --workspace
+
+      - name: Rust tests
+        run: cargo test --workspace
+
+  dotnet:
+    name: .NET Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: service/global.json
+
+      - name: Restore and build solution
+        run: dotnet build service/CmProjectX.slnx --configuration Release
+
+      # Tier-1 hermetic suite (docs/REGRESSION-TESTING.md): runs fully offline —
+      # no sidecar, tenant, network, or Entra secret. The Rust half (api-types
+      # contract parity) is covered by the `rust` job above via `cargo test
+      # --workspace`, which resolves the windows-rs [patch] on windows-latest.
+      - name: Run hermetic unit tests
+        run: dotnet test service/Api.Tests.Unit/Api.Tests.Unit.csproj --configuration Release
+
+      # Tier-2 recorded-Graph integration tests run in REPLAY mode (offline,
+      # cassette-backed), so they're safe on hosted CI. Record mode (live tenant)
+      # is a separate opt-in step, never run here.
+      - name: Run recorded-Graph integration tests (replay)
+        run: dotnet test service/Api.Tests.Integration/Api.Tests.Integration.csproj --configuration Release

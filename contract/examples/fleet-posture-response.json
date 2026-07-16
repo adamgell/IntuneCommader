@@ -1,0 +1,25 @@
+{
+  "group": "grp-northwest-msp",
+  "averageScore": 71,
+  "scoredTenants": 2,
+  "tenants": [
+    {
+      "tenantId": "9f1c3a52-7b44-4e2d-8f10-2c6b9d5a1e80",
+      "tenantName": "Fabrikam HQ",
+      "status": "ok",
+      "score": 82
+    },
+    {
+      "tenantId": "3d8e7f04-1a92-4c6b-9e55-77b0c2f4a3d1",
+      "tenantName": "Contoso Retail",
+      "status": "ok",
+      "score": 60
+    },
+    {
+      "tenantId": "a14b6c98-2f0d-4781-bb3e-5e9c0a7d2f44",
+      "tenantName": "Tailwind Labs",
+      "status": "signedOut",
+      "score": null
+    }
+  ]
+}

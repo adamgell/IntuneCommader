@@ -1,34 +1,63 @@
 {
-  "chat.agent.enabled": true,
-  "chat.agent.maxRequests": 64,
-  "chat.agentsControl.enabled": true,
-  "chat.customAgentInSubagent.enabled": true,
-  "chat.experimental.useSkillAdherencePrompt": true,
-  "chat.requestQueuing.defaultAction": "steer",
-  "chat.requestQueuing.enabled": true,
-  "chat.useAgentSkills": true,
-  "chat.useClaudeHooks": true,
-  "chat.useHooks": false,
-  "chat.useNestedAgentsMdFiles": true,
-  "chat.viewSessions.enabled": true,
-  "editor.aiStats.enabled": true,
-  "github.copilot.chat.agentCustomizationSkill.enabled": true,
-  "github.copilot.chat.askQuestions.enabled": true,
-  "powershell.enableProfileLoading": false,
-  "powershell.pester.codeLens": false,
-  "terminal.integrated.profiles.windows": {
-    "PowerShell (No Profile)": {
-      "path": "pwsh.exe",
-      "args": [
-        "-NoProfile"
-      ]
-    }
+  // ─── Format on save ──────────────────────────────────────────────────────
+  "editor.formatOnSave": true,
+  "[rust]": {
+    "editor.defaultFormatter": "rust-lang.rust-analyzer", // rustfmt via rust-analyzer
+    "editor.formatOnSave": true
   },
-  "terminal.integrated.defaultProfile.windows": "PowerShell (No Profile)",
-  "terminal.integrated.automationProfile.windows": {
-    "path": "pwsh.exe",
-    "args": [
-      "-NoProfile"
-    ]
+  "[csharp]": {
+    "editor.defaultFormatter": "ms-dotnettools.csharp",
+    "editor.formatOnSave": true
+  },
+  "[json][jsonc]": { "editor.defaultFormatter": "vscode.json-language-features" },
+  "[yaml]": { "editor.defaultFormatter": "redhat.vscode-yaml" },
+  "[toml]": { "editor.defaultFormatter": "tamasfe.even-better-toml" },
+
+  // ─── rust-analyzer ────────────────────────────────────────────────────────
+  // Pin RA to the main cargo workspace so it doesn't try to load the detached,
+  // throwaway experiments/reactor-gate crate (it declares its own empty
+  // [workspace]). Flip to the second line if you want RA on the experiment too.
+  "rust-analyzer.linkedProjects": ["Cargo.toml"],
+  // "rust-analyzer.linkedProjects": ["Cargo.toml", "experiments/reactor-gate/Cargo.toml"],
+
+  // Give RA its own target dir so its background checks never fight your own
+  // `cargo build` / the build tasks over the target/ lock. Costs some extra disk
+  // (deps compile twice); set to false if that matters more than the lock stalls.
+  "rust-analyzer.cargo.targetDir": true,
+  // Inline clippy lints on save (richer than plain `cargo check`). Use "check"
+  // instead if clippy feels too slow on the windows-reactor dep graph.
+  "rust-analyzer.check.command": "clippy",
+
+  // ─── .NET ─────────────────────────────────────────────────────────────────
+  // No .sln in this repo (Rust-rooted; the .NET service is a sidecar), so stop
+  // C# Dev Kit from nagging to pick/create one. Language features still load
+  // from service/Api/Api.csproj and its project references.
+  "dotnet.defaultSolution": "disable",
+
+  // ─── OpenAPI contract (3.1.0) validation + completion ─────────────────────
+  "yaml.schemas": {
+    "https://raw.githubusercontent.com/OAI/OpenAPI-Specification/main/schemas/v3.1/schema.json": "contract/openapi.yaml"
+  },
+
+  // ─── Hide generated output / scratch from the explorer ────────────────────
+  "files.exclude": {
+    "**/target": true, // Rust build output (workspace root + experiments)
+    "**/bin": true, // .NET build output
+    "**/obj": true,
+    ".smoke": true // local smoke-run logs
+  },
+  // Keep file-watchers and search off the generated dirs.
+  "files.watcherExclude": {
+    "**/target/**": true,
+    "**/bin/**": true,
+    "**/obj/**": true,
+    ".smoke/**": true
+  },
+  "search.exclude": {
+    "**/target": true,
+    "**/bin": true,
+    "**/obj": true,
+    ".smoke": true,
+    "**/Cargo.lock": true
   }
 }

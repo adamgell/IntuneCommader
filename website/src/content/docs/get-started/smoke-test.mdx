@@ -1,0 +1,42 @@
+---
+title: Smoke test
+description: Five quick checks that confirm IntuneCommander is installed and working end to end.
+---
+
+import { Steps } from '@astrojs/starlight/components';
+
+Run these five checks the first time you set up IntuneCommander (or after an update). If all five pass,
+the read path end-to-end — **auth → Graph → normalize → render** — is healthy.
+
+<Steps>
+
+1. **Health.** `GET /health` returns **200** — the sidecar is up.
+
+   ```powershell
+   curl http://127.0.0.1:5099/health
+   ```
+
+2. **Sign in.** Click **Sign in** in the app (or call the endpoint). The status bar flips to
+   **Signed in**.
+
+   ```powershell
+   curl -X POST http://127.0.0.1:5099/auth/signin
+   ```
+
+3. **Apps populate.** `GET /apps` now returns rows. (Before sign-in it returns `409`.)
+
+   ```powershell
+   curl http://127.0.0.1:5099/apps
+   ```
+
+4. **A list loads in the UI.** Open **Devices → Compliance Policies** from the navigation. The list
+   populates.
+
+5. **A detail opens.** Open a **Scope Tag** (Tenant Admin). The detail pane shows its full JSON.
+
+</Steps>
+
+:::tip[All five green?]
+You're ready to go. If sign-in is the step that fails, see
+[Signing in › Troubleshooting](/sign-in/troubleshooting/).
+:::

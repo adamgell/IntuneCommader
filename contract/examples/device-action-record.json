@@ -1,0 +1,8 @@
+{
+  "id": "syncDevice#0",
+  "action": "syncDevice",
+  "state": "done",
+  "requestedUtc": "2026-06-21T09:12:00Z",
+  "completedUtc": "2026-06-21T09:12:44Z",
+  "actor": null
+}

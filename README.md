@@ -1,154 +1,112 @@
-# Intune Commander
+# IntuneCommander
 
-![Intune Logo](docs/images/logo_small.png)
+> A Windows-native control plane for **Microsoft Intune / Entra device management** — a Rust +
+> WinUI 3 client over a hard-forked .NET Graph engine, with a persistent, searchable **audit / drift
+> time-machine** and a human-gated automation layer on top. **MIT licensed.**
 
-Intune Commander is a desktop application for managing Microsoft Intune configurations across Commercial, GCC, GCC-High, and DoD cloud environments. It is a ground-up remake of the PowerShell-based [IntuneManagement](https://github.com/Micke-K/IntuneManagement) tool, rebuilt as a compiled .NET application with a modern React frontend.
+**Version 1.0 is a ground-up rewrite.** IntuneCommander started as a .NET 10 + React desktop app +
+`ic.exe` CLI (the `v0.x` releases). v1.0 replaces that shell with a **native Rust/WinUI 3 client** and
+a **.NET sidecar** — same brand, same Graph engine (hard-forked into [`service/Core/`](./service/Core/)),
+plus the time-machine, diagnostics suite, and automation layers the old app never had. The legacy
+.NET/React app is preserved in the `v0.x` tags and this repo's history.
 
-> **Early release.** The desktop UI currently covers a small number of Intune workspaces (see [What's Built](#whats-built)). The backend Core library and CLI support 30+ object types, and additional UI workspaces are being added incrementally. Contributions welcome!
+> **Status:** first public beta, **`v1.0.0-beta.1`**. It's a working application — full CRUD across
+> ~42 surfaces, the time-machine, the diagnostics suite, and most of the platform layer (device
+> actions, GitOps, simulator, twin, posture, fleet, ecosystem) are implemented. Grab a signed build
+> from **[Releases](../../releases)**.
 
-## Installation
+> **Codename:** some build files and internal docs still use the codename **`cmProjectX`** (the repo
+> directory, `CmProjectX.*` .NET namespaces, `*.slnx`). The product name is **IntuneCommander**.
 
-### MSI Installer (recommended)
+---
 
-1. Go to the [**GitHub Releases**](https://github.com/adamgell/IntuneCommander/releases) page
-2. Download **`IntuneCommander-{version}-x64.msi`**
-3. Run the MSI — installs to `C:\Program Files\Intune Commander\` with a Start Menu shortcut
-4. The CLI tool (`ic.exe`) is included and added to your system PATH automatically
+## Download & install
 
-The MSI and all executables are code-signed via Azure Trusted Signing.
+Signed installers (Windows 11, **ARM64** primary + **x64**) are on the
+**[Releases](../../releases)** page — MSI + MSIX, code-signed with **Azure Trusted Signing**, built
+with **[Master Packager Dev](https://www.masterpackager.com/)**:
 
-### MSIX Package
+- `IntuneCommander-<version>-<arch>.msi` — recommended (Program Files + Start-Menu shortcut)
+- `IntuneCommander-<version>-<arch>.msix` — MSIX / App-Installer / managed deployment
+- `IntuneCommander-<version>-win-<arch>.zip` — portable (run `Start-IntuneCommander.cmd`)
 
-An **`IntuneCommander-{version}-x64.msix`** is also available on the Releases page. This is the format used for eventual Microsoft Store distribution. For direct sideload installation the signing certificate must be trusted on your machine.
+Requires the **[Windows App SDK runtime](https://learn.microsoft.com/windows/apps/windows-app-sdk/downloads)**;
+the .NET runtime is bundled. Prereqs + a smoke test are in [`docs/RUNBOOK.md`](./docs/RUNBOOK.md).
 
-### Standalone CLI
+> ⚠️ **Writes hit your live tenant — there is no sandbox.** A diff-preview → confirm gate protects
+> every change, but a confirmed change is real. Start on low-risk surfaces (Scope Tags, Device
+> Categories). Conditional Access is read-only by design.
 
-If you only need the CLI tool, download **`ic.exe`** from the same release page. It's a self-contained single-file executable — no installation required.
-
-> **Platform note:** Windows only. The desktop app requires WebView2 Runtime (pre-installed on Windows 10 April 2018+ and all Windows 11 machines).
-
-## What's Built
-
-### Desktop App (React + WPF/WebView2)
-
-- **Login & Profile Management** — multi-tenant profiles with encrypted local storage, auto-reconnect on startup
-- **Overview Dashboard** — device compliance metrics at a glance
-- **Settings Catalog Workspace** — master-detail view with policy list, full metadata, resolved group assignments, and human-readable settings grouped by category
-- **Detection & Remediation Workspace** — device health scripts with deployment status and monitoring
-- **Global Search** — instant search across all 25+ cached Intune object types from the top bar, grouped by category
-
-### CLI (`ic.exe`)
-
-- `ic export` — bulk export Intune configurations to JSON (compatible with the original PowerShell tool's format)
-- `ic import` — import configurations with `--dry-run` for offline validation
-- `ic diff` — compare two export snapshots and generate markdown reports
-- `ic list` — list objects of a given type from your tenant
-- `ic profile` — manage saved connection profiles
-- `ic alert` — check for policy drift
-- `ic completion` — shell completions for PowerShell/bash/zsh
-
-### Backend (Core Library)
-
-The Core library has full Graph API service coverage for 30+ Intune object types — the services are built and tested, but most are not yet wired into the desktop UI. The CLI uses them directly.
-
-## Not Yet Built (Roadmap)
-
-The following features have backend support in the Core library but **do not have a desktop UI workspace yet**:
-
-- Device Configurations, Compliance Policies, Endpoint Security, Administrative Templates
-- Conditional Access (including PowerPoint export)
-- Applications, App Protection Policies, App Configuration Policies
-- Enrollment Configurations, Autopilot Profiles
-- Assignment Filters, Policy Sets, Scope Tags, Role Definitions
-- Named Locations, Authentication Strengths/Contexts, Terms of Use
-- Intune Branding, Azure Branding, Feature Updates
-- Dynamic Groups, Assigned Groups
-- Bulk export/import UI (available via CLI only)
-
-## Getting Started
-
-### Prerequisites
-
-- .NET 10 SDK
-- Node.js 20+ and npm
-- Visual Studio 2022, JetBrains Rider, or VS Code with C# Dev Kit
-- An Entra ID app registration with Microsoft Graph permissions
-
-### Build & Run
-
-```bash
-# Build all .NET projects
-dotnet build
-
-# Run unit tests
-dotnet test
-
-# Run the desktop app (React + WPF/WebView2)
-cd intune-commander-react && npm install && npm run dev   # Start Vite dev server
-dotnet run --project src/Intune.Commander.DesktopReact     # Launch WPF host (loads from localhost:5173)
-```
-
-### App Registration
-
-1. Go to **Azure Portal > Entra ID > App Registrations > New registration**
-2. Set **Redirect URI** to `http://localhost:45132` (Mobile and desktop applications)
-3. Add `Microsoft Graph > Delegated > DeviceManagementConfiguration.ReadWrite.All` and related Intune scopes
-4. Grant admin consent
-
-For **Government clouds** (GCC-High, DoD), register separate apps in the respective Azure portals.
-
-### Profile Management
-
-Intune Commander stores connection details as **profiles** (tenant ID, client ID, cloud, auth method). Profiles are encrypted locally and never leave your machine.
-
-A ready-to-use template is available at [`.github/profile-template.json`](.github/profile-template.json).
-
-| Auth Method | Description |
-|-------------|-------------|
-| **Interactive** (default) | Browser popup with persistent token cache |
-| **Device Code** | Code-based flow for environments without browser access |
-| **Client Secret** | Unattended service principal authentication |
-
-Valid `cloud` values: `Commercial`, `GCC`, `GCCHigh`, `DoD`
-
-## Technology Stack
-
-| Component | Technology |
-|-----------|-----------|
-| Runtime | .NET 10, C# 12 |
-| UI | React 19, TypeScript 5.7, Vite 6.3, Zustand 5.0 |
-| Desktop Host | WPF + Microsoft.Web.WebView2 |
-| Authentication | Azure.Identity 1.17.x |
-| Graph API | Microsoft.Graph.Beta 5.130.x-preview |
-| Cache | LiteDB 5.0.x (AES-encrypted) |
-| Installer | Master Packager Dev (MSI + MSIX) |
-| Testing | xUnit (200+ tests) |
+---
 
 ## Architecture
 
+A **two-process desktop app**: a thin Rust/WinUI client talks to a local .NET sidecar over loopback.
+All Graph/Intune coverage lives in the sidecar; the client is data-driven.
+
 ```
-src/
-  Intune.Commander.Core/           # Business logic, 30+ Graph API services
-  Intune.Commander.DesktopReact/   # WPF + WebView2 host (thin shell)
-  Intune.Commander.CLI/            # Command-line interface (ic.exe)
-  Intune.Commander.Installer/      # Master Packager Dev package (MSI + MSIX)
-intune-commander-react/            # React 19 + TypeScript frontend
-tests/
-  Intune.Commander.Core.Tests/     # xUnit tests (200+ cases)
+  app/  Rust + WinUI 3 (Windows Reactor)  ──HTTP/REST──▶  service/  .NET 10 sidecar
+    • Reactor reactive UI (hooks model)     127.0.0.1:5099    • Api/    minimal-API host (~280 routes)
+    • api_client.rs (blocking reqwest)                        • Core/   hard-forked Graph engine (~60 services)
+    • crates/api-types (shared DTOs)                          • Sync/   Graph delta sync + autonomy watcher
+                            contract/openapi.yaml ────────────• Store/  SQLite + Lucene time-machine
+                            (one schema → both sides)
 ```
 
-The React frontend communicates with .NET services through a typed async bridge (`ic/1` protocol) over WebView2's `postMessage` channel. The WPF host is intentionally thin — React owns all UI rendering and state.
+- **The client owns the sidecar** — `app/src/sidecar.rs::ensure_running()` spawns (or borrows) it on
+  launch; `cargo run -p app` boots the whole stack.
+- **`contract/openapi.yaml` is the single source of truth** for shared DTOs/endpoints (Rust + C#
+  types mirror it byte-for-byte over JSON).
+- **Two storage layers:** an append-only **audit/drift time-machine** (`service/Store/`, SQLite +
+  Lucene) and a read-through **blob cache** (`service/Api/Endpoints/CachedReader.cs`, LiteDB).
+- Loopback-only, single-instance mutex; no inbound HTTP auth — "auth" is per-tenant Entra sign-in
+  applied to the outbound Graph client.
 
-See [CLAUDE.md](CLAUDE.md) for full architectural decisions.
+See [`AGENTS.md`](./AGENTS.md) (canonical operating guide) and [`CLAUDE.md`](./CLAUDE.md).
 
-## Acknowledgments
+## What it does
 
-This project is a ground-up remake of [Micke-K/IntuneManagement](https://github.com/Micke-K/IntuneManagement).
-Additional thanks to Merill Fernando for [idPowerToys](https://github.com/merill/idPowerToys).
+- **~42 Intune/Entra surfaces** with a consistent view → edit → clone → delete → assign flow
+  (diff-preview + confirm before every write; full CRUD on ~29 writable surfaces).
+- **A time-machine** — audit timeline, field-level drift, full-text search, point-in-time restore.
+- **Bulk & lifecycle** — backup/export, gated import/restore, bulk app assignment, CIS/OIB baseline
+  compare, Conditional Access → PowerPoint.
+- **Diagnostics** — CMTrace/IME logs, dsregcmd, Event Log, Sysmon, Secure Boot, timeline correlation,
+  one-click collector. All local, no sign-in.
+- **Platform layer** — GitOps plan/apply, a blast-radius simulator, a queryable tenant digital twin,
+  continuous posture scoring, multi-tenant fleet, a policy-pack/playbook ecosystem, and Maester
+  (CIS/SCuBA/EIDSCA) checks.
+- **Human-gated automation** — proposals land in an approval inbox with the diff + blast-radius;
+  nothing auto-applies. (Cross-MDM is an experimental spike.)
 
-Intune Commander is packaged using [Master Packager Dev \(mpdev\)](https://www.masterpackager.com/developer). It produces both MSI and MSIX installers for x64 and ARM64, with Azure Trusted Signing integrated for signed release builds.
+## Build & run
 
+Prereqs (see [`docs/RUNBOOK.md`](./docs/RUNBOOK.md)): **Windows 11 on ARM64** (primary), the **.NET 10
+SDK**, **Rust stable**, the **Windows App SDK runtime**, and the two sibling checkouts the client's
+path-deps need — `../windows-rs` (Windows Reactor fork) and `../cmtraceopen` (parser).
 
-## Contributing
+```powershell
+cargo build --workspace
+dotnet build service/CmProjectX.slnx --configuration Release
+cargo run -p app          # client spawns the sidecar
+```
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on submitting pull requests, code standards, and development workflow.
+## Releasing
+
+Push a `v<semver>` tag → the **[signed-release workflow](./.github/workflows/cmprojectx-codesign.yml)**
+builds the client + self-contained sidecar (+ bundled Maester), packages a **signed MSI + MSIX** per
+arch with mpdev (Azure Trusted Signing), and publishes a draft release here:
+
+```powershell
+git tag v1.0.0-beta.1 && git push origin v1.0.0-beta.1
+```
+
+Signing config lives in the `codesigning` environment secrets. Packaging is defined by
+[`packaging/installer.mpdev.json`](./packaging/installer.mpdev.json) (see
+[`packaging/README.md`](./packaging/README.md)). `scripts/release.ps1` is a local unsigned dev build.
+
+## License
+
+**MIT** — see [`LICENSE`](./LICENSE). Bundled third-party components are listed in
+[`THIRD-PARTY-NOTICES.md`](./THIRD-PARTY-NOTICES.md). The forked `service/Core/` derives from the
+MIT-licensed original IntuneCommander.

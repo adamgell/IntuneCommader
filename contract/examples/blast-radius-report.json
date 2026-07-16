@@ -1,0 +1,30 @@
+{
+  "severity": "high",
+  "summary": "Requiring BitLocker on the Windows baseline (All Devices) flips 812 of 6540 devices to non-compliant.",
+  "affectedUserCount": 0,
+  "affectedDeviceCount": 812,
+  "noLongerAffectedCount": 0,
+  "sampleAffectedPrincipals": [
+    {
+      "type": "device",
+      "displayName": "LT-FIN-0421",
+      "upn": null,
+      "id": "d31a0000",
+      "reason": "newly in target (All Devices); BitLocker off -> will report nonCompliant"
+    }
+  ],
+  "conflicts": [
+    {
+      "kind": "includeExcludeOverlap",
+      "detail": "Proposed include:All Devices overlaps existing exclude group 'Kiosk-Devices' (88 members); kiosks remain excluded."
+    }
+  ],
+  "redundancies": [],
+  "crossPolicyImpacts": [
+    {
+      "policyId": "ca-9f12",
+      "policyName": "Require compliant device",
+      "detail": "The 812 newly non-compliant devices' owners will be blocked by this CA policy at next sign-in."
+    }
+  ]
+}

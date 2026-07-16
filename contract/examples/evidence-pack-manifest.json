@@ -1,0 +1,15 @@
+{
+  "packId": "evp-2026-06-24-cis",
+  "asOf": "2026-06-24T00:00:00Z",
+  "benchmark": "cis",
+  "tenantName": "Contoso",
+  "score": 71,
+  "zipPath": "C:\\Users\\me\\AppData\\Local\\cmProjectX\\evidence\\evp-2026-06-24-cis.zip",
+  "artifacts": [
+    { "kind": "posture-score", "format": "md", "path": "score-summary.md", "sourceEngine": "PostureRenderer" },
+    { "kind": "poam", "format": "csv", "path": "poam.csv", "sourceEngine": "AssignmentReportExporter.GenerateCsv" },
+    { "kind": "baseline-comparison", "format": "md", "path": "oib-drift.md", "sourceEngine": "BaselineService.CompareSettingsCatalog" }
+  ],
+  "snapshotIds": ["snap-ca-8821", "snap-comp-4410"],
+  "manifestHash": "sha256:9f1ce3a2b4d6e8f0"
+}

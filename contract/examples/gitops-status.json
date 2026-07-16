@@ -1,0 +1,11 @@
+{
+  "repoPath": "C:\\src\\tenant-contoso",
+  "manifestTenantId": "11111111-2222-3333-4444-555555555555",
+  "inSync": false,
+  "summary": {
+    "add": 0,
+    "change": 2,
+    "destroy": 0,
+    "noop": 7
+  }
+}

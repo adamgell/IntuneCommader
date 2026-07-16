@@ -1,0 +1,35 @@
+{
+  "schemaVersion": "1.0",
+  "id": "cis-windows-l1",
+  "name": "CIS Windows 11 — Level 1 Baseline",
+  "version": "2.3.0",
+  "publisher": "community",
+  "description": "Compliance + Settings Catalog config implementing CIS L1 controls.",
+  "targetSurfaces": [
+    "compliance-policies",
+    "settings-catalog",
+    "device-configs"
+  ],
+  "minSidecar": "13.4.0",
+  "parameters": [
+    {
+      "name": "targetGroupId",
+      "type": "groupId",
+      "prompt": "Entra group to assign the baseline to",
+      "required": true,
+      "default": null,
+      "appliesTo": null
+    },
+    {
+      "name": "gracePeriodDays",
+      "type": "int",
+      "prompt": null,
+      "required": false,
+      "default": "7",
+      "appliesTo": "compliance-policies[*].scheduledActions"
+    }
+  ],
+  "repoPath": "C:\\packs\\cis-windows-l1",
+  "objectCount": 41,
+  "signature": null
+}

@@ -1,0 +1,30 @@
+// cmProjectX MCP plugins (M13.3). Copy to:
+//   %LocalAppData%\cmProjectX\plugins.json
+// Each entry is a downstream MCP server cmProjectX connects to at startup and
+// re-exposes through its own /mcp endpoint, namespaced `plugin_<name>_<tool>`.
+// Trust model: you curate this list — plugin tools are pass-through (not gated by
+// the approval inbox), so only add servers you trust. Comments + trailing commas OK.
+{
+  "plugins": [
+    {
+      // Streamable-HTTP server (e.g. the Microsoft Learn docs MCP server).
+      "name": "mslearn",
+      "transport": "http",
+      "url": "https://learn.microsoft.com/api/mcp"
+    },
+    {
+      // HTTP server needing auth — headers are sent on every request.
+      "name": "ticketing",
+      "transport": "http",
+      "url": "https://mcp.internal.example.com/mcp",
+      "headers": { "Authorization": "Bearer <token>" }
+    },
+    {
+      // stdio server spawned as a child process (Claude-Desktop-style).
+      "name": "psremediation",
+      "transport": "stdio",
+      "command": "pwsh",
+      "args": ["-File", "C:\\tools\\remediation-mcp\\server.ps1"]
+    }
+  ]
+}

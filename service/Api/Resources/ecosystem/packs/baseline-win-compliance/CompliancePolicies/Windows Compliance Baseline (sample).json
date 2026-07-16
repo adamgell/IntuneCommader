@@ -1,0 +1,40 @@
+{
+  "policy": {
+    "odataType": "#microsoft.graph.windows10CompliancePolicy",
+    "displayName": "Windows Compliance Baseline (sample)",
+    "description": "Sample Windows 10/11 device compliance baseline shipped with the cmProjectX M21 ecosystem pack. Adopt against your tenant to create it under governance.",
+    "roleScopeTagIds": [
+      "0"
+    ],
+    "passwordRequired": true,
+    "passwordBlockSimple": true,
+    "passwordMinimumLength": 8,
+    "passwordRequiredType": "alphanumeric",
+    "requireHealthyDeviceReport": false,
+    "osMinimumVersion": "10.0.19045",
+    "earlyLaunchAntiMalwareDriverEnabled": false,
+    "bitLockerEnabled": true,
+    "secureBootEnabled": true,
+    "codeIntegrityEnabled": true,
+    "storageRequireEncryption": true,
+    "activeFirewallRequired": true,
+    "defenderEnabled": true,
+    "rtpEnabled": true,
+    "antivirusRequired": true,
+    "antiSpywareRequired": true,
+    "scheduledActionsForRule": [
+      {
+        "ruleName": "PasswordRequired",
+        "scheduledActionConfigurations": [
+          {
+            "actionType": "block",
+            "gracePeriodHours": 168,
+            "notificationTemplateId": "00000000-0000-0000-0000-000000000000",
+            "notificationMessageCCList": []
+          }
+        ]
+      }
+    ]
+  },
+  "assignments": []
+}

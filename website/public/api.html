@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<title>cmProjectX API reference</title>
+		<link rel="icon" href="/cmProjectX/favicon.svg" />
+		<style>
+			body {
+				margin: 0;
+				padding: 0;
+			}
+		</style>
+	</head>
+	<body>
+		<!-- Interactive reference for the sidecar's REST API, rendered from the OpenAPI contract.
+		     Brand primary = teal (#007768). The spec is copied to /openapi.yaml at build time. -->
+		<redoc
+			spec-url="/cmProjectX/openapi.yaml"
+			theme='{"colors":{"primary":{"main":"#007768"}},"typography":{"fontFamily":"Segoe UI Variable Text, Segoe UI, system-ui, sans-serif","code":{"fontFamily":"Consolas, Cascadia Mono, ui-monospace, monospace"}}}'
+		></redoc>
+		<script src="https://cdn.redocly.com/redoc/latest/bundles/redoc.standalone.js"></script>
+	</body>
+</html>

@@ -1,0 +1,6 @@
+{
+  "userCode": "ABCD-EFGH",
+  "verificationUri": "https://microsoft.com/devicelogin",
+  "message": "Enter the code to sign in",
+  "expiresUtc": "2026-06-21T08:15:00Z"
+}

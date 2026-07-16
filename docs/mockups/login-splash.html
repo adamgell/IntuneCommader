@@ -1,0 +1,578 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>cmProjectX — Login / Splash mockups</title>
+<style>
+  /* ============================================================ *
+   *  cmProjectX — login / splash screen mockups
+   *  Fluent / Windows 11 aesthetic (this app ships as WinUI).
+   *  3 directions x 5 states x light/dark, all self-contained.
+   * ============================================================ */
+
+  :root {
+    /* cmtraceopen type stack (Segoe UI / Consolas / Bahnschrift) */
+    --font: "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, sans-serif;
+    --mono: Consolas, "Cascadia Code", "Courier New", ui-monospace, monospace;
+    --numeric: Bahnschrift, "Segoe UI", sans-serif;
+  }
+
+  /* ---- theme tokens (dark default) ---- */
+  /* cmtraceopen — Dark (teal brand, anchor #009688) */
+  .appwin[data-theme="dark"] {
+    --bg:            #1f1f1f;   /* cmt-bg-canvas */
+    --mica-a:        #143230;   /* teal-tinted dark */
+    --mica-b:        #141414;   /* cmt-bg-3 */
+    --glow:          rgba(0,150,136,0.20);
+    --layer:         rgba(255,255,255,0.045);
+    --layer-2:       rgba(255,255,255,0.075);
+    --stroke:        #3d3d3d;   /* cmt-stroke-3 */
+    --stroke-2:      #525252;   /* cmt-stroke-2 */
+    --text:          #ffffff;   /* cmt-fg-1 */
+    --text-2:        #d6d6d6;   /* cmt-fg-2 */
+    --text-3:        #adadad;   /* cmt-fg-3 */
+    --accent:        #009688;   /* brand on dark */
+    --accent-2:      #007768;   /* brand anchor */
+    --on-accent:     #ffffff;
+    --coral:         #f87171;   /* cmt dark danger */
+    --coral-bg:      rgba(248,113,113,0.15);
+    --good:          #4ade80;   /* cmt dark success */
+    --warn:          #fbbf24;   /* cmt dark warning */
+    --titlebar:      rgba(255,255,255,0.02);
+    --shadow:        0 32px 90px rgba(0,0,0,0.55), 0 4px 14px rgba(0,0,0,0.4);
+  }
+  /* cmtraceopen — Light (teal brand, anchor #007768)
+     Softened from Fluent's stock #fafafa: dimmer teal-tinted neutral base,
+     off-white panels (not pure white), reduced glow — less glare on a full screen. */
+  .appwin[data-theme="light"] {
+    --bg:            #e7ebea;   /* softened canvas */
+    --mica-a:        #d7e6e3;   /* teal-tinted, deeper than teal-160 */
+    --mica-b:        #e1e6e4;
+    --glow:          rgba(0,119,104,0.09);
+    --layer:         rgba(255,255,255,0.45);
+    --layer-2:       #f1f4f3;   /* off-white panel (was pure #fff) */
+    --stroke:        #cdd4d2;
+    --stroke-2:      #bcc4c2;
+    --text:          #232a29;   /* cmt-fg-1, faintly warmed */
+    --text-2:        #44504e;   /* cmt-fg-2 */
+    --text-3:        #5d6562;   /* cmt-fg-3 */
+    --accent:        #007768;   /* brand on light */
+    --accent-2:      #006959;   /* brand hover */
+    --on-accent:     #ffffff;
+    --coral:         #a8101d;   /* cmt danger fg */
+    --coral-bg:      #f3e6e7;   /* muted danger bg */
+    --good:          #0e700e;   /* cmt success */
+    --warn:          #b0480a;   /* cmt warning */
+    --titlebar:      rgba(0,0,0,0.025);
+    --shadow:        0 22px 60px rgba(0,0,0,0.13), 0 2px 8px rgba(0,0,0,0.07);
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    font-family: var(--font);
+    background:
+      radial-gradient(1200px 700px at 18% -10%, #14302c 0%, transparent 55%),
+      radial-gradient(1000px 800px at 110% 120%, #112320 0%, transparent 55%),
+      #0c0e0d;
+    color: #e8e8e8;
+    min-height: 100%;
+    padding: 22px 22px 60px;
+  }
+
+  /* ---- lab toolbar ---- */
+  .lab {
+    max-width: 1120px; margin: 0 auto 20px;
+    display: flex; flex-wrap: wrap; gap: 14px 26px; align-items: center;
+  }
+  .lab h1 { font-size: 15px; font-weight: 600; margin: 0; letter-spacing: .2px; color: #fff; }
+  .lab h1 span { color: #8b93a1; font-weight: 400; }
+  .seg { display: inline-flex; background: #23252c; border: 1px solid #33363f; border-radius: 8px; padding: 3px; gap: 2px; }
+  .seg button {
+    font: inherit; font-size: 12.5px; color: #b9bfc9; background: transparent;
+    border: 0; padding: 6px 13px; border-radius: 6px; cursor: pointer; white-space: nowrap;
+  }
+  .seg button:hover { color: #fff; background: #2e313a; }
+  .seg button[aria-pressed="true"] { background: #009688; color: #fff; font-weight: 600; }
+  .lab .lbl { font-size: 11px; text-transform: uppercase; letter-spacing: .8px; color: #6c7280; margin-right: -16px; }
+
+  /* ---- app window frame ---- */
+  .stage { max-width: 1120px; margin: 0 auto; display: flex; justify-content: center; }
+  .appwin {
+    width: 1040px; height: 660px; border-radius: 10px; overflow: hidden;
+    background: var(--bg); color: var(--text);
+    box-shadow: var(--shadow);
+    border: 1px solid var(--stroke);
+    display: flex; flex-direction: column;
+    position: relative;
+  }
+  .titlebar {
+    height: 40px; flex: 0 0 40px; display: flex; align-items: center;
+    padding-left: 14px; gap: 9px; background: var(--titlebar);
+    -webkit-app-region: drag; position: relative; z-index: 5;
+  }
+  .titlebar .ico { width: 16px; height: 16px; border-radius: 4px; display: grid; place-items: center;
+    background: linear-gradient(135deg, var(--accent), var(--accent-2)); }
+  .titlebar .ico svg { width: 11px; height: 11px; }
+  .titlebar .cap { font-size: 12px; color: var(--text-2); }
+  .caps { margin-left: auto; display: flex; height: 100%; }
+  .caps i {
+    width: 46px; height: 100%; display: grid; place-items: center; font-style: normal;
+    font-size: 10px; color: var(--text-2); font-family: var(--mono);
+  }
+  .caps i:hover { background: var(--layer-2); }
+  .caps i.x:hover { background: #c42b1c; color: #fff; }
+
+  .client { flex: 1; position: relative; overflow: hidden; }
+  /* mica-ish backdrop */
+  .client::before {
+    content: ""; position: absolute; inset: 0; z-index: 0;
+    background:
+      radial-gradient(700px 480px at 22% 8%, var(--glow) 0%, transparent 60%),
+      radial-gradient(620px 520px at 88% 96%, var(--glow) 0%, transparent 62%),
+      linear-gradient(160deg, var(--mica-a) 0%, var(--mica-b) 70%);
+    opacity: .9;
+  }
+
+  /* state visibility (driven by body[data-state]) */
+  /* NOTE: keep layout (flex-direction/gap) here but NOT `display`, so the
+     hide/show rules below win regardless of per-variant specificity. */
+  .statebody { width: 100%; flex-direction: column; gap: 14px; }
+  .state { display: none; }
+  body[data-state="connect"]   .state[data-state="connect"],
+  body[data-state="signin"]    .state[data-state="signin"],
+  body[data-state="device"]    .state[data-state="device"],
+  body[data-state="error"]     .state[data-state="error"],
+  body[data-state="signedin"]  .state[data-state="signedin"] { display: flex; }
+
+  /* variant visibility */
+  .variant { display: none; position: absolute; inset: 0; z-index: 1; }
+  body[data-variant="card"]   .variant.card,
+  body[data-variant="split"]  .variant.split,
+  body[data-variant="ops"]    .variant.ops { display: block; }
+
+  /* ---- shared controls ---- */
+  .brandmark { width: 44px; height: 44px; border-radius: 11px; display: grid; place-items: center;
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    box-shadow: 0 6px 20px -6px var(--accent); }
+  .brandmark svg { width: 26px; height: 26px; }
+  .wordmark { font-size: 26px; font-weight: 650; letter-spacing: .2px; }
+  .tagline { color: var(--text-2); font-size: 13.5px; }
+
+  .field-lbl { font-size: 12px; color: var(--text-2); margin-bottom: 5px; }
+  .combo {
+    width: 100%; background: var(--layer); border: 1px solid var(--stroke);
+    border-bottom-color: var(--stroke-2);
+    border-radius: 5px; padding: 9px 12px; color: var(--text); font-size: 13.5px;
+    display: flex; align-items: center; gap: 10px; cursor: pointer;
+  }
+  .combo:hover { background: var(--layer-2); }
+  .combo .cloudtag { margin-left: auto; font-size: 11px; color: var(--text-3); }
+  .combo .chev { color: var(--text-3); }
+  .combo .av { width: 22px; height: 22px; border-radius: 5px; background: var(--layer-2);
+    display: grid; place-items: center; font-size: 11px; color: var(--accent); flex: 0 0 22px; }
+
+  .btn {
+    border: 1px solid var(--stroke-2); background: var(--layer-2); color: var(--text);
+    border-radius: 5px; padding: 9px 16px; font: inherit; font-size: 13.5px; cursor: pointer;
+  }
+  .btn:hover { filter: brightness(1.08); }
+  .btn.accent {
+    background: linear-gradient(180deg, var(--accent), var(--accent-2));
+    color: var(--on-accent); border: 0; font-weight: 600;
+    box-shadow: 0 4px 14px -5px var(--accent);
+  }
+  .btn.block { width: 100%; text-align: center; padding: 11px; }
+  .btn.ghost { background: transparent; border: 0; color: var(--accent); padding: 6px; }
+  .btn.ghost:hover { text-decoration: underline; }
+
+  .ring { width: 20px; height: 20px; border-radius: 50%; flex: 0 0 20px;
+    border: 2.5px solid var(--stroke-2); border-top-color: var(--accent); animation: spin 0.9s linear infinite; }
+  .ring.lg { width: 30px; height: 30px; border-width: 3px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .muted { color: var(--text-3); font-size: 12px; }
+  .strip { font-size: 12px; color: var(--text-3); display: flex; align-items: center; gap: 8px; }
+  .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--text-3); }
+  .dot.ok { background: var(--good); box-shadow: 0 0 8px var(--good); }
+  .dot.warn { background: var(--coral); }
+
+  .codebox { background: var(--layer); border: 1px solid var(--stroke); border-radius: 7px; padding: 16px; }
+  .usercode { font-family: var(--mono); font-size: 30px; letter-spacing: 4px; font-weight: 600; }
+  .errbox { background: var(--coral-bg); border: 1px solid color-mix(in srgb, var(--coral) 35%, transparent);
+    border-radius: 7px; padding: 13px 15px; color: var(--coral); font-size: 13px; line-height: 1.5; }
+
+  /* =======================================================
+     VARIANT A — Fluent Card
+     ======================================================= */
+  .card .center { position: absolute; inset: 0; display: grid; place-items: center; padding: 24px; }
+  .card .panel {
+    width: 460px; background: var(--layer); border: 1px solid var(--stroke);
+    border-radius: 12px; padding: 34px 36px 24px;
+    backdrop-filter: blur(40px) saturate(1.4); -webkit-backdrop-filter: blur(40px) saturate(1.4);
+    box-shadow: 0 20px 60px -20px rgba(0,0,0,0.5);
+    display: flex; flex-direction: column; align-items: center; gap: 18px;
+  }
+  .card .head { display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center; }
+  .card .statebody { gap: 16px; }
+  .card .panel-foot { width: 100%; border-top: 1px solid var(--stroke); margin-top: 6px; padding-top: 14px;
+    display: flex; align-items: center; justify-content: center; }
+
+  /* =======================================================
+     VARIANT B — Split Hero
+     ======================================================= */
+  .split .grid { position: absolute; inset: 0; display: grid; grid-template-columns: 44% 56%; }
+  .split .hero {
+    position: relative; padding: 48px 44px; color: #fff; overflow: hidden;
+    background: linear-gradient(150deg, #007768 0%, #00312A 58%, #001F17 100%);
+    display: flex; flex-direction: column;
+  }
+  .split .hero::after { content:""; position:absolute; inset:0;
+    background: radial-gradient(540px 420px at 120% 0%, rgba(255,255,255,.18), transparent 60%),
+                radial-gradient(420px 420px at -10% 110%, rgba(0,0,0,.35), transparent 60%); }
+  .split .hero > * { position: relative; z-index: 1; }
+  .split .hero .wordmark { color: #fff; font-size: 30px; margin-top: 18px; }
+  .split .hero .blurb { color: rgba(255,255,255,.82); font-size: 14px; line-height: 1.55; margin-top: 8px; max-width: 330px; }
+  .split .feats { margin-top: auto; display: flex; flex-direction: column; gap: 16px; }
+  .split .feat { display: flex; gap: 13px; align-items: flex-start; }
+  .split .feat .fi { width: 30px; height: 30px; border-radius: 8px; flex: 0 0 30px; display: grid; place-items: center;
+    background: rgba(255,255,255,.14); border: 1px solid rgba(255,255,255,.2); }
+  .split .feat .ft { font-size: 13.5px; font-weight: 600; }
+  .split .feat .fd { font-size: 12px; color: rgba(255,255,255,.72); margin-top: 1px; }
+  .split .hero .ver { font-size: 11.5px; color: rgba(255,255,255,.6); margin-top: 26px; }
+
+  .split .form { display: flex; align-items: center; justify-content: center; padding: 40px; }
+  .split .formbox { width: 360px; display: flex; flex-direction: column; gap: 16px; }
+  .split .formbox h2 { font-size: 21px; margin: 0; font-weight: 620; }
+  .split .formbox .sub { color: var(--text-2); font-size: 13px; margin-top: -8px; }
+  .split .statebody { gap: 16px; }
+
+  /* =======================================================
+     VARIANT C — Ops Console
+     ======================================================= */
+  .ops .wrap { position: absolute; inset: 0; display: flex; flex-direction: column; }
+  .ops .sysbar { display: flex; align-items: center; gap: 16px; padding: 10px 18px;
+    border-bottom: 1px solid var(--stroke); background: var(--layer); font-size: 12px; color: var(--text-2); }
+  .ops .sysbar .seg2 { display: flex; align-items: center; gap: 7px; }
+  .ops .sysbar .spacer { margin-left: auto; }
+  .ops .body { flex: 1; display: grid; place-items: center; padding: 30px; }
+  .ops .console {
+    width: 600px; background: var(--layer); border: 1px solid var(--stroke); border-radius: 12px;
+    overflow: hidden; box-shadow: 0 18px 50px -22px rgba(0,0,0,.5);
+  }
+  .ops .console .top { display: flex; align-items: center; gap: 13px; padding: 22px 26px;
+    border-bottom: 1px solid var(--stroke); }
+  .ops .console .top .wordmark { font-size: 19px; }
+  .ops .console .top .tagline { font-size: 12px; }
+  .ops .console .main { padding: 22px 26px; display: flex; flex-direction: column; gap: 16px; }
+  .ops .checklist { font-family: var(--mono); font-size: 12.5px; display: flex; flex-direction: column; gap: 7px; }
+  .ops .checklist .row { display: flex; align-items: center; gap: 10px; color: var(--text-2); }
+  .ops .checklist .row b { color: var(--text); font-weight: 500; }
+  .ops .checklist .tick { width: 15px; text-align: center; color: var(--good); }
+  .ops .checklist .tick.w { color: var(--coral); }
+  .ops .checklist .val { margin-left: auto; color: var(--text-3); }
+  .ops .console .foot { padding: 14px 26px; border-top: 1px solid var(--stroke);
+    display: flex; align-items: center; gap: 12px; }
+
+  .grow { flex: 1; }
+  .row { display: flex; align-items: center; gap: 10px; }
+  .col { display: flex; flex-direction: column; }
+</style>
+</head>
+<body data-variant="card" data-state="connect">
+
+  <div class="lab">
+    <h1>cmProjectX <span>· login / splash mockups</span></h1>
+    <div class="seg" id="variantSeg">
+      <button data-variant="card" aria-pressed="true">A · Fluent Card</button>
+      <button data-variant="split">B · Split Hero</button>
+      <button data-variant="ops">C · Ops Console</button>
+    </div>
+    <span class="lbl">state</span>
+    <div class="seg" id="stateSeg">
+      <button data-state="connect" aria-pressed="true">Connecting</button>
+      <button data-state="signin">Sign in</button>
+      <button data-state="device">Device code</button>
+      <button data-state="error">Error</button>
+      <button data-state="signedin">Signed in</button>
+    </div>
+    <div class="seg" id="themeSeg">
+      <button data-theme="dark" aria-pressed="true">Dark</button>
+      <button data-theme="light">Light</button>
+    </div>
+  </div>
+
+  <div class="stage">
+    <div class="appwin" data-theme="dark">
+      <!-- window chrome -->
+      <div class="titlebar">
+        <span class="ico">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M4 7l8-4 8 4v6c0 5-3.5 7.5-8 9-4.5-1.5-8-4-8-9V7z" fill="#fff" opacity=".95"/><path d="M9 12l2.2 2.2L15.5 10" stroke="#007768" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </span>
+        <span class="cap">cmProjectX</span>
+        <div class="caps"><i>&#9472;</i><i>&#9633;</i><i class="x">&#10005;</i></div>
+      </div>
+
+      <div class="client">
+
+        <!-- ================= VARIANT A : FLUENT CARD ================= -->
+        <div class="variant card">
+          <div class="center">
+            <div class="panel">
+              <div class="head">
+                <span class="brandmark">
+                  <svg viewBox="0 0 24 24" fill="none"><path d="M4 7l8-4 8 4v6c0 5-3.5 7.5-8 9-4.5-1.5-8-4-8-9V7z" fill="#fff" opacity=".95"/><path d="M9 12l2.2 2.2L15.5 10" stroke="#007768" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                </span>
+                <div class="col" style="gap:3px">
+                  <div class="wordmark">cmProjectX</div>
+                  <div class="tagline">Intune management console</div>
+                </div>
+              </div>
+
+              <!-- connecting -->
+              <div class="statebody state" data-state="connect">
+                <div class="row" style="justify-content:center; gap:12px; padding:8px 0">
+                  <span class="ring"></span><span class="muted">Connecting to service…</span>
+                </div>
+                <div class="muted" style="text-align:center">Starting the local management sidecar.</div>
+              </div>
+
+              <!-- sign in -->
+              <div class="statebody state" data-state="signin">
+                <div>
+                  <div class="field-lbl">Tenant profile</div>
+                  <div class="combo">
+                    <span class="av">C</span> Contoso Corp
+                    <span class="cloudtag">Commercial · interactive</span>
+                    <span class="chev">▾</span>
+                  </div>
+                </div>
+                <button class="btn accent block">Sign in</button>
+                <button class="btn ghost" style="align-self:center">Manage tenant profiles</button>
+              </div>
+
+              <!-- device code -->
+              <div class="statebody state" data-state="device">
+                <div class="codebox col" style="gap:12px">
+                  <div class="muted">Finish signing in from a browser</div>
+                  <div class="row" style="gap:14px">
+                    <span class="usercode">FQXJ-7K2D</span>
+                    <button class="btn">Copy code</button>
+                  </div>
+                  <a class="btn ghost" style="padding:0">https://microsoft.com/devicelogin ↗</a>
+                  <div class="muted">Enter the code above to authenticate this device.</div>
+                </div>
+              </div>
+
+              <!-- error -->
+              <div class="statebody state" data-state="error">
+                <div class="errbox">Can't reach the management service. The sidecar may still be starting, or port 5099 is in use.</div>
+                <button class="btn accent block">Retry</button>
+              </div>
+
+              <!-- signed in -->
+              <div class="statebody state" data-state="signedin">
+                <div class="row" style="justify-content:center; gap:10px; padding:6px 0">
+                  <span style="color:var(--good); font-size:20px">✓</span>
+                  <span style="font-size:15px">Signed in — opening workspace…</span>
+                </div>
+              </div>
+
+              <div class="panel-foot">
+                <div class="strip">
+                  <span class="dot warn" data-st="connect device error">●</span>
+                  <span class="dot ok" data-st="signedin signin">●</span>
+                  Contoso Corp · Commercial · <span data-authlabel>connecting</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ================= VARIANT B : SPLIT HERO ================= -->
+        <div class="variant split">
+          <div class="grid">
+            <div class="hero">
+              <span class="brandmark" style="background:rgba(255,255,255,.16); border:1px solid rgba(255,255,255,.25)">
+                <svg viewBox="0 0 24 24" fill="none"><path d="M4 7l8-4 8 4v6c0 5-3.5 7.5-8 9-4.5-1.5-8-4-8-9V7z" fill="#fff"/><path d="M9 12l2.2 2.2L15.5 10" stroke="#00312A" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </span>
+              <div class="wordmark">cmProjectX</div>
+              <div class="blurb">One console for Intune management, point-in-time restore, and endpoint diagnostics.</div>
+
+              <div class="feats">
+                <div class="feat">
+                  <span class="fi"><svg width="15" height="15" viewBox="0 0 24 24" fill="none"><rect x="3" y="4" width="18" height="13" rx="2" stroke="#fff" stroke-width="1.6"/><path d="M8 21h8" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/></svg></span>
+                  <div><div class="ft">Full-CRUD management</div><div class="fd">~50 Intune & Entra surfaces, with diff-preview safety rails</div></div>
+                </div>
+                <div class="feat">
+                  <span class="fi"><svg width="15" height="15" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8.5" stroke="#fff" stroke-width="1.6"/><path d="M12 7v5l3 2" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/></svg></span>
+                  <div><div class="ft">Time-machine</div><div class="fd">Audit, drift, snapshots & point-in-time restore</div></div>
+                </div>
+                <div class="feat">
+                  <span class="fi"><svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M4 13h4l2 5 4-12 2 7h4" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+                  <div><div class="ft">Diagnostics suite</div><div class="fd">Event log, Sysmon, Secure Boot & timeline correlation</div></div>
+                </div>
+              </div>
+              <div class="ver">v0.11 · M11 — ARM64</div>
+            </div>
+
+            <div class="form">
+              <div class="formbox">
+                <h2>Sign in</h2>
+                <div class="sub">Choose a tenant to manage.</div>
+
+                <!-- connecting -->
+                <div class="statebody state" data-state="connect">
+                  <div class="row" style="gap:12px; padding:10px 0"><span class="ring"></span><span class="muted">Connecting to service…</span></div>
+                </div>
+
+                <!-- sign in -->
+                <div class="statebody state" data-state="signin">
+                  <div>
+                    <div class="field-lbl">Tenant profile</div>
+                    <div class="combo"><span class="av">C</span> Contoso Corp <span class="cloudtag">Commercial</span> <span class="chev">▾</span></div>
+                  </div>
+                  <button class="btn accent block">Sign in</button>
+                  <button class="btn ghost" style="align-self:flex-start; padding-left:0">Manage tenant profiles</button>
+                </div>
+
+                <!-- device code -->
+                <div class="statebody state" data-state="device">
+                  <div class="codebox col" style="gap:12px">
+                    <div class="muted">Finish signing in from a browser</div>
+                    <div class="row" style="gap:14px"><span class="usercode" style="font-size:26px">FQXJ-7K2D</span><button class="btn">Copy</button></div>
+                    <a class="btn ghost" style="padding:0">microsoft.com/devicelogin ↗</a>
+                  </div>
+                </div>
+
+                <!-- error -->
+                <div class="statebody state" data-state="error">
+                  <div class="errbox">Sign-in failed — no tenant profile is active, or a sign-in is already in progress.</div>
+                  <button class="btn accent block">Retry sign-in</button>
+                </div>
+
+                <!-- signed in -->
+                <div class="statebody state" data-state="signedin">
+                  <div class="row" style="gap:10px; padding:8px 0"><span style="color:var(--good); font-size:20px">✓</span><span style="font-size:15px">Signed in — opening workspace…</span></div>
+                </div>
+
+                <div class="strip" style="margin-top:4px">
+                  <span class="dot warn" data-st="connect device error">●</span>
+                  <span class="dot ok" data-st="signedin signin">●</span>
+                  Contoso Corp · Commercial · <span data-authlabel>connecting</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ================= VARIANT C : OPS CONSOLE ================= -->
+        <div class="variant ops">
+          <div class="wrap">
+            <div class="sysbar">
+              <div class="seg2"><span class="brandmark" style="width:18px;height:18px;border-radius:5px"><svg viewBox="0 0 24 24" width="12" height="12" fill="none"><path d="M4 7l8-4 8 4v6c0 5-3.5 7.5-8 9-4.5-1.5-8-4-8-9V7z" fill="#fff"/></svg></span><b style="color:var(--text)">cmProjectX</b></div>
+              <div class="seg2"><span class="dot warn" data-st="connect device error">●</span><span class="dot ok" data-st="signedin signin">●</span><span>service <span data-authlabel>connecting</span></span></div>
+              <span class="spacer"></span>
+              <div class="seg2">localhost:5099</div>
+            </div>
+
+            <div class="body">
+              <div class="console">
+                <div class="top">
+                  <span class="brandmark">
+                    <svg viewBox="0 0 24 24" fill="none"><path d="M4 7l8-4 8 4v6c0 5-3.5 7.5-8 9-4.5-1.5-8-4-8-9V7z" fill="#fff" opacity=".95"/><path d="M9 12l2.2 2.2L15.5 10" stroke="#007768" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                  </span>
+                  <div class="col" style="gap:2px"><div class="wordmark">cmProjectX</div><div class="tagline">Intune management console · diagnostics</div></div>
+                </div>
+
+                <div class="main">
+                  <!-- connecting -->
+                  <div class="statebody state" data-state="connect">
+                    <div class="checklist">
+                      <div class="row"><span class="ring" style="width:14px;height:14px;border-width:2px"></span><span>Starting management sidecar…</span></div>
+                      <div class="row"><span class="tick" style="color:var(--text-3)">·</span><b>Tenant</b><span class="val">awaiting service</span></div>
+                      <div class="row"><span class="tick" style="color:var(--text-3)">·</span><b>Graph auth</b><span class="val">—</span></div>
+                    </div>
+                  </div>
+
+                  <!-- sign in -->
+                  <div class="statebody state" data-state="signin">
+                    <div class="checklist">
+                      <div class="row"><span class="tick">✓</span><b>Service</b><span class="val">connected</span></div>
+                      <div class="row"><span class="tick" style="color:var(--text-3)">·</span><b>Active profile</b><span class="val">Contoso Corp · Commercial</span></div>
+                      <div class="row"><span class="tick w">!</span><b>Graph auth</b><span class="val">signed out</span></div>
+                    </div>
+                    <div><div class="field-lbl">Tenant profile</div>
+                      <div class="combo"><span class="av">C</span> Contoso Corp <span class="cloudtag">Commercial · interactive</span><span class="chev">▾</span></div></div>
+                    <div class="row" style="gap:10px"><button class="btn accent grow">Sign in</button><button class="btn">Manage profiles</button></div>
+                  </div>
+
+                  <!-- device code -->
+                  <div class="statebody state" data-state="device">
+                    <div class="checklist"><div class="row"><span class="ring" style="width:14px;height:14px;border-width:2px"></span><span>Awaiting device-code authentication…</span></div></div>
+                    <div class="codebox row" style="gap:16px; align-items:center">
+                      <div class="col" style="gap:4px"><span class="muted">Enter at microsoft.com/devicelogin</span><span class="usercode">FQXJ-7K2D</span></div>
+                      <button class="btn" style="margin-left:auto">Copy</button><button class="btn accent">Open ↗</button>
+                    </div>
+                  </div>
+
+                  <!-- error -->
+                  <div class="statebody state" data-state="error">
+                    <div class="checklist">
+                      <div class="row"><span class="tick w">✕</span><b>Service</b><span class="val" style="color:var(--coral)">unreachable</span></div>
+                    </div>
+                    <div class="errbox">Can't reach localhost:5099 — the sidecar may still be starting (~6s cold start) or the port is in use.</div>
+                    <button class="btn accent" style="align-self:flex-start">Retry connection</button>
+                  </div>
+
+                  <!-- signed in -->
+                  <div class="statebody state" data-state="signedin">
+                    <div class="checklist">
+                      <div class="row"><span class="tick">✓</span><b>Service</b><span class="val">connected</span></div>
+                      <div class="row"><span class="tick">✓</span><b>Active profile</b><span class="val">Contoso Corp · Commercial</span></div>
+                      <div class="row"><span class="tick">✓</span><b>Graph auth</b><span class="val">signed in</span></div>
+                    </div>
+                    <div class="row" style="gap:10px"><span style="color:var(--good); font-size:18px">✓</span><span>Opening workspace…</span></div>
+                  </div>
+                </div>
+
+                <div class="foot"><span class="muted">Local sidecar · win-arm64</span><span class="grow"></span><span class="muted">v0.11</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+<script>
+  const body = document.body;
+  function wire(id, attr, after) {
+    const seg = document.getElementById(id);
+    seg.addEventListener('click', e => {
+      const b = e.target.closest('button'); if (!b) return;
+      [...seg.children].forEach(c => c.setAttribute('aria-pressed', c === b));
+      after(b.dataset[attr]);
+    });
+  }
+  const authLabels = { connect:'connecting', signin:'signed out', device:'awaiting code', error:'failed', signedin:'signed in' };
+  wire('variantSeg', 'variant', v => body.dataset.variant = v);
+  wire('stateSeg', 'state', s => {
+    body.dataset.state = s;
+    document.querySelectorAll('[data-authlabel]').forEach(el => el.textContent = authLabels[s]);
+    // toggle the status dots that name this state
+    document.querySelectorAll('.dot[data-st]').forEach(d => {
+      d.style.display = d.dataset.st.split(' ').includes(s) ? 'inline-block' : 'none';
+    });
+  });
+  wire('themeSeg', 'theme', t => document.querySelector('.appwin').dataset.theme = t);
+  // init dots
+  body.dataset.state = body.dataset.state;
+  document.querySelectorAll('.dot[data-st]').forEach(d => {
+    d.style.display = d.dataset.st.split(' ').includes('connect') ? 'inline-block' : 'none';
+  });
+</script>
+</body>
+</html>

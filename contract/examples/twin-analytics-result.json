@@ -1,0 +1,17 @@
+{
+  "query": "orphaned-policies",
+  "builtUtc": "2026-06-24T09:12:04Z",
+  "source": "cache",
+  "findings": [
+    {
+      "id": "pol-c19",
+      "name": "Win11 BitLocker Baseline",
+      "kind": "emptyGroupOnly",
+      "detail": "Only assignment targets group 'All Sales Laptops' (grp-7a3) which has 0 members.",
+      "refs": [
+        { "id": "grp-7a3", "name": "All Sales Laptops", "role": "includeGroup", "count": 0 }
+      ],
+      "metrics": { "includeTargets": 1 }
+    }
+  ]
+}

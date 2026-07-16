@@ -1,0 +1,35 @@
+# Rust workspace root for the cmProjectX client side.
+# The .NET service (service/) is a separate build (dotnet).
+[workspace]
+resolver = "2"
+members = [
+    "app",
+    "crates/api-types",
+    # "crates/parser" is an EXTERNAL OSS dependency (see crates/parser/README.md),
+    # not a local member. It is consumed by `app` via a git dependency.
+]
+
+[workspace.package]
+edition = "2021"
+license = "MIT"
+authors = ["adamgell"]
+
+[workspace.dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# --- Windows Reactor: local fork carrying the nested-dirty reconcile fix ------
+# Upstream rev cf58d5c prunes a dirty component when it sits under a
+# structurally-stable ancestor (NavigationView > vstack > status_bar), so
+# state-driven child components never re-render. The sibling checkout adds
+# `force_dirty_subtrees()` (reconciler.rs + render_host.rs) to force a full
+# descent whenever any instance is dirty. It ALSO makes `state_dirty` an
+# `Arc<AtomicBool>` so `AsyncSetState` (use_resource/use_mutation results) marks
+# its component dirty after marshalling back to the UI thread — without it an
+# async fetch that completes while idle (e.g. Search/Drift after Enter) updates
+# the state cell but never repaints under a stable NavigationView ancestor.
+# Patch overrides BOTH the dependency and build-dependency git refs. Revert to
+# the plain git rev once fixed upstream.
+[patch."https://github.com/microsoft/windows-rs"]
+windows-reactor = { path = "../windows-rs/crates/libs/reactor" }
+windows-reactor-setup = { path = "../windows-rs/crates/libs/reactor-setup" }

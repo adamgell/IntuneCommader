@@ -1,0 +1,32 @@
+{
+  "planId": "p_3f9a1c8b2d04",
+  "appliedUtc": "2026-06-24T14:31:40Z",
+  "objects": [
+    {
+      "objectName": "Windows Baseline - BitLocker",
+      "outcome": "applied",
+      "snapshotId": "a1b2c3d4",
+      "newId": "8f000001",
+      "reason": null
+    },
+    {
+      "objectName": "Legacy WiFi Profile",
+      "outcome": "skipped",
+      "snapshotId": null,
+      "newId": null,
+      "reason": "destroy not enabled (confirmDestroy)"
+    },
+    {
+      "objectName": "iOS WiFi Corp",
+      "outcome": "conflict",
+      "snapshotId": null,
+      "newId": null,
+      "reason": "live body changed since plan (hash mismatch)"
+    }
+  ],
+  "summary": {
+    "applied": 1,
+    "skipped": 1,
+    "conflict": 1
+  }
+}

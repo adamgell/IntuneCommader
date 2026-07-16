@@ -1,0 +1,37 @@
+{
+  "baselineName": "Win - OIB - SettingsCatalog - Defender Antivirus - D - Core",
+  "tenantPolicyId": "b1a2c3d4-1111-2222-3333-444455556666",
+  "tenantPolicyName": "Defender Antivirus — Corp Windows",
+  "matching": [
+    {
+      "settingDefinitionId": "device_vendor_msft_policy_config_defender_allowrealtimemonitoring",
+      "settingName": "Allow Realtime Monitoring",
+      "baselineValue": "1",
+      "tenantValue": "1"
+    }
+  ],
+  "missing": [
+    {
+      "settingDefinitionId": "device_vendor_msft_policy_config_defender_allowcloudprotection",
+      "settingName": "Allow Cloud Protection",
+      "baselineValue": "1",
+      "tenantValue": null
+    }
+  ],
+  "drifted": [
+    {
+      "settingDefinitionId": "device_vendor_msft_policy_config_defender_allowbehaviormonitoring",
+      "settingName": "Allow Behavior Monitoring",
+      "baselineValue": "1",
+      "tenantValue": "0"
+    }
+  ],
+  "extra": [
+    {
+      "settingDefinitionId": "device_vendor_msft_policy_config_defender_allowscriptscanning",
+      "settingName": null,
+      "baselineValue": null,
+      "tenantValue": "1"
+    }
+  ]
+}

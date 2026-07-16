@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Record/replay cassette infrastructure for Tier-2 recorded-Graph testing
+    (RT2; docs/REGRESSION-TESTING.md). A small, dependency-light library (BCL
+    HTTP only) so BOTH the sidecar (record/replay mode) and the integration
+    tests can construct the handlers. No Graph/tenant dependency lives here.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>CmProjectX.Recording</AssemblyName>
+    <RootNamespace>CmProjectX.Recording</RootNamespace>
+  </PropertyGroup>
+
+</Project>

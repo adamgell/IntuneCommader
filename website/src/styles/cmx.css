@@ -1,0 +1,85 @@
+/* ============================================================
+   cmProjectX brand theme for Starlight.
+   Maps docs/design-system/tokens.css onto Starlight's --sl-color-* system.
+   Strategy: TEAL LEAD + BLUE ACCENT (blue = cloud wayfinding only).
+   Dark is the default; a softened light theme mirrors the brand tokens.
+   ============================================================ */
+
+/* ──────────── Dark (default) ──────────── */
+:root {
+	/* Accent = teal. Link/active text uses the bright stop for legibility on #111. */
+	--sl-color-accent-low: #00312a; /* teal-20 */
+	--sl-color-accent: #007768; /* teal-70 */
+	--sl-color-accent-high: #00c6bc; /* teal-110 — brand-bright */
+
+	--sl-color-white: #ffffff;
+	--sl-color-gray-1: #ededed;
+	--sl-color-gray-2: #d6d6d6; /* text-2 */
+	--sl-color-gray-3: #a6a6a6; /* text-3 */
+	--sl-color-gray-4: #7a7a7a; /* text-4 */
+	--sl-color-gray-5: #333333; /* line */
+	--sl-color-gray-6: #1a1a1a; /* surface */
+	--sl-color-black: #111111; /* bg */
+
+	/* Brand neutrals, applied to the chrome explicitly. */
+	--sl-color-bg: #111111;
+	--sl-color-bg-nav: #141414;
+	--sl-color-bg-sidebar: #161616;
+	--sl-color-bg-inline-code: #222222; /* surface-2 */
+}
+
+/* ──────────── Light (softened, faintly teal-tinted) ──────────── */
+:root[data-theme='light'] {
+	--sl-color-accent-low: #e8f5f3; /* teal-160 */
+	--sl-color-accent: #009688; /* teal-80 */
+	--sl-color-accent-high: #006959; /* teal-60 — darker for text contrast */
+
+	--sl-color-white: #1b211f; /* strongest text */
+	--sl-color-gray-1: #44504e; /* text-2 */
+	--sl-color-gray-2: #5d6562; /* text-3 */
+	--sl-color-gray-3: #808885; /* text-4 */
+	--sl-color-gray-4: #c2c8c7; /* line-2 */
+	--sl-color-gray-5: #d6dbda; /* line */
+	--sl-color-gray-6: #f6f8f7; /* surface */
+	--sl-color-gray-7: #eceeed;
+	--sl-color-black: #eef1f0; /* bg */
+
+	--sl-color-bg: #eef1f0;
+	--sl-color-bg-nav: #f6f8f7;
+	--sl-color-bg-sidebar: #f6f8f7;
+	--sl-color-bg-inline-code: #eceeed;
+}
+
+/* ──────────── Cloud accent (use sparingly) ────────────
+   Blue ONLY ever means cloud: Entra/Intune surfaces, the sign-in moment.
+   Use <span class="cmx-cloud"> in content; never as the site accent. */
+:root {
+	--cmx-cloud: #4da3ff;
+}
+:root[data-theme='light'] {
+	--cmx-cloud: #0067b8;
+}
+.cmx-cloud {
+	color: var(--cmx-cloud);
+	font-weight: 600;
+}
+
+/* A touch more presence for the hero on the splash page. */
+.hero h1 {
+	letter-spacing: 0.01em;
+}
+
+/* ──────────── Asides, on-brand ────────────
+   Starlight derives an aside's border, title, icon, and background tint from
+   these two variables. Keep blue (cloud) and purple out: note → neutral,
+   tip → brand teal. caution/danger already match the brand's amber/red. */
+.starlight-aside--note {
+	--sl-color-asides-text-accent: var(--sl-color-gray-1);
+	--sl-color-asides-border: var(--sl-color-gray-4);
+	background-color: color-mix(in srgb, var(--sl-color-gray-4) 12%, transparent);
+}
+.starlight-aside--tip {
+	--sl-color-asides-text-accent: var(--sl-color-accent-high);
+	--sl-color-asides-border: var(--sl-color-accent);
+	background-color: color-mix(in srgb, var(--sl-color-accent) 14%, transparent);
+}

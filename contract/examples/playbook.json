@@ -1,0 +1,66 @@
+{
+  "schemaVersion": "1.0",
+  "id": "noncompliant-device-isolate",
+  "name": "Isolate + ticket a non-compliant device",
+  "version": "1.1.0",
+  "description": "Open a ticket, tag the device, then push the remediation assignment.",
+  "parameters": [
+    {
+      "name": "deviceId",
+      "type": "deviceId",
+      "prompt": "The managed device to isolate",
+      "required": true,
+      "default": null,
+      "appliesTo": null
+    },
+    {
+      "name": "reason",
+      "type": "string",
+      "prompt": null,
+      "required": false,
+      "default": "CIS L1 drift",
+      "appliesTo": null
+    }
+  ],
+  "steps": [
+    {
+      "id": "open-ticket",
+      "tool": "plugin_ticketing_create_incident",
+      "path": null,
+      "objectId": null,
+      "body": null,
+      "args": {
+        "title": "Device {{deviceId}} non-compliant",
+        "body": "{{reason}}"
+      },
+      "gated": false,
+      "dependsOn": null
+    },
+    {
+      "id": "tag-device",
+      "tool": "propose_update",
+      "path": "managed-devices",
+      "objectId": "{{deviceId}}",
+      "body": {
+        "notes": "Quarantined by playbook: {{reason}}"
+      },
+      "args": null,
+      "gated": true,
+      "dependsOn": null
+    },
+    {
+      "id": "push-config",
+      "tool": "propose_assignments",
+      "path": "settings-catalog",
+      "objectId": "remediation-baseline",
+      "body": {
+        "assignments": [
+          { "kind": "group", "groupId": "{{quarantineGroupId}}" }
+        ]
+      },
+      "args": null,
+      "gated": true,
+      "dependsOn": ["tag-device"]
+    }
+  ]
+}

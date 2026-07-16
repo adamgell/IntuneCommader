@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Tier-1 HERMETIC unit tests for the cmProjectX service (RT1; see
+    docs/REGRESSION-TESTING.md). Unlike service/Api.Tests (black-box, live tenant,
+    not CI-runnable), these run FULLY OFFLINE: no sidecar, no network, no Entra
+    secret. Safe to run on every change and on cheap hosted PR checks. Each test
+    isolates its own temp store/data dir, so the suite is order-independent.
+
+    Run: dotnet test service/Api.Tests.Unit/Api.Tests.Unit.csproj
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
+    <PackageReference Include="xunit" Version="2.9.2" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Store\Store.csproj" />
+    <ProjectReference Include="..\Api\Api.csproj" />
+    <ProjectReference Include="..\Core\Core.csproj" />
+  </ItemGroup>
+
+</Project>

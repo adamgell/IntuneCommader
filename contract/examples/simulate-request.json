@@ -1,0 +1,7 @@
+{
+  "proposer": "ai:remediation-bot",
+  "verb": "update",
+  "path": "compliance-policies",
+  "objectId": "comp-win-baseline",
+  "bodyJson": "{\"displayName\":\"Windows Compliance Baseline\",\"assignments\":[{\"kind\":\"allDevices\"}]}"
+}

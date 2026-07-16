@@ -1,0 +1,145 @@
+/* ============================================================
+   cmProjectX — Design Tokens (CANONICAL)
+   Strategy: TEAL LEAD + BLUE ACCENT (blue = cloud wayfinding).
+   Brand teal inherited from sibling project cmtraceopen.
+
+   This file is the single source of truth for color/type/space.
+   Consumers: docs/brand/cmprojectx-brand.html (visual styleguide),
+   and (to come) the Reactor client theme module in app/src.
+   If a value here disagrees with a consumer, THIS FILE WINS.
+
+   Namespace: --cmx-*    Default theme: dark.
+   Last locked: 2026-06-10
+   ============================================================ */
+
+:root {
+  /* ── Type families ──────────────────────────────────────── */
+  --cmx-font-display: "Bahnschrift", "DIN Next", "Segoe UI Variable Display", "Segoe UI", sans-serif;
+  --cmx-font-ui:      "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --cmx-font-mono:    Consolas, "Cascadia Code", "Courier New", ui-monospace, monospace;
+
+  /* Fluent type ramp — Base 100…600, Hero 700…1000 */
+  --cmx-size-100: 10px;  --cmx-lh-100: 14px;
+  --cmx-size-200: 12px;  --cmx-lh-200: 16px;
+  --cmx-size-300: 14px;  --cmx-lh-300: 20px;  /* default body */
+  --cmx-size-400: 16px;  --cmx-lh-400: 22px;
+  --cmx-size-500: 20px;  --cmx-lh-500: 28px;
+  --cmx-size-600: 24px;  --cmx-lh-600: 32px;
+  --cmx-size-700: 28px;  --cmx-lh-700: 36px;
+  --cmx-size-800: 32px;  --cmx-lh-800: 40px;
+  --cmx-size-900: 40px;  --cmx-lh-900: 52px;
+  --cmx-size-1000: 68px; --cmx-lh-1000: 92px;
+  --cmx-weight-regular: 400; --cmx-weight-medium: 500;
+  --cmx-weight-semibold: 600; --cmx-weight-bold: 700;
+
+  /* ── Spacing ────────────────────────────────────────────── */
+  --cmx-space-xxs: 2px;  --cmx-space-xs: 4px;  --cmx-space-snudge: 6px;
+  --cmx-space-s: 8px;    --cmx-space-mnudge: 10px; --cmx-space-m: 12px;
+  --cmx-space-l: 16px;   --cmx-space-xl: 20px; --cmx-space-xxl: 24px; --cmx-space-xxxl: 32px;
+
+  /* ── Radius ─────────────────────────────────────────────── */
+  --cmx-radius-sm: 4px; --cmx-radius-md: 6px; --cmx-radius-lg: 8px;
+  --cmx-radius-xl: 12px; --cmx-radius-2xl: 16px; --cmx-radius-circular: 9999px;
+
+  /* ── Stroke ─────────────────────────────────────────────── */
+  --cmx-stroke-thin: 1px; --cmx-stroke-thick: 1.6px; --cmx-stroke-thicker: 2.4px;
+
+  /* ── Shadows (Fluent depth) ─────────────────────────────── */
+  --cmx-shadow-2:  0 0 2px rgba(0,0,0,.30), 0 1px 2px rgba(0,0,0,.36);
+  --cmx-shadow-8:  0 0 2px rgba(0,0,0,.30), 0 4px 8px rgba(0,0,0,.36);
+  --cmx-shadow-16: 0 0 2px rgba(0,0,0,.40), 0 8px 16px rgba(0,0,0,.40);
+  --cmx-shadow-28: 0 0 8px rgba(0,0,0,.30), 0 14px 28px rgba(0,0,0,.45);
+  --cmx-shadow-64: 0 0 8px rgba(0,0,0,.30), 0 32px 64px rgba(0,0,0,.55);
+
+  /* ── Motion ─────────────────────────────────────────────── */
+  --cmx-dur-faster: 100ms; --cmx-dur-fast: 150ms; --cmx-dur-normal: 200ms; --cmx-dur-gentle: 250ms;
+  --cmx-ease-standard:   cubic-bezier(0.33, 0, 0.67, 1);
+  --cmx-ease-decelerate: cubic-bezier(0.1, 0.9, 0.2, 1);   /* signature "feeler draws in" */
+  --cmx-ease-accelerate: cubic-bezier(0.9, 0.1, 1, 0.2);
+
+  /* ── Brand ramp — Teal (anchor #007768 light / #009688 dark) ── */
+  --cmx-teal-10:  #001F17; --cmx-teal-20:  #00312A; --cmx-teal-30:  #003E30; --cmx-teal-40:  #004C3D;
+  --cmx-teal-50:  #005A4B; --cmx-teal-60:  #006959; --cmx-teal-70:  #007768; --cmx-teal-80:  #009688;
+  --cmx-teal-90:  #00A698; --cmx-teal-100: #00B6AA; --cmx-teal-110: #00C6BC; --cmx-teal-120: #00D6CF;
+  --cmx-teal-130: #00E7E2; --cmx-teal-140: #00F8F6; --cmx-teal-150: #A0F5F0; --cmx-teal-160: #E8F5F3;
+
+  /* ── Cloud accent — Intune blue (USE SPARINGLY: cloud/Entra/Intune only) ── */
+  --cmx-cloud-deep:   #0B2A52;
+  --cmx-cloud:        #0078D4;  /* official Intune blue */
+  --cmx-cloud-bright: #4DA3FF;  /* on-dark text/icon */
+
+  /* ── cmtrace severity (heritage; same in both themes) ───── */
+  --cmx-sev-error: #ff5a52;
+  --cmx-sev-warn:  #ffc83d;
+  --cmx-sev-info:  #d4d4d4;
+
+  /* ── posture severity (Maester controls) — warm ramp, distinct per level ─ */
+  --cmx-sev-critical: #ff5a52;  /* red    */
+  --cmx-sev-high:     #ff8c42;  /* orange */
+  --cmx-sev-medium:   #ffc83d;  /* amber  */
+  --cmx-sev-low:      #a6a6a6;  /* muted  */
+}
+
+/* ══════════════ DARK (default) ══════════════ */
+:root,
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  /* Surfaces */
+  --cmx-bg:        #111111;
+  --cmx-surface:   #1a1a1a;
+  --cmx-surface-2: #222222;
+  --cmx-surface-3: #2a2a2a;
+  --cmx-line:      #333333;
+  --cmx-line-2:    #484848;
+
+  /* Foreground */
+  --cmx-text:   #ffffff;
+  --cmx-text-2: #d6d6d6;
+  --cmx-text-3: #a6a6a6;
+  --cmx-text-4: #7a7a7a;
+
+  /* Brand (semantic) */
+  --cmx-brand:        var(--cmx-teal-80);   /* #009688 */
+  --cmx-brand-strong: var(--cmx-teal-70);   /* #007768 */
+  --cmx-brand-bright: var(--cmx-teal-110);  /* #00C6BC — text/icon on dark */
+  --cmx-on-brand:     #00201b;
+
+  /* Cloud (semantic) */
+  --cmx-cloud-fg:  var(--cmx-cloud-bright);
+  --cmx-cloud-bg:  color-mix(in srgb, var(--cmx-cloud) 12%, transparent);
+
+  /* Status */
+  --cmx-ok:    #51cf66;
+  --cmx-warn:  #ffc83d;
+  --cmx-error: #ff5a52;
+}
+
+/* ══════════════ LIGHT (softened — not stock Fluent #fafafa) ══════════════ */
+[data-theme="light"] {
+  color-scheme: light;
+
+  --cmx-bg:        #eef1f0;   /* soft, faintly teal-tinted */
+  --cmx-surface:   #f6f8f7;
+  --cmx-surface-2: #eceeed;
+  --cmx-surface-3: #e3e6e5;
+  --cmx-line:      #d6dbda;
+  --cmx-line-2:    #c2c8c7;
+
+  --cmx-text:   #1b211f;
+  --cmx-text-2: #44504e;
+  --cmx-text-3: #5d6562;
+  --cmx-text-4: #808885;
+
+  --cmx-brand:        var(--cmx-teal-70);   /* #007768 */
+  --cmx-brand-strong: var(--cmx-teal-60);   /* #006959 */
+  --cmx-brand-bright: var(--cmx-teal-80);   /* #009688 */
+  --cmx-on-brand:     #ffffff;
+
+  --cmx-cloud-fg:  #0067b8;   /* darker for contrast on light */
+  --cmx-cloud-bg:  color-mix(in srgb, var(--cmx-cloud) 12%, white);
+
+  --cmx-ok:    #0e700e;
+  --cmx-warn:  #bc4b09;
+  --cmx-error: #b10e1c;
+}

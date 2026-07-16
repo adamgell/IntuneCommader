@@ -1,0 +1,57 @@
+{
+  "runId": "run_2026-06-24T09-15-00Z_a17f",
+  "tenantId": "a17f0000-0000-0000-0000-000000000000",
+  "startedUtc": "2026-06-24T09:15:00Z",
+  "finishedUtc": "2026-06-24T09:15:06Z",
+  "watched": {
+    "auditEventsPulled": 12,
+    "snapshotsChanged": 1,
+    "objectTypes": ["DeviceCompliancePolicy", "SettingsCatalogPolicy"]
+  },
+  "detected": [
+    {
+      "signal": "drift",
+      "objectId": "b2e40000-win10-baseline",
+      "objectName": "Win10 - Corporate Baseline",
+      "severity": "high",
+      "baseSnapshotId": "c91a0000",
+      "headSnapshotId": "f40d0000",
+      "changes": [
+        { "path": "/passwordMinimumLength", "kind": "Modified", "before": 8, "after": 6 },
+        { "path": "/passwordRequired", "kind": "Modified", "before": true, "after": false }
+      ]
+    }
+  ],
+  "proposed": [
+    {
+      "pendingChangeId": "9f3c2a7b51d04e8e",
+      "kind": "update",
+      "path": "/compliance-policies",
+      "blastRadius": {
+        "severity": "info",
+        "summary": "Restoring baseline re-tightens password policy; no new exclude overlaps; no devices flip noncompliant.",
+        "affectedUserCount": 0,
+        "affectedDeviceCount": 0,
+        "noLongerAffectedCount": 0,
+        "sampleAffectedPrincipals": [],
+        "conflicts": [],
+        "redundancies": [],
+        "crossPolicyImpacts": []
+      }
+    }
+  ],
+  "decision": {
+    "pendingChangeId": "9f3c2a7b51d04e8e",
+    "action": "approved",
+    "operator": "acgell@contoso.com",
+    "decidedUtc": "2026-06-24T09:41:22Z",
+    "appliedObjectId": "b2e40000-win10-baseline",
+    "auditEventId": "7c1e0000"
+  },
+  "verify": {
+    "verifiedUtc": "2026-06-24T09:56:08Z",
+    "residualDriftChanges": 0,
+    "converged": true,
+    "verifySnapshotId": "aa180000"
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "benchmark": "cis",
+  "generatedUtc": "2026-06-24T09:00:00Z",
+  "items": [
+    {
+      "id": "poam-conditional-access-9f1ce3a2",
+      "severity": "high",
+      "category": "Conditional Access",
+      "finding": "No CA policy targets all users",
+      "controls": [
+        { "framework": "cis", "id": "1.1.1", "title": "Ensure MFA via CA is enforced" }
+      ],
+      "remediation": "Create an enabled CA policy with conditions.users.includeUsers = \"All\" requiring MFA.",
+      "source": "security-gap",
+      "owner": "security@contoso.com",
+      "openedUtc": "2026-06-24T09:00:00Z",
+      "dueUtc": "2026-07-24T09:00:00Z",
+      "state": "open",
+      "remediationCandidateRef": "m18:ca-require-mfa-all-users"
+    }
+  ]
+}

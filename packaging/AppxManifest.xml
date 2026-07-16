@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  DEPRECATED / SUPERSEDED: IntuneCommander now packages via Master Packager Dev (mpdev) — see
+  packaging/installer.mpdev.json and packaging/README.md. mpdev generates its own MSIX manifest,
+  so this hand-rolled AppxManifest.xml is NOT used by the release pipeline. Kept only as a
+  reference and for the manual MakeAppx fallback in scripts/package-msix.ps1 (also deprecated).
+
+  M12 packaging — MSIX manifest for the WinUI 3 / Windows Reactor client (app.exe) plus its
+  bundled .NET sidecar (Api.exe), packaged as a single full-trust desktop MSIX.
+
+  Placeholders (__NAME__, __PUBLISHER__, __VERSION__, __ARCH__) are substituted by
+  scripts/package-msix.ps1 at pack time. Publisher MUST match the signing certificate
+  subject, and Name/Publisher must match the Store/enterprise identity if published there.
+
+  UNVERIFIED IN THIS REPO: producing and validating a real .msix requires the Windows SDK
+  (MakeAppx.exe / SignTool.exe), a code-signing certificate, and — for the primary target —
+  the arm64 toolchain. This manifest + package-msix.ps1 are the scaffold; the release
+  engineer runs them in the signing environment (see docs and the codesign workflow).
+-->
+<Package
+    xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
+    xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
+    xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
+    IgnorableNamespaces="uap rescap">
+
+  <Identity
+      Name="__NAME__"
+      Publisher="__PUBLISHER__"
+      Version="__VERSION__"
+      ProcessorArchitecture="__ARCH__" />
+
+  <Properties>
+    <DisplayName>IntuneCommander</DisplayName>
+    <PublisherDisplayName>gellorg</PublisherDisplayName>
+    <Description>Intune / Entra device management with an append-only audit time-machine and diagnostics.</Description>
+    <Logo>Assets\StoreLogo.png</Logo>
+  </Properties>
+
+  <Dependencies>
+    <!-- WinUI 3 links against the installed Windows App SDK (framework-dependent, not bundled). -->
+    <TargetDeviceFamily Name="Windows.Desktop" MinVersion="10.0.19041.0" MaxVersionTested="10.0.26200.0" />
+  </Dependencies>
+
+  <Resources>
+    <Resource Language="en-us" />
+  </Resources>
+
+  <Applications>
+    <Application Id="IntuneCommander" Executable="app.exe" EntryPoint="Windows.FullTrustApplication">
+      <uap:VisualElements
+          DisplayName="IntuneCommander"
+          Description="Intune / Entra device management + diagnostics"
+          BackgroundColor="transparent"
+          Square150x150Logo="Assets\Square150x150Logo.png"
+          Square44x44Logo="Assets\Square44x44Logo.png">
+        <uap:DefaultTile Wide310x150Logo="Assets\Wide310x150Logo.png" />
+      </uap:VisualElements>
+    </Application>
+  </Applications>
+
+  <Capabilities>
+    <!-- A Win32/WinUI full-trust desktop app: it spawns the sidecar and reaches Graph over
+         the network, so it needs full trust rather than the sandboxed capability set. -->
+    <rescap:Capability Name="runFullTrust" />
+  </Capabilities>
+</Package>

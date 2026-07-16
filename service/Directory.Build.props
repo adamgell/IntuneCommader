@@ -1,0 +1,17 @@
+<Project>
+
+  <!-- Applies to every project under service/. -->
+
+  <ItemGroup>
+    <!-- GHSA-2m69-gcr7-jv3q / CVE-2025-6965: the SQLite engine bundled in
+         SQLitePCLRaw.lib.e_sqlite3 (pulled transitively by Microsoft.Data.Sqlite).
+         There is NO patched 2.x: every SQLitePCLRaw <= 2.1.11 is flagged, and the
+         fix only exists in the 3.x line — an incompatible major that
+         Microsoft.Data.Sqlite does not consume yet (10.0.9 still pulls 2.1.11).
+         The store is local-only (loopback sidecar, on-disk SQLite of the user's
+         own tenant data). Suppress until Microsoft.Data.Sqlite adopts SQLitePCLRaw 3.x,
+         then drop this and bump. -->
+    <NuGetAuditSuppress Include="https://github.com/advisories/GHSA-2m69-gcr7-jv3q" />
+  </ItemGroup>
+
+</Project>

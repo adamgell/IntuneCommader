@@ -1,0 +1,36 @@
+{
+  "group": "grp-northwest-msp",
+  "golden": "9f1c3a52-7b44-4e2d-8f10-2c6b9d5a1e80",
+  "surface": "compliance-policies",
+  "objectName": "Win10 Baseline",
+  "tenants": [
+    {
+      "tenantId": "9f1c3a52-7b44-4e2d-8f10-2c6b9d5a1e80",
+      "tenantName": "Fabrikam HQ",
+      "status": "golden",
+      "driftCount": 0,
+      "note": null,
+      "drifts": []
+    },
+    {
+      "tenantId": "3d8e7f04-1a92-4c6b-9e55-77b0c2f4a3d1",
+      "tenantName": "Contoso Retail",
+      "status": "inSync",
+      "driftCount": 0,
+      "note": "passwordMinimumLength=8 is an accepted override, not drift",
+      "drifts": []
+    },
+    {
+      "tenantId": "a14b6c98-2f0d-4781-bb3e-5e9c0a7d2f44",
+      "tenantName": "Tailwind Labs",
+      "status": "diverged",
+      "driftCount": 2,
+      "note": null,
+      "drifts": [
+        { "field": "/passwordExpirationDays", "golden": 90, "actual": 365 },
+        { "field": "/storageRequireEncryption", "golden": true, "actual": false }
+      ]
+    }
+  ],
+  "summary": { "golden": 1, "inSync": 1, "diverged": 1, "error": 0 }
+}

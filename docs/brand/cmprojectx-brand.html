@@ -1,0 +1,814 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>cmProjectX — Brand Identity System</title>
+<style>
+  /* ════════════════════════════════════════════════════════════
+     cmProjectX — Brand Identity System
+     50/50 cmtrace ⟷ IntuneCommander · "the join" / enrichment.
+     Strategy 03: TEAL LEAD + BLUE ACCENT (blue = cloud wayfinding).
+     Dark · Fluent · Bahnschrift / Segoe UI / Consolas.
+     ════════════════════════════════════════════════════════════ */
+
+  :root {
+    --display: "Bahnschrift", "DIN Next", "Segoe UI Variable Display", "Segoe UI", sans-serif;
+    --ui:      "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+    --mono:    Consolas, "Cascadia Code", "Courier New", ui-monospace, monospace;
+
+    /* Brand — teal (cmtraceopen anchor #007768 / #009688) */
+    --teal:        #009688;
+    --teal-strong: #007768;
+    --teal-bright: #00C6BC;
+    --teal-deep:   #00312A;
+    --teal-10:     #001F17;
+
+    /* Cloud accent — Intune blue (sparingly: cloud/Entra/Intune only) */
+    --cloud:        #0078D4;
+    --cloud-bright: #4DA3FF;
+    --cloud-deep:   #0B2A52;
+
+    /* Neutrals — Fluent dark ramp (DEFAULT / dark) */
+    --bg:        #111111;
+    --surface:   #1a1a1a;
+    --surface-2: #222222;
+    --surface-3: #2a2a2a;
+    --line:      #333333;
+    --line-2:    #484848;
+    --text:      #ffffff;
+    --text-2:    #d6d6d6;
+    --text-3:    #a6a6a6;
+    --text-4:    #7a7a7a;
+
+    /* Theme-dependent derived colors (flip in light) */
+    --logcard-bg:   #0d0d0d;            /* showpiece log card surface */
+    --nav-bg:       rgba(17,17,17,.72); /* sticky nav glass */
+    --on-accent:    #00201b;            /* text on teal accent button */
+    --on-cloud:     #001425;            /* text on blue cloud button */
+    --ramp-label:   rgba(255,255,255,.9); /* labels on color ramp swatches */
+    --tb-glass:     rgba(255,255,255,.02); /* app window titlebar */
+    --mesh-teal:    rgba(0,150,136,.12); /* body background mesh — teal lobe */
+    --mesh-cloud:   rgba(0,120,212,.08); /* body background mesh — cloud lobe */
+    --noise-op:     .03;                 /* grain overlay opacity */
+
+    /* Semantic status */
+    --ok:    #51cf66;
+    --warn:  #ffc83d;
+    --error: #ff5a52;
+
+    /* Cloud text (legible per-theme) */
+    --cloud-text: var(--cloud-bright);
+
+    /* cmtrace severity (heritage; same in both themes) */
+    --sev-error: #ff5a52;
+    --sev-warn:  #ffc83d;
+
+    --r-sm: 4px; --r-md: 6px; --r-lg: 8px; --r-xl: 12px; --r-2xl: 16px;
+    --ease: cubic-bezier(0.1, 0.9, 0.2, 1);
+    --shadow-16: 0 0 2px rgba(0,0,0,.4), 0 8px 16px rgba(0,0,0,.4);
+    --shadow-28: 0 0 8px rgba(0,0,0,.3), 0 14px 28px rgba(0,0,0,.45);
+  }
+
+  /* ══════════════ LIGHT THEME (softened — not stock Fluent) ══════════════
+     Canonical values from docs/design-system/tokens.css [data-theme="light"]. */
+  body.light {
+    color-scheme: light;
+
+    /* Brand teal shifts down a step for contrast on light surfaces */
+    --teal:        #007768;  /* brand */
+    --teal-strong: #006959;  /* brand-strong */
+    --teal-bright: #009688;  /* brand-bright (text/icon on light) */
+
+    /* Cloud accent — fills stay #0078D4, but TEXT uses #0067b8 for contrast */
+    --cloud-bright: #0067b8;
+    --cloud-text:   #0067b8;
+
+    /* Neutrals — softened light ramp (intentionally muted, faintly teal) */
+    --bg:        #eef1f0;
+    --surface:   #f6f8f7;
+    --surface-2: #eceeed;
+    --surface-3: #e3e6e5;
+    --line:      #d6dbda;
+    --line-2:    #c2c8c7;
+    --text:      #1b211f;
+    --text-2:    #44504e;
+    --text-3:    #5d6562;
+    --text-4:    #808885;
+
+    /* Theme-dependent derived colors */
+    --logcard-bg:   #fbfcfc;
+    --nav-bg:       rgba(246,248,247,.78);
+    --on-accent:    #ffffff;
+    --on-cloud:     #ffffff;
+    --ramp-label:   rgba(255,255,255,.92);
+    --tb-glass:     rgba(0,0,0,.03);
+    --mesh-teal:    rgba(0,150,136,.10);
+    --mesh-cloud:   rgba(0,120,212,.07);
+    --noise-op:     .025;
+
+    /* Status — light variants */
+    --ok:    #0e700e;
+    --warn:  #bc4b09;
+    --error: #b10e1c;
+  }
+
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0; font-family: var(--ui); color: var(--text); background: var(--bg);
+    -webkit-font-smoothing: antialiased;
+    background-image:
+      radial-gradient(1100px 700px at 8% -6%, var(--mesh-teal) 0%, transparent 55%),
+      radial-gradient(900px 700px at 102% 2%, var(--mesh-cloud) 0%, transparent 55%);
+    background-attachment: fixed; background-repeat: no-repeat;
+    transition: background-color .25s var(--ease), color .25s var(--ease);
+  }
+  body::before { content:""; position: fixed; inset: 0; z-index: 0; pointer-events: none; opacity: var(--noise-op);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); }
+
+  /* ── sticky nav ── */
+  header.nav {
+    position: sticky; top: 0; z-index: 30; backdrop-filter: blur(20px) saturate(1.4);
+    background: var(--nav-bg); border-bottom: 1px solid var(--line);
+    transition: background-color .25s var(--ease), border-color .25s var(--ease);
+  }
+  .nav-in { max-width: 1120px; margin: 0 auto; padding: 12px 28px; display: flex; align-items: center; gap: 18px; }
+  .nav .wm { font-family: var(--display); font-weight: 600; font-size: 18px; letter-spacing: .3px; }
+  .nav .wm .cm { color: var(--teal-bright); }
+  .nav .links { margin-left: auto; display: flex; gap: 4px; flex-wrap: wrap; }
+  .nav .links a { font-family: var(--mono); font-size: 11.5px; letter-spacing: .5px; color: var(--text-3);
+    text-decoration: none; padding: 6px 10px; border-radius: 6px; }
+  .nav .links a:hover { color: var(--text); background: var(--surface-2); }
+
+  /* ── theme toggle (segmented Dark/Light) ── */
+  .themetog { display:inline-flex; gap:2px; padding:3px; border:1px solid var(--line-2); border-radius:999px;
+    background: var(--surface); flex:0 0 auto; }
+  .themetog button { font-family: var(--mono); font-size:11px; letter-spacing:.5px; cursor:pointer;
+    border:0; background:transparent; color: var(--text-3); padding:4px 11px; border-radius:999px; line-height:1.3;
+    display:inline-flex; align-items:center; gap:5px; transition: background-color .15s var(--ease), color .15s var(--ease); }
+  .themetog button:hover { color: var(--text); }
+  .themetog button[aria-pressed="true"] { background: var(--teal); color: var(--on-accent); }
+
+  main { position: relative; z-index: 1; max-width: 1120px; margin: 0 auto; padding: 0 28px 100px; }
+
+  /* ── section scaffolding ── */
+  section { padding-top: 76px; }
+  .shead { display: flex; align-items: center; gap: 16px; margin-bottom: 30px; }
+  .shead .idx { font-family: var(--mono); font-size: 13px; color: var(--teal-bright); }
+  .shead h2 { font-family: var(--display); font-weight: 600; font-size: clamp(24px,3.5vw,34px); letter-spacing:.4px; margin:0; }
+  .shead .rule { flex: 1; height: 1px; position: relative;
+    background: repeating-linear-gradient(90deg, var(--line) 0 6px, transparent 6px 12px); }
+  .shead .rule::after { content:""; position: absolute; right: 0; top: -3px; width: 7px; height: 7px; border-radius: 50%;
+    background: var(--teal); box-shadow: 0 0 10px var(--teal); }
+
+  .grid { display: grid; gap: 16px; }
+  .g2 { grid-template-columns: 1fr 1fr; } .g3 { grid-template-columns: repeat(3,1fr); }
+  @media (max-width: 820px){ .g2,.g3{ grid-template-columns:1fr; } }
+
+  .card, .markcell, .lk, .tile, .devcode, .swatch, .logcard, .appwin {
+    transition: background-color .25s var(--ease), border-color .25s var(--ease), color .25s var(--ease); }
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-2xl); padding: 22px; }
+  .card.tight { padding: 16px; }
+  .sub { font-family: var(--mono); font-size: 11px; letter-spacing: 1.4px; text-transform: uppercase; color: var(--text-4); }
+  .muted { color: var(--text-3); }
+  p.body { color: var(--text-2); line-height: 1.65; font-size: 14.5px; }
+
+  /* ════ HERO ════ */
+  .hero { padding: 70px 0 30px; }
+  .hero .kick { font-family: var(--mono); font-size: 12px; letter-spacing: 2.5px; text-transform: uppercase;
+    color: var(--teal-bright); display:flex; align-items:center; gap:10px; }
+  .hero .kick::before { content:""; width: 30px; height:1px; background: var(--teal-bright); }
+  .hero h1 { font-family: var(--display); font-weight: 600; font-size: clamp(44px, 8vw, 92px); line-height: .98;
+    letter-spacing: .5px; margin: 20px 0 0; }
+  .hero h1 .t { color: var(--teal); } .hero h1 .b { color: var(--cloud-bright); }
+  .hero .tagline { font-size: clamp(17px,2.2vw,22px); color: var(--text-2); margin: 22px 0 0; max-width: 620px; line-height: 1.5; }
+  .hero .attrs { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 26px; }
+  .pill { font-family: var(--mono); font-size: 12px; padding: 6px 12px; border-radius: 999px;
+    border: 1px solid var(--line-2); color: var(--text-3); }
+  .pill.t { color: var(--teal-bright); border-color: color-mix(in srgb,var(--teal) 50%,transparent); }
+  .pill.b { color: var(--cloud-bright); border-color: color-mix(in srgb,var(--cloud) 55%,transparent); }
+
+  /* reveal */
+  .rv { opacity: 0; transform: translateY(14px); transition: opacity .6s var(--ease), transform .6s var(--ease); }
+  .rv.in { opacity: 1; transform: none; }
+
+  /* ════ logo marks ════ */
+  .markwall { display: grid; grid-template-columns: repeat(4,1fr); gap: 14px; }
+  @media (max-width:820px){ .markwall{ grid-template-columns:repeat(2,1fr);} }
+  .markcell { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-xl);
+    aspect-ratio: 1.4; display: grid; place-items: center; position: relative; }
+  .markcell .tagm { position:absolute; left:12px; bottom:10px; font-family: var(--mono); font-size:10px; color: var(--text-4); }
+  .markcell.primary { border-color: color-mix(in srgb,var(--teal) 45%,transparent);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb,var(--teal) 20%,transparent), 0 16px 40px -24px var(--teal); }
+  .markcell.primary .tagm { color: var(--teal-bright); }
+
+  .lockups { display:flex; gap:18px; flex-wrap:wrap; align-items:center; }
+  .lk { display:flex; align-items:center; gap:14px; padding:18px 22px; border:1px solid var(--line); border-radius: var(--r-xl); background: var(--surface); }
+  .lk.stack { flex-direction: column; gap:10px; }
+  .lk.inv { background: #fafafa; }
+  .lk.inv .wm .pj { color:#1a1a1a; } .lk.inv .wm .cm { color: var(--teal-strong); }
+  .wm { font-family: var(--display); font-weight: 600; font-size: 28px; letter-spacing:.3px; }
+  .wm .cm { color: var(--teal); } .wm .pj { color: var(--text); }
+  .wm.sm { font-size: 20px; }
+
+  /* app icon tiles (Fluent rounded square) */
+  .icons { display:flex; align-items:flex-end; gap:18px; flex-wrap:wrap; }
+  .appicon { border-radius: 22%; background:
+      radial-gradient(120% 120% at 20% 10%, #00b6aa 0%, #007768 55%, #004C3D 100%);
+      display:grid; place-items:center; box-shadow: var(--shadow-28); position:relative; overflow:hidden; }
+  .appicon::after { content:""; position:absolute; inset:0; background: linear-gradient(180deg, rgba(255,255,255,.12), transparent 40%); }
+  .icnsize { text-align:center; font-family: var(--mono); font-size: 10.5px; color: var(--text-4); margin-top:8px; }
+
+  /* clearspace / misuse */
+  .dont { border-color: color-mix(in srgb, var(--error) 35%, var(--line)); }
+  .dont .tagm, .do .tagm { font-size: 10px; }
+  .do .tagm { color: var(--ok); } .dont .tagm { color: var(--error); }
+
+  /* ════ color ════ */
+  .ramp { display:flex; border-radius: var(--r-lg); overflow:hidden; border:1px solid var(--line); }
+  .ramp div { flex:1; height: 58px; position:relative; cursor:pointer; }
+  .ramp div span { position:absolute; bottom:4px; left:0; right:0; text-align:center; font-family:var(--mono); font-size:8.5px;
+    color: var(--ramp-label); text-shadow:0 1px 2px rgba(0,0,0,.6); }
+  .swrow { display:flex; gap:10px; flex-wrap:wrap; }
+  .swatch { width:120px; border:1px solid var(--line); border-radius: var(--r-lg); overflow:hidden; background:var(--surface); cursor:pointer; }
+  .swatch .chip { height: 64px; } .swatch .meta { padding:8px 10px; }
+  .swatch .nm { font-size:12px; } .swatch .hx { font-family:var(--mono); font-size:11px; color:var(--text-4); }
+  .usebar { display:flex; height: 26px; border-radius:6px; overflow:hidden; font-family:var(--mono); font-size:10px; }
+  .usebar div { display:grid; place-items:center; color:#001a16; }
+
+  /* ════ type ════ */
+  .typerow { display:flex; align-items:baseline; gap:18px; padding:14px 0; border-bottom:1px solid var(--line); }
+  .typerow .tk { font-family:var(--mono); font-size:11px; color:var(--text-4); width:110px; flex:0 0 110px; }
+  .typerow .sample { font-family: var(--display); font-weight:600; line-height:1; color:var(--text); }
+
+  /* ════ components ════ */
+  .btn { font-family: var(--ui); font-size:14px; border-radius: var(--r-sm); padding:9px 18px; cursor:pointer; border:1px solid var(--line-2); background: var(--surface-2); color: var(--text); }
+  .btn.accent { background: linear-gradient(180deg, var(--teal), var(--teal-strong)); border:0; color:var(--on-accent); font-weight:600; box-shadow: 0 4px 14px -6px var(--teal); }
+  .btn.cloud { background: linear-gradient(180deg, var(--cloud-bright), var(--cloud)); border:0; color:#fff; font-weight:600; }
+  .btn.subtle { background: transparent; border-color: transparent; color: var(--teal-bright); }
+  .btn.ghost { background: transparent; }
+  .field { width:100%; background: var(--surface-2); border:1px solid var(--line-2); border-radius: var(--r-sm); padding:9px 12px; color:var(--text); font-size:14px; }
+  .field::placeholder { color: var(--text-4); }
+  .combo { display:flex; align-items:center; gap:10px; }
+  .combo .av { width:24px; height:24px; border-radius:6px; background: color-mix(in srgb,var(--teal) 20%,transparent); display:grid; place-items:center; color:var(--teal-bright); font-family:var(--mono); font-size:12px; }
+  .combo .chev{ margin-left:auto; color:var(--text-4); }
+
+  .statpill { display:inline-flex; align-items:center; gap:7px; font-size:12px; padding:5px 11px; border-radius:999px; border:1px solid var(--line-2); color:var(--text-2); }
+  .statpill .d{ width:7px;height:7px;border-radius:50%; }
+  .statpill.ok{ color:var(--ok); border-color:color-mix(in srgb,var(--ok) 45%,transparent);} .statpill.ok .d{background:var(--ok);}
+  .statpill.warn{ color:var(--warn); border-color:color-mix(in srgb,var(--warn) 45%,transparent);} .statpill.warn .d{background:var(--warn);}
+  .statpill.err{ color:var(--error); border-color:color-mix(in srgb,var(--error) 45%,transparent);} .statpill.err .d{background:var(--error);}
+  .statpill.cloud{ color:var(--cloud-bright); border-color:color-mix(in srgb,var(--cloud) 50%,transparent);} .statpill.cloud .d{background:var(--cloud);}
+  .statpill.teal{ color:var(--teal-bright); border-color:color-mix(in srgb,var(--teal) 50%,transparent);} .statpill.teal .d{background:var(--teal);}
+
+  /* metric tile */
+  .tile { background: var(--surface); border:1px solid var(--line); border-radius: var(--r-xl); padding:16px; position:relative; overflow:hidden; }
+  .tile .big { font-family: var(--display); font-weight:600; font-size:34px; color:var(--text); }
+  .tile .lab { color:var(--text-2); font-size:13px; margin-top:2px; }
+  .tile .sub2 { color:var(--text-4); font-size:11.5px; margin-top:4px; font-family:var(--mono); }
+  .tile.cloud::before{ content:""; position:absolute; left:0; top:0; bottom:0; width:3px; background:var(--cloud); }
+  .tile.diag::before{ content:""; position:absolute; left:0; top:0; bottom:0; width:3px; background:var(--teal); }
+
+  /* device code */
+  .devcode { background: var(--surface-2); border:1px solid var(--line); border-radius: var(--r-xl); padding:18px; }
+  .devcode .code { font-family: var(--mono); font-size:30px; letter-spacing:5px; font-weight:700; color:var(--text); }
+
+  /* enriched log row (showpiece) */
+  .logcard { border:1px solid var(--line); border-radius: var(--r-xl); overflow:hidden; background:var(--logcard-bg); }
+  .logcard .cap{ font-family:var(--mono); font-size:11px; color:var(--text-4); padding:9px 14px; border-bottom:1px solid var(--line); background:var(--surface-2); }
+  .lrow{ display:grid; grid-template-columns:4px 1fr; }
+  .lrow .gut{ background:var(--sev-error); }
+  .lrow.w .gut{ background:var(--sev-warn); }
+  .lrow .ct{ padding:12px 14px; min-width:0; }
+  .logline{ font-family:var(--mono); font-size:12.5px; line-height:1.5; display:flex; flex-wrap:wrap; gap:8px; align-items:baseline; color:var(--text-2); }
+  .logline .ts{ color:var(--text-4); } .logline .src{ color:var(--teal-bright); } .logline .msg{ color:var(--text); } .logline .cd{ color:var(--text-4); }
+  .logline .sv{ font-weight:700; padding:0 6px; border-radius:4px; font-size:11px; color:#2a0000; background:var(--sev-error); }
+  .logline .sv.warn{ color:#2a1d00; background:var(--sev-warn); }
+  .enrich{ margin-top:10px; padding-left:18px; position:relative; display:flex; flex-wrap:wrap; gap:7px; align-items:center; }
+  .enrich::before{ content:""; position:absolute; left:4px; top:-6px; bottom:9px; width:9px;
+    border-left:1.5px solid var(--cloud-bright); border-bottom:1.5px solid var(--cloud-bright); border-bottom-left-radius:6px; }
+  .enrich .lbl{ font-family:var(--mono); font-size:10.5px; letter-spacing:.6px; text-transform:uppercase; color:var(--cloud-bright); }
+  .ec{ display:inline-flex; align-items:center; gap:6px; font-size:11.5px; padding:4px 9px; border-radius:6px; font-family:var(--mono);
+    border:1px solid color-mix(in srgb,var(--cloud) 40%,transparent); background:color-mix(in srgb,var(--cloud) 11%,transparent); color:var(--cloud-bright); }
+  .ec .g{ width:6px;height:6px;border-radius:50%; background:var(--cloud); } .ec.ok .g{ background:var(--ok);} .ec.warn .g{ background:var(--sev-warn);}
+
+  /* ════ application: split hero login ════ */
+  .appwin{ border:1px solid var(--line); border-radius: var(--r-xl); overflow:hidden; box-shadow: var(--shadow-28); }
+  .appwin .tb{ height:38px; display:flex; align-items:center; gap:8px; padding-left:14px; background:var(--tb-glass); border-bottom:1px solid var(--line); }
+  .appwin .tb .caps{ margin-left:auto; display:flex; } .appwin .tb .caps i{ width:44px; height:38px; display:grid; place-items:center; color:var(--text-3); font-family:var(--mono); font-size:10px; font-style:normal; }
+  .login{ display:grid; grid-template-columns: 44% 56%; min-height: 380px; }
+  @media (max-width:820px){ .login{ grid-template-columns:1fr; } }
+  .login .heroP{ position:relative; padding:36px 32px; overflow:hidden; color:#fff;
+    background: linear-gradient(155deg, #007768 0%, #00312A 60%, #001F17 100%); display:flex; flex-direction:column; }
+  .login .heroP::after{ content:""; position:absolute; inset:0;
+    background: radial-gradient(420px 320px at 120% 0%, rgba(0,198,188,.25), transparent 60%),
+                radial-gradient(360px 300px at -10% 120%, rgba(0,120,212,.25), transparent 60%); }
+  .login .heroP>*{ position:relative; z-index:1; }
+  .login .heroP .wm{ color:#fff; margin-top:16px; }
+  .login .heroP .blurb{ color:rgba(255,255,255,.82); font-size:13.5px; line-height:1.55; margin-top:8px; max-width:300px; }
+  .login .feats{ margin-top:auto; display:flex; flex-direction:column; gap:13px; }
+  .login .feat{ display:flex; gap:11px; align-items:flex-start; font-size:13px; }
+  .login .feat .fi{ width:26px;height:26px;border-radius:7px;flex:0 0 26px; display:grid; place-items:center; background:rgba(255,255,255,.14); border:1px solid rgba(255,255,255,.2); }
+  .login .feat .fi.cloud{ background:rgba(77,163,255,.22); border-color:rgba(77,163,255,.4); }
+  .login .formP{ padding:36px 34px; display:flex; flex-direction:column; justify-content:center; gap:14px; background:var(--surface); }
+  .login .formP h3{ font-family:var(--display); font-weight:600; font-size:22px; margin:0; }
+
+  .footer{ margin-top:70px; padding-top:24px; border-top:1px solid var(--line); color:var(--text-4); font-size:12.5px; font-family:var(--mono); display:flex; justify-content:space-between; flex-wrap:wrap; gap:10px; }
+  .open{ margin-top:22px; padding:18px 20px; border:1px dashed var(--line-2); border-radius: var(--r-xl); color:var(--text-3); font-size:13.5px; line-height:1.6; }
+  .open b{ color:var(--text); }
+
+  .toast{ position:fixed; bottom:22px; left:50%; transform:translateX(-50%) translateY(20px); background:var(--teal); color:#00150f;
+    font-family:var(--mono); font-size:12px; padding:8px 14px; border-radius:8px; opacity:0; transition:all .2s; pointer-events:none; z-index:50; font-weight:600; }
+  .toast.show{ opacity:1; transform:translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+
+<header class="nav">
+  <div class="nav-in">
+    <span class="wm" style="font-size:18px"><span class="cm">cm</span>ProjectX</span>
+    <nav class="links">
+      <a href="#positioning">01 Positioning</a>
+      <a href="#logo">02 Logo</a>
+      <a href="#color">03 Color</a>
+      <a href="#type">04 Type</a>
+      <a href="#icon">05 Icon &amp; Motion</a>
+      <a href="#components">06 Components</a>
+      <a href="#app">07 Application</a>
+      <a href="#voice">08 Voice</a>
+    </nav>
+    <div class="themetog" role="group" aria-label="Color theme">
+      <button type="button" data-theme-set="dark" aria-pressed="true">◐ Dark</button>
+      <button type="button" data-theme-set="light" aria-pressed="false">◑ Light</button>
+    </div>
+  </div>
+</header>
+
+<main>
+
+  <!-- ════════ HERO ════════ -->
+  <div class="hero rv">
+    <div class="kick">Brand identity system · v0.1 · working name</div>
+    <h1>Logs that<br>know the <span class="t">cloud</span>.</h1>
+    <p class="tagline">cmProjectX joins two worlds — <strong>cmtrace</strong> diagnostics on the endpoint and
+      <strong>IntuneCommander</strong> management in the tenant — so every log line carries its
+      Entra/Intune context.</p>
+    <div class="attrs">
+      <span class="pill t">diagnostic</span>
+      <span class="pill t">precise</span>
+      <span class="pill">trustworthy</span>
+      <span class="pill b">cloud-aware</span>
+      <span class="pill">fast</span>
+      <span class="pill">reversible</span>
+    </div>
+  </div>
+
+  <!-- ════════ 01 POSITIONING ════════ -->
+  <section id="positioning">
+    <div class="shead"><span class="idx">01</span><h2>Positioning</h2><span class="rule"></span></div>
+    <div class="grid g2">
+      <div class="card rv">
+        <div class="sub">The thesis</div>
+        <p class="body">cmtrace reads what happened <b style="color:var(--teal-bright)">on the endpoint</b>.
+          cmProjectX extends its feelers through the core into <b style="color:var(--cloud-bright)">Entra &amp; Intune</b>
+          and pulls that context down — so a raw log line becomes an <b>enriched, correlated</b> one.
+          You stop alt-tabbing between a log viewer and the portal: the answer is on the line.</p>
+        <p class="body">It's <b>50/50</b>. Neither half is a sidekick. The diagnostics heritage and the
+          management heritage are equal, and the brand is the <b>seam</b> where they meet.</p>
+      </div>
+      <div class="card rv">
+        <div class="sub">Two heritages, one tool</div>
+        <div style="display:flex; gap:14px; margin-top:14px; align-items:stretch;">
+          <div style="flex:1; border:1px solid color-mix(in srgb,var(--teal) 40%,transparent); border-radius:var(--r-lg); padding:14px; background:color-mix(in srgb,var(--teal) 8%,transparent);">
+            <div class="sub" style="color:var(--teal-bright)">≣ cmtrace</div>
+            <p class="body" style="font-size:13px; margin:8px 0 0">local logs · live tail · severity coding · dsregcmd · Sysmon · timeline</p>
+          </div>
+          <div style="display:grid; place-items:center; color:var(--text-4); font-family:var(--mono); font-size:18px;">⟷</div>
+          <div style="flex:1; border:1px solid color-mix(in srgb,var(--cloud) 45%,transparent); border-radius:var(--r-lg); padding:14px; background:color-mix(in srgb,var(--cloud) 8%,transparent);">
+            <div class="sub" style="color:var(--cloud-bright)">▣ IntuneCommander</div>
+            <p class="body" style="font-size:13px; margin:8px 0 0">tenant CRUD · assignments · compliance · drift · snapshots · restore</p>
+          </div>
+        </div>
+        <p class="body" style="font-size:12.5px; color:var(--text-4); margin-top:14px;">
+          Form, not color, carries the 50/50: <b style="color:var(--teal-bright)">line/≣</b> = diagnostics,
+          <b style="color:var(--cloud-bright)">node/▣</b> = management. Teal leads; blue means "cloud."</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════ 02 LOGO ════════ -->
+  <section id="logo">
+    <div class="shead"><span class="idx">02</span><h2>Logo</h2><span class="rule"></span></div>
+    <p class="body rv" style="max-width:680px">The mark is <b>the join</b>: log-lines on the endpoint extend
+      feelers into a tenant node-cluster in the cloud. Teal logs, a blue cloud node — the whole product in one glyph.</p>
+
+    <div class="sub rv" style="margin:26px 0 12px">Mark explorations — chosen + alternates</div>
+    <div class="markwall rv">
+      <div class="markcell primary">
+        <svg width="92" height="58" viewBox="0 0 92 58" fill="none">
+          <rect x="6" y="14" width="26" height="5" rx="2.5" fill="#009688"/>
+          <rect x="6" y="26" width="34" height="5" rx="2.5" fill="#009688"/>
+          <rect x="6" y="38" width="20" height="5" rx="2.5" fill="#00C6BC"/>
+          <path d="M40 28.5 C62 28.5, 64 16, 76 16" stroke="#4DA3FF" stroke-width="2" opacity=".85"/>
+          <path d="M40 28.5 C64 28.5, 66 29, 82 29" stroke="#4DA3FF" stroke-width="2" opacity=".85"/>
+          <path d="M40 28.5 C62 28.5, 64 42, 74 42" stroke="#4DA3FF" stroke-width="2" opacity=".7"/>
+          <line x1="76" y1="16" x2="82" y2="29" stroke="#0078D4" stroke-width="1.6" opacity=".55"/>
+          <line x1="82" y1="29" x2="74" y2="42" stroke="#0078D4" stroke-width="1.6" opacity=".55"/>
+          <circle cx="76" cy="16" r="4.6" fill="#0078D4"/>
+          <circle cx="82" cy="29" r="5.4" fill="#4DA3FF"/>
+          <circle cx="74" cy="42" r="4" fill="#0078D4"/>
+        </svg>
+        <span class="tagm">★ primary — "the join"</span>
+      </div>
+      <div class="markcell">
+        <svg width="64" height="64" viewBox="0 0 64 64" fill="none">
+          <path d="M32 6 12 13v14c0 12 8 19.5 20 23 12-3.5 20-11 20-23V13L32 6z" stroke="#009688" stroke-width="2.4" fill="none"/>
+          <path d="M40 26 a9 9 0 1 0 -2 9.5" stroke="#00C6BC" stroke-width="2.4" fill="none" stroke-linecap="round"/>
+          <path d="M40 20 l1.5 6.5 -6.5 -1z" fill="#00C6BC"/>
+          <circle cx="32" cy="31" r="2.6" fill="#4DA3FF"/>
+        </svg>
+        <span class="tagm">alt — rewind shield</span>
+      </div>
+      <div class="markcell">
+        <svg width="64" height="58" viewBox="0 0 64 58" fill="none">
+          <rect x="8" y="14" width="22" height="5" rx="2.5" fill="#009688"/>
+          <rect x="8" y="26" width="30" height="5" rx="2.5" fill="#009688"/>
+          <rect x="8" y="38" width="16" height="5" rx="2.5" fill="#00C6BC"/>
+          <rect x="42" y="20" width="14" height="14" rx="3" stroke="#4DA3FF" stroke-width="2.4" fill="none"/>
+          <circle cx="49" cy="27" r="2.4" fill="#4DA3FF"/>
+        </svg>
+        <span class="tagm">alt — log → managed object</span>
+      </div>
+      <div class="markcell">
+        <div class="wm" style="font-size:40px"><span class="cm">cm</span><span class="pj" style="opacity:.25">X</span></div>
+        <span class="tagm">alt — monogram</span>
+      </div>
+    </div>
+
+    <div class="sub rv" style="margin:26px 0 12px">Lockups</div>
+    <div class="lockups rv">
+      <div class="lk">
+        <svg width="50" height="32" viewBox="0 0 92 58" fill="none" style="width:50px;height:32px">
+          <rect x="6" y="14" width="26" height="5" rx="2.5" fill="#009688"/><rect x="6" y="26" width="34" height="5" rx="2.5" fill="#009688"/><rect x="6" y="38" width="20" height="5" rx="2.5" fill="#00C6BC"/>
+          <path d="M40 28.5 C62 28.5, 64 16, 76 16" stroke="#4DA3FF" stroke-width="2" opacity=".85"/><path d="M40 28.5 C64 28.5, 66 29, 82 29" stroke="#4DA3FF" stroke-width="2" opacity=".85"/><path d="M40 28.5 C62 28.5, 64 42, 74 42" stroke="#4DA3FF" stroke-width="2" opacity=".7"/>
+          <circle cx="76" cy="16" r="4.6" fill="#0078D4"/><circle cx="82" cy="29" r="5.4" fill="#4DA3FF"/><circle cx="74" cy="42" r="4" fill="#0078D4"/>
+        </svg>
+        <div class="wm"><span class="cm">cm</span><span class="pj">ProjectX</span></div>
+      </div>
+      <div class="lk stack">
+        <svg width="56" height="36" viewBox="0 0 92 58" fill="none" style="width:56px;height:36px">
+          <rect x="6" y="14" width="26" height="5" rx="2.5" fill="#009688"/><rect x="6" y="26" width="34" height="5" rx="2.5" fill="#009688"/><rect x="6" y="38" width="20" height="5" rx="2.5" fill="#00C6BC"/>
+          <path d="M40 28.5 C62 28.5, 64 16, 76 16" stroke="#4DA3FF" stroke-width="2" opacity=".85"/><path d="M40 28.5 C64 28.5, 66 29, 82 29" stroke="#4DA3FF" stroke-width="2" opacity=".85"/><path d="M40 28.5 C62 28.5, 64 42, 74 42" stroke="#4DA3FF" stroke-width="2" opacity=".7"/>
+          <circle cx="76" cy="16" r="4.6" fill="#0078D4"/><circle cx="82" cy="29" r="5.4" fill="#4DA3FF"/><circle cx="74" cy="42" r="4" fill="#0078D4"/>
+        </svg>
+        <div class="wm sm"><span class="cm">cm</span><span class="pj">ProjectX</span></div>
+      </div>
+      <div class="lk inv">
+        <svg width="50" height="32" viewBox="0 0 92 58" fill="none" style="width:50px;height:32px">
+          <rect x="6" y="14" width="26" height="5" rx="2.5" fill="#007768"/><rect x="6" y="26" width="34" height="5" rx="2.5" fill="#007768"/><rect x="6" y="38" width="20" height="5" rx="2.5" fill="#009688"/>
+          <path d="M40 28.5 C62 28.5, 64 16, 76 16" stroke="#0078D4" stroke-width="2" opacity=".85"/><path d="M40 28.5 C64 28.5, 66 29, 82 29" stroke="#0078D4" stroke-width="2" opacity=".85"/><path d="M40 28.5 C62 28.5, 64 42, 74 42" stroke="#0078D4" stroke-width="2" opacity=".7"/>
+          <circle cx="76" cy="16" r="4.6" fill="#0078D4"/><circle cx="82" cy="29" r="5.4" fill="#0066CC"/><circle cx="74" cy="42" r="4" fill="#0078D4"/>
+        </svg>
+        <div class="wm"><span class="cm">cm</span><span class="pj">ProjectX</span></div>
+      </div>
+    </div>
+
+    <div class="sub rv" style="margin:26px 0 12px">App icon — Fluent tile</div>
+    <div class="icons rv">
+      <div style="text-align:center">
+        <div class="appicon" style="width:128px;height:128px">
+          <svg width="78" height="50" viewBox="0 0 92 58" fill="none">
+            <rect x="6" y="14" width="26" height="5" rx="2.5" fill="#eafff9"/><rect x="6" y="26" width="34" height="5" rx="2.5" fill="#eafff9"/><rect x="6" y="38" width="20" height="5" rx="2.5" fill="#9af3e7"/>
+            <path d="M40 28.5 C62 28.5, 64 16, 76 16" stroke="#bfe3ff" stroke-width="2" opacity=".9"/><path d="M40 28.5 C64 28.5, 66 29, 82 29" stroke="#bfe3ff" stroke-width="2" opacity=".9"/><path d="M40 28.5 C62 28.5, 64 42, 74 42" stroke="#bfe3ff" stroke-width="2" opacity=".75"/>
+            <circle cx="76" cy="16" r="4.6" fill="#4DA3FF"/><circle cx="82" cy="29" r="5.4" fill="#9ccbff"/><circle cx="74" cy="42" r="4" fill="#4DA3FF"/>
+          </svg>
+        </div><div class="icnsize">256 / 128</div>
+      </div>
+      <div style="text-align:center">
+        <div class="appicon" style="width:64px;height:64px">
+          <svg width="40" height="26" viewBox="0 0 92 58" fill="none"><rect x="6" y="14" width="26" height="5" rx="2.5" fill="#eafff9"/><rect x="6" y="26" width="34" height="5" rx="2.5" fill="#eafff9"/><rect x="6" y="38" width="20" height="5" rx="2.5" fill="#9af3e7"/><circle cx="78" cy="29" r="6" fill="#4DA3FF"/></svg>
+        </div><div class="icnsize">48 / 64</div>
+      </div>
+      <div style="text-align:center">
+        <div class="appicon" style="width:32px;height:32px">
+          <svg width="20" height="13" viewBox="0 0 92 58" fill="none"><rect x="6" y="14" width="30" height="6" rx="3" fill="#eafff9"/><rect x="6" y="28" width="40" height="6" rx="3" fill="#eafff9"/><rect x="6" y="42" width="22" height="6" rx="3" fill="#9af3e7"/><circle cx="78" cy="30" r="9" fill="#4DA3FF"/></svg>
+        </div><div class="icnsize">16 / 32</div>
+      </div>
+      <div style="flex:1; min-width:200px; align-self:center;">
+        <p class="body" style="font-size:13px; color:var(--text-3)">At 16px the feelers drop away — just bold log-lines reaching a single blue cloud node. The teal tile keeps cmtraceopen continuity in the taskbar.</p>
+      </div>
+    </div>
+
+    <div class="sub rv" style="margin:26px 0 12px">Clear space &amp; misuse</div>
+    <div class="markwall rv" style="grid-template-columns:repeat(3,1fr)">
+      <div class="markcell do"><div class="wm"><span class="cm">cm</span><span class="pj">ProjectX</span></div><span class="tagm">✓ teal "cm", neutral "ProjectX"</span></div>
+      <div class="markcell dont"><div class="wm" style="font-style:italic; letter-spacing:2px"><span class="cm" style="color:#b06">cm</span><span class="pj">ProjectX</span></div><span class="tagm">✕ don't restyle / recolor</span></div>
+      <div class="markcell dont"><div class="wm" style="transform:rotate(-7deg)"><span class="cm">cm</span><span class="pj">ProjectX</span></div><span class="tagm">✕ don't rotate / distort</span></div>
+    </div>
+  </section>
+
+  <!-- ════════ 03 COLOR ════════ -->
+  <section id="color">
+    <div class="shead"><span class="idx">03</span><h2>Color</h2><span class="rule"></span></div>
+
+    <div class="sub rv">Brand — teal ramp (anchor #007768 light / #009688 dark)</div>
+    <div class="ramp rv" style="margin:10px 0 8px">
+      <div style="background:#001F17"><span>10</span></div><div style="background:#00312A"><span>20</span></div>
+      <div style="background:#003E30"><span>30</span></div><div style="background:#004C3D"><span>40</span></div>
+      <div style="background:#005A4B"><span>50</span></div><div style="background:#006959"><span>60</span></div>
+      <div style="background:#007768"><span>70</span></div><div style="background:#009688"><span>80</span></div>
+      <div style="background:#00A698"><span>90</span></div><div style="background:#00B6AA"><span>100</span></div>
+      <div style="background:#00C6BC"><span>110</span></div><div style="background:#00D6CF"><span>120</span></div>
+      <div style="background:#00E7E2"><span>130</span></div><div style="background:#00F8F6;"><span style="color:#003">140</span></div>
+      <div style="background:#A0F5F0"><span style="color:#003">150</span></div><div style="background:#E8F5F3"><span style="color:#003">160</span></div>
+    </div>
+
+    <div class="grid g2" style="margin-top:18px">
+      <div class="rv">
+        <div class="sub">Cloud accent — Intune blue (use sparingly)</div>
+        <div class="swrow" style="margin-top:10px">
+          <div class="swatch"><div class="chip" style="background:#0078D4"></div><div class="meta"><div class="nm">Intune blue</div><div class="hx">#0078D4</div></div></div>
+          <div class="swatch"><div class="chip" style="background:#4DA3FF"></div><div class="meta"><div class="nm">on-dark bright</div><div class="hx">#4DA3FF</div></div></div>
+          <div class="swatch"><div class="chip" style="background:#0B2A52"></div><div class="meta"><div class="nm">deep / tint</div><div class="hx">#0B2A52</div></div></div>
+        </div>
+        <p class="body" style="font-size:12.5px; color:var(--text-4); margin-top:12px">Blue only ever means <b style="color:var(--cloud-bright)">cloud</b>: Entra/Intune surfaces, cloud-sourced facts, the "enriched" lane. Never a generic accent.</p>
+      </div>
+      <div class="rv">
+        <div class="sub">Balance — keep it ~70 / 25 / 5</div>
+        <div class="usebar" style="margin-top:10px">
+          <div style="flex:70; background:var(--surface-2); color:var(--text-3)">neutral 70</div>
+          <div style="flex:25; background:var(--teal)">teal 25</div>
+          <div style="flex:5; background:var(--cloud); color:#cfe;">blue 5</div>
+        </div>
+        <div class="sub" style="margin-top:18px">cmtrace severity (heritage)</div>
+        <div class="swrow" style="margin-top:10px">
+          <div class="swatch"><div class="chip" style="background:#ff5a52"></div><div class="meta"><div class="nm">error</div><div class="hx">#ff5a52</div></div></div>
+          <div class="swatch"><div class="chip" style="background:#ffc83d"></div><div class="meta"><div class="nm">warning</div><div class="hx">#ffc83d</div></div></div>
+          <div class="swatch"><div class="chip" style="background:#d4d4d4"></div><div class="meta"><div class="nm">info</div><div class="hx">#d4d4d4</div></div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sub rv" style="margin-top:20px">Dark neutrals</div>
+    <div class="ramp rv" style="margin-top:10px">
+      <div style="background:#111111"><span>bg 111</span></div><div style="background:#1a1a1a"><span>surface</span></div>
+      <div style="background:#222222"><span>surf-2</span></div><div style="background:#2a2a2a"><span>surf-3</span></div>
+      <div style="background:#333333"><span>line</span></div><div style="background:#484848"><span>line-2</span></div>
+      <div style="background:#7a7a7a"><span>text-4</span></div><div style="background:#a6a6a6;"><span style="color:#111">text-3</span></div>
+      <div style="background:#d6d6d6"><span style="color:#111">text-2</span></div><div style="background:#ffffff"><span style="color:#111">text</span></div>
+    </div>
+  </section>
+
+  <!-- ════════ 04 TYPE ════════ -->
+  <section id="type">
+    <div class="shead"><span class="idx">04</span><h2>Type</h2><span class="rule"></span></div>
+    <div class="grid g3 rv">
+      <div class="card"><div class="sub">Display</div><div style="font-family:var(--display); font-weight:600; font-size:40px; margin-top:8px">Bahnschrift</div><p class="body" style="font-size:12.5px; color:var(--text-3)">Headlines, numerals, kickers. Condensed &amp; technical — the instrument-panel voice. Ships with Windows.</p></div>
+      <div class="card"><div class="sub">Body / UI</div><div style="font-family:var(--ui); font-weight:600; font-size:40px; margin-top:8px">Segoe UI</div><p class="body" style="font-size:12.5px; color:var(--text-3)">Every interface string. Fluent-native; matches the WinUI app exactly.</p></div>
+      <div class="card"><div class="sub">Data / Mono</div><div style="font-family:var(--mono); font-weight:600; font-size:36px; margin-top:8px">Consolas</div><p class="body" style="font-size:12.5px; color:var(--text-3)">Logs, code, timestamps, device codes, metadata labels. The diagnostic texture.</p></div>
+    </div>
+
+    <div class="card rv" style="margin-top:16px">
+      <div class="sub">Type scale — Fluent ramp</div>
+      <div style="margin-top:6px">
+        <div class="typerow"><span class="tk">Hero · 68</span><span class="sample" style="font-size:54px">Rewind the tenant</span></div>
+        <div class="typerow"><span class="tk">Title · 40</span><span class="sample" style="font-size:40px">Enriched timeline</span></div>
+        <div class="typerow"><span class="tk">Subtitle · 28</span><span class="sample" style="font-size:28px">Compliance &amp; drift</span></div>
+        <div class="typerow"><span class="tk">H · 20</span><span class="sample" style="font-size:20px; font-family:var(--ui)">Device configuration</span></div>
+        <div class="typerow"><span class="tk">Body · 14</span><span class="sample" style="font-size:14px; font-family:var(--ui); font-weight:400; color:var(--text-2)">Default body text — Segoe UI, the workhorse for every screen.</span></div>
+        <div class="typerow" style="border:0"><span class="tk">Mono · 12.5</span><span class="sample" style="font-size:12.5px; font-family:var(--mono); font-weight:400; color:var(--text-3)">2026-06-10 12:04:31.882  ERROR  IME  0x87D1041C</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════ 05 ICON & MOTION ════════ -->
+  <section id="icon">
+    <div class="shead"><span class="idx">05</span><h2>Icon &amp; Motion</h2><span class="rule"></span></div>
+    <div class="grid g2">
+      <div class="card rv">
+        <div class="sub">Line icons — 1.6px stroke, round caps</div>
+        <div style="display:flex; gap:22px; margin-top:16px; color:var(--text-2); flex-wrap:wrap">
+          <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#00C6BC" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 9h18"/></svg>
+          <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#00C6BC" stroke-width="1.6" stroke-linecap="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 7v5l3 2"/></svg>
+          <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#00C6BC" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 13h4l2 5 4-12 2 7h4"/></svg>
+          <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#4DA3FF" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 16a4 4 0 0 1 .5-8 5.5 5.5 0 0 1 10.6 1.5A3.5 3.5 0 0 1 17 16H6z"/></svg>
+          <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#4DA3FF" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="7" cy="7" r="2.5"/><circle cx="17" cy="7" r="2.5"/><circle cx="12" cy="17" r="2.5"/><path d="M9 8l6 0M8 9l3 6M16 9l-3 6"/></svg>
+        </div>
+        <p class="body" style="font-size:12.5px; color:var(--text-4); margin-top:14px">Teal-bright for diagnostics; blue for cloud (note the cloud &amp; group glyphs). Same stroke weight across the set.</p>
+      </div>
+      <div class="card rv">
+        <div class="sub">Tokens</div>
+        <div style="margin-top:12px; font-family:var(--mono); font-size:12.5px; color:var(--text-3); line-height:2">
+          <div>radius&nbsp;&nbsp; 4 · 6 · 8 · 12 · 16</div>
+          <div>elevation&nbsp; shadow-2 → shadow-64 (Fluent depth)</div>
+          <div>duration&nbsp; 100 / 150 / 200 / 250ms</div>
+          <div>easing&nbsp;&nbsp;&nbsp; cubic-bezier(.1,.9,.2,1)</div>
+          <div style="color:var(--text-4); margin-top:8px">// signature motion: the "feeler" draws in —<br>// log line → context, 200ms decelerate.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════ 06 COMPONENTS ════════ -->
+  <section id="components">
+    <div class="shead"><span class="idx">06</span><h2>Components</h2><span class="rule"></span></div>
+
+    <div class="grid g2">
+      <div class="card rv">
+        <div class="sub">Buttons</div>
+        <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:14px">
+          <button class="btn accent">Sign in</button>
+          <button class="btn">Refresh</button>
+          <button class="btn subtle">Manage profiles</button>
+          <button class="btn cloud">Connect to Entra</button>
+        </div>
+        <p class="body" style="font-size:12px; color:var(--text-4); margin-top:12px">Accent = teal (primary). Blue button is reserved for the cloud/sign-in moment.</p>
+      </div>
+      <div class="card rv">
+        <div class="sub">Inputs</div>
+        <div style="display:flex; flex-direction:column; gap:10px; margin-top:14px">
+          <div class="field combo"><span class="av">C</span> Contoso Corp <span class="chev">▾</span></div>
+          <input class="field" placeholder="Search logs, devices, policies…" />
+        </div>
+      </div>
+    </div>
+
+    <div class="sub rv" style="margin:18px 0 10px">Status pills</div>
+    <div class="rv" style="display:flex; gap:10px; flex-wrap:wrap">
+      <span class="statpill ok"><span class="d"></span>Compliant</span>
+      <span class="statpill warn"><span class="d"></span>Drift detected</span>
+      <span class="statpill err"><span class="d"></span>Failed</span>
+      <span class="statpill teal"><span class="d"></span>Signed in</span>
+      <span class="statpill cloud"><span class="d"></span>Synced from Intune</span>
+    </div>
+
+    <div class="grid g3 rv" style="margin-top:18px">
+      <div class="tile diag"><div class="big">1,284</div><div class="lab">Managed devices</div><div class="sub2">+12 this week</div></div>
+      <div class="tile diag"><div class="big">37</div><div class="lab">Log sources</div><div class="sub2">live · 4 tailing</div></div>
+      <div class="tile cloud"><div class="big">9</div><div class="lab">Drifted policies</div><div class="sub2">from Intune snapshot</div></div>
+    </div>
+
+    <div class="grid g2 rv" style="margin-top:18px">
+      <div class="devcode">
+        <div class="sub" style="color:var(--text-3)">Finish signing in from a browser</div>
+        <div style="display:flex; align-items:center; gap:14px; margin-top:10px">
+          <span class="code">FQXJ-7K2D</span>
+          <button class="btn">Copy</button>
+        </div>
+        <a style="color:var(--cloud-bright); font-size:13px; text-decoration:none; display:inline-block; margin-top:10px">microsoft.com/devicelogin ↗</a>
+      </div>
+      <div style="display:flex; flex-direction:column; gap:10px; justify-content:center">
+        <div class="sub">Severity gutter (cmtrace)</div>
+        <div style="display:flex; gap:8px">
+          <span class="statpill err"><span class="d"></span>ERROR</span>
+          <span class="statpill warn"><span class="d"></span>WARN</span>
+          <span class="statpill"><span class="d" style="background:var(--text-3)"></span>INFO</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="sub rv" style="margin:22px 0 10px">★ Signature element — the enriched log row</div>
+    <div class="logcard rv">
+      <div class="cap">IntuneManagementExtension.log · enriched by cmProjectX core</div>
+      <div class="lrow">
+        <div class="gut"></div>
+        <div class="ct">
+          <div class="logline"><span class="ts">2026-06-10 12:04:31.882</span><span class="sv">ERROR</span><span class="src">IME</span><span class="msg">Win32App install failed</span><span class="cd">(0x87D1041C — content download timeout)</span></div>
+          <div class="enrich">
+            <span class="lbl">enriched ↓</span>
+            <span class="ec ok"><span class="g"></span>DESKTOP-AG1 · compliant</span>
+            <span class="ec"><span class="g"></span>App: Company Portal · Required</span>
+            <span class="ec warn"><span class="g"></span>Assigned 2d ago</span>
+            <span class="ec"><span class="g"></span>user: adam@contoso.com</span>
+          </div>
+        </div>
+      </div>
+      <div class="lrow w" style="border-top:1px solid var(--line)">
+        <div class="gut"></div>
+        <div class="ct">
+          <div class="logline"><span class="ts">2026-06-10 12:04:33.020</span><span class="sv warn">WARN</span><span class="src">dsregcmd</span><span class="msg">AzureAdPrt = NO</span></div>
+          <div class="enrich">
+            <span class="lbl">enriched ↓</span>
+            <span class="ec"><span class="g"></span>Entra join: Hybrid</span>
+            <span class="ec warn"><span class="g"></span>Last sync 41m ago</span>
+            <span class="ec"><span class="g"></span>CA policy: Require compliant</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════ 07 APPLICATION ════════ -->
+  <section id="app">
+    <div class="shead"><span class="idx">07</span><h2>Application</h2><span class="rule"></span></div>
+    <div class="sub rv" style="margin-bottom:12px">Split Hero login — dark, teal-lead, one blue "cloud" cue</div>
+    <div class="appwin rv">
+      <div class="tb">
+        <span class="wm" style="font-size:13px"><span class="cm">cm</span>ProjectX</span>
+        <div class="caps"><i>─</i><i>▢</i><i>✕</i></div>
+      </div>
+      <div class="login">
+        <div class="heroP">
+          <svg width="56" height="36" viewBox="0 0 92 58" fill="none">
+            <rect x="6" y="14" width="26" height="5" rx="2.5" fill="#eafff9"/><rect x="6" y="26" width="34" height="5" rx="2.5" fill="#eafff9"/><rect x="6" y="38" width="20" height="5" rx="2.5" fill="#9af3e7"/>
+            <path d="M40 28.5 C62 28.5, 64 16, 76 16" stroke="#bfe3ff" stroke-width="2" opacity=".9"/><path d="M40 28.5 C64 28.5, 66 29, 82 29" stroke="#bfe3ff" stroke-width="2" opacity=".9"/><path d="M40 28.5 C62 28.5, 64 42, 74 42" stroke="#bfe3ff" stroke-width="2" opacity=".75"/>
+            <circle cx="76" cy="16" r="4.6" fill="#4DA3FF"/><circle cx="82" cy="29" r="5.4" fill="#9ccbff"/><circle cx="74" cy="42" r="4" fill="#4DA3FF"/>
+          </svg>
+          <div class="wm" style="font-size:26px"><span class="cm" style="color:#fff">cm</span>ProjectX</div>
+          <div class="blurb">Local logs, enriched with live Entra &amp; Intune context.</div>
+          <div class="feats">
+            <div class="feat"><span class="fi">≣</span><div><b>Diagnostics</b><br><span style="color:rgba(255,255,255,.7); font-size:12px">logs · live tail · timeline</span></div></div>
+            <div class="feat"><span class="fi cloud">▣</span><div><b>Management</b><br><span style="color:rgba(255,255,255,.7); font-size:12px">CRUD · drift · point-in-time restore</span></div></div>
+          </div>
+        </div>
+        <div class="formP">
+          <h3>Sign in</h3>
+          <div><div class="sub" style="margin-bottom:6px">Tenant profile</div>
+            <div class="field combo"><span class="av">C</span> Contoso Corp <span style="color:var(--text-4); font-family:var(--mono); font-size:11px; margin-left:auto">Commercial</span> <span class="chev" style="margin-left:8px">▾</span></div></div>
+          <button class="btn accent" style="width:100%; padding:11px">Sign in</button>
+          <div style="display:flex; align-items:center; gap:8px; justify-content:center">
+            <span class="statpill cloud" style="font-size:11px"><span class="d"></span>connecting to Entra…</span>
+          </div>
+          <button class="btn subtle" style="align-self:center">Manage tenant profiles</button>
+        </div>
+      </div>
+    </div>
+    <p class="body rv" style="font-size:12.5px; color:var(--text-4); margin-top:12px">Teal owns the experience; the single blue cue ("connecting to Entra") is the only place blue appears — wayfinding, not decoration.</p>
+  </section>
+
+  <!-- ════════ 08 VOICE ════════ -->
+  <section id="voice">
+    <div class="shead"><span class="idx">08</span><h2>Voice</h2><span class="rule"></span></div>
+    <div class="grid g2">
+      <div class="card rv">
+        <div class="sub">Principles</div>
+        <ul class="body" style="line-height:1.8; padding-left:18px">
+          <li><b>Plain &amp; precise.</b> Say the error code <i>and</i> what it means.</li>
+          <li><b>Actionable.</b> Every dead end offers the next move.</li>
+          <li><b>Calm under failure.</b> No alarmism; diagnostics, not drama.</li>
+          <li><b>Reversible by default.</b> Name the undo before the user asks.</li>
+        </ul>
+      </div>
+      <div class="card rv">
+        <div class="sub">Microcopy</div>
+        <div style="margin-top:12px; display:flex; flex-direction:column; gap:10px; font-size:13px">
+          <div style="font-family:var(--mono); color:var(--text-4); font-size:11px">device code</div>
+          <div class="body" style="margin:0">"Finish signing in from a browser — enter <b>FQXJ-7K2D</b> at microsoft.com/devicelogin."</div>
+          <div style="font-family:var(--mono); color:var(--text-4); font-size:11px; margin-top:6px">error</div>
+          <div class="body" style="margin:0; color:var(--text-2)">"Can't reach the service — the sidecar may still be starting. <span style="color:var(--teal-bright)">Retry</span>."</div>
+          <div style="font-family:var(--mono); color:var(--text-4); font-size:11px; margin-top:6px">write confirm</div>
+          <div class="body" style="margin:0; color:var(--text-2)">"This changes 3 settings on 1,284 devices. We'll snapshot first so you can roll back."</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="open rv">
+      <b>Open items before this is final:</b> (1) <b>Name</b> — "cmProjectX" is a working codename; the system is built to flex if it changes.
+      (2) <b>Cloud blue</b> — currently official Intune <b>#0078D4</b>; swap to vivid azure #0A84FF if you want more pop.
+      (3) Next: port these tokens into <span style="font-family:var(--mono)">app/src</span> (Reactor) + a light theme pass. Tell me what to push on.
+    </div>
+  </section>
+
+  <div class="footer">
+    <span>cmProjectX — brand identity system · strategy 03 (teal lead + blue accent)</span>
+    <span>docs/brand/cmprojectx-brand.html</span>
+  </div>
+</main>
+
+<div class="toast" id="toast">copied</div>
+<script>
+  // ── theme toggle (dark default; persisted) ──
+  (function(){
+    const KEY = 'cmx-theme';
+    const btns = document.querySelectorAll('.themetog [data-theme-set]');
+    function apply(theme){
+      const light = theme === 'light';
+      document.body.classList.toggle('light', light);
+      btns.forEach(b => b.setAttribute('aria-pressed', String(b.dataset.themeSet === theme)));
+    }
+    let saved = 'dark';
+    try { saved = localStorage.getItem(KEY) || 'dark'; } catch(e){}
+    apply(saved);
+    btns.forEach(b => b.addEventListener('click', () => {
+      const t = b.dataset.themeSet;
+      apply(t);
+      try { localStorage.setItem(KEY, t); } catch(e){}
+    }));
+  })();
+
+  // reveal on scroll
+  const io = new IntersectionObserver((es) => es.forEach(e => { if (e.isIntersecting){ e.target.classList.add('in'); io.unobserve(e.target);} }), {threshold:.12});
+  document.querySelectorAll('.rv').forEach((el,i) => { el.style.transitionDelay = (Math.min(i,6)*40)+'ms'; io.observe(el); });
+  // click-to-copy hex
+  const toast = document.getElementById('toast');
+  document.querySelectorAll('.ramp div, .swatch').forEach(el => el.addEventListener('click', () => {
+    const m = el.textContent.match(/#[0-9A-Fa-f]{6}/);
+    const hex = m ? m[0] : (getComputedStyle(el.querySelector('div,.chip')||el).backgroundColor);
+    navigator.clipboard?.writeText(hex);
+    toast.textContent = 'copied ' + hex; toast.classList.add('show');
+    clearTimeout(window._t); window._t = setTimeout(()=>toast.classList.remove('show'), 1100);
+  }));
+</script>
+</body>
+</html>

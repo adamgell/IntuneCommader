@@ -1,0 +1,19 @@
+/* cmProjectX — typography for Starlight.
+   Per the brand: Bahnschrift (display) · Segoe UI (body/UI) · Consolas (mono).
+   System stacks only — Windows readers get the real faces; others fall back gracefully. */
+
+:root {
+	--sl-font:
+		'Segoe UI Variable Text', 'Segoe UI', system-ui, -apple-system, 'Helvetica Neue', Arial,
+		sans-serif;
+	--sl-font-mono: Consolas, 'Cascadia Mono', 'Cascadia Code', ui-monospace, 'Courier New', monospace;
+	--cmx-font-display:
+		'Bahnschrift', 'DIN Next', 'Segoe UI Variable Display', 'Segoe UI', system-ui, sans-serif;
+}
+
+/* The instrument-panel voice: headings use the display face. */
+:is(h1, h2, h3, h4, h5, h6) {
+	font-family: var(--cmx-font-display);
+	font-weight: 600;
+	letter-spacing: 0.005em;
+}

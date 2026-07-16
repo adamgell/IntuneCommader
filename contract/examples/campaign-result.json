@@ -1,0 +1,41 @@
+{
+  "campaignId": "camp-2026-0624-compliance-rollout",
+  "surface": "compliance-policies",
+  "objectName": "Win10 Baseline",
+  "dryRun": false,
+  "results": [
+    {
+      "tenantId": "9f1c3a52-7b44-4e2d-8f10-2c6b9d5a1e80",
+      "tenantName": "Fabrikam HQ",
+      "outcome": "skip",
+      "reason": "goldenSource — no write to canonical tenant",
+      "pendingId": null,
+      "newId": null,
+      "appliedFields": [],
+      "diff": []
+    },
+    {
+      "tenantId": "3d8e7f04-1a92-4c6b-9e55-77b0c2f4a3d1",
+      "tenantName": "Contoso Retail",
+      "outcome": "pending",
+      "reason": "gated through the pending-changes inbox",
+      "pendingId": "pc-3d8e-0091",
+      "newId": null,
+      "appliedFields": ["passwordMinimumLength"],
+      "diff": [
+        { "path": "/passwordMinimumLength", "kind": "Modified", "before": 6, "after": 8 }
+      ]
+    },
+    {
+      "tenantId": "a14b6c98-2f0d-4781-bb3e-5e9c0a7d2f44",
+      "tenantName": "Tailwind Labs",
+      "outcome": "conflict",
+      "reason": "live object modified since golden read; operator must re-resolve",
+      "pendingId": null,
+      "newId": null,
+      "appliedFields": [],
+      "diff": []
+    }
+  ],
+  "summary": { "success": 0, "skip": 1, "conflict": 1, "error": 0, "pending": 1, "total": 3 }
+}
