@@ -266,10 +266,10 @@ jobs:
           # For the portable zip (no installer to set the env var), bake the Syncfusion key into the
           # launcher if one was provided at build time, so PPTX export is licensed there too.
           $setLine = if ($env:SYNCFUSION_LICENSE_KEY) { @("set `"SYNCFUSION_LICENSE_KEY=$($env:SYNCFUSION_LICENSE_KEY)`"") } else { @() }
+          # The client auto-spawns the bundled sidecar (sidecar\Api.exe) HIDDEN, so the launcher
+          # only starts the client — no separate sidecar console window. The `set` line bakes the
+          # Syncfusion key for the portable zip (no installer to set the machine env var).
           $launcher = @('@echo off') + $setLine + @(
-            'REM Start the sidecar, wait for :5099, then the client.',
-            'start "IntuneCommander sidecar" /min "%~dp0sidecar\Api.exe"',
-            'timeout /t 3 /nobreak >nul',
             'start "" "%~dp0IntuneCommander.exe"'
           )
           Set-Content (Join-Path $bundle "Start-IntuneCommander.cmd") $launcher -Encoding ascii

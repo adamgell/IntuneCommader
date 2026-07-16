@@ -561,13 +561,13 @@ fn hero_panel() -> Element {
     ))
     .spacing(5.0);
 
-    // Two-tone wordmark: "cm" teal-bright, "ProjectX" near-white, Bahnschrift.
+    // Two-tone wordmark: "Intune" teal-bright, "Commander" near-white, Bahnschrift.
     let wordmark = hstack((
-        body_strong("cm")
+        body_strong("Intune")
             .font_size(30.0)
             .font_family(theme::FONT_DISPLAY)
             .foreground(theme::BRAND_BRIGHT),
-        body_strong("ProjectX")
+        body_strong("Commander")
             .font_size(30.0)
             .font_family(theme::FONT_DISPLAY)
             .foreground(theme::TEXT),

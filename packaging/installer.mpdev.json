@@ -4,7 +4,7 @@
   "outputDirectory": "publish\\installer",
   "outputFileName": "IntuneCommander-$.version-x64",
   "packageName": "IntuneCommander",
-  "publisher": "gellorg",
+  "publisher": "Adam Gell",
   "version": "0.0.0.0",
   "platform": "x64",
   "installDir": "%ProgramFiles%\\IntuneCommander",

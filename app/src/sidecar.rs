@@ -83,6 +83,15 @@ fn sidecar_command() -> Option<(String, Vec<String>, Option<PathBuf>)> {
         return Some((bundled.to_string_lossy().into_owned(), vec![], Some(exe_dir)));
     }
 
+    // (1b) Shipping (release bundle layout): the self-contained sidecar lives in a
+    // `sidecar/` subfolder next to the client exe (see the release stage step). The
+    // sidecar's working dir must be that folder so it resolves its own DLLs/psmodules.
+    let sub = exe_dir.join("sidecar").join("Api.exe");
+    if sub.exists() {
+        let work = sub.parent().map(Path::to_path_buf);
+        return Some((sub.to_string_lossy().into_owned(), vec![], work));
+    }
+
     // (2) Dev: the framework-dependent build output, run via `dotnet`.
     let dll = find_api_dll(&exe_dir)?;
     let work = dll.parent().map(Path::to_path_buf);
