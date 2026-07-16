@@ -1,16 +1,16 @@
 # IntuneCommander documentation site
 
 Public docs for IntuneCommander, built with [Astro Starlight](https://starlight.astro.build) and
-deployed to GitHub Pages at **https://gellorg.github.io/intunecommander-src/**.
+deployed to GitHub Pages at **https://intunecommander.com**.
 
 ## Run it locally
 
 ```powershell
 npm install            # first time only
-npm run dev            # http://localhost:4321/intunecommander-src
+npm run dev            # http://localhost:4321/
 ```
 
-Before pushing, validate the production build under the real base path:
+Before pushing, validate the production build:
 
 ```powershell
 npm run build && npm run preview
@@ -30,9 +30,9 @@ scripts/redact.mjs     screenshot redaction + export tool
 
 - Pages live in `src/content/docs/`; the file path is the URL. Add a page, then list it in the
   `sidebar` in `astro.config.mjs`.
-- **Internal links:** write them root-absolute and base-less, e.g. `[Sign in](/sign-in/overview/)`.
-  A rehype plugin in `astro.config.mjs` adds the `/intunecommander-src` base at build time. (Hero `actions`
-  in `index.mdx` bypass Markdown, so the base is baked into those links by hand.)
+- **Internal links:** write them root-absolute, e.g. `[Sign in](/sign-in/overview/)`. The site is
+  served at the domain root (`base: '/'`), so these resolve as-is. (If the site ever moves to a
+  project Pages sub-path, the rehype plugin in `astro.config.mjs` prefixes the base at build time.)
 - **Components** (`<Steps>`, `<Tabs>`, `<Card>`, …) require an `.mdx` file; plain prose can be `.md`.
   Asides (`:::note`, `:::tip`, `:::caution`) work in both.
 

@@ -19,7 +19,7 @@ This page covers the rest.
 
 | Symptom | Likely cause | Fix |
 | --- | --- | --- |
-| `cargo build` can't find the parser | The sibling `cmtraceopen` checkout is missing | Clone `cmtraceopen` **next to** `intunecommander-src` (see [Install & build](/get-started/install/)). |
+| `cargo build` can't find the parser | The sibling `cmtraceopen` checkout is missing | Clone `cmtraceopen` **next to** `IntuneCommander` (see [Install & build](/get-started/install/)). |
 | First `cargo build` seems to hang | It's compiling many crates the first time | Give it a few minutes; subsequent builds are fast. |
 | `dotnet build` can't find the SDK | .NET 10 SDK not installed | Install it (see [Prerequisites](/get-started/prerequisites/)). |
 

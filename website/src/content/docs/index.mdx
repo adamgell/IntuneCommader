@@ -7,13 +7,13 @@ hero:
   image:
     file: ../../assets/cmx-mark.svg
   actions:
-    # Hero actions bypass Markdown, so the base path is baked in here (see astro.config.mjs).
+    # Hero actions bypass Markdown; links are root-absolute (site is served at the domain root).
     - text: Get started
-      link: /intunecommander-src/get-started/prerequisites/
+      link: /get-started/prerequisites/
       icon: right-arrow
       variant: primary
     - text: How sign-in works
-      link: /intunecommander-src/sign-in/overview/
+      link: /sign-in/overview/
       variant: minimal
 ---
 

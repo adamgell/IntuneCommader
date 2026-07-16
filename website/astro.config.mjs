@@ -4,10 +4,11 @@ import starlight from '@astrojs/starlight';
 import starlightLinksValidator from 'starlight-links-validator';
 
 // IntuneCommander documentation — Astro Starlight.
-// Project (not user) GitHub Pages site: served under /intunecommander-src.
-// NOTE: `base` is case-sensitive and must equal the GitHub repo name exactly
-// (the repo that hosts these Pages — the source repo, gellorg/intunecommander-src).
-const base = '/intunecommander-src';
+// Served at the apex custom domain https://intunecommander.com (GitHub Pages +
+// public/CNAME), so the site lives at the domain root and `base` is '/'.
+// (If this ever moves to a project Pages path, set `base` to '/<repo-name>' and
+// the rehypeBaseLinks helper below will start prefixing content links again.)
+const base = '/';
 
 /**
  * Prepend the site `base` to root-absolute internal links in Markdown/MDX content.
@@ -18,6 +19,9 @@ const base = '/intunecommander-src';
  * already-prefixed links.)
  */
 function rehypeBaseLinks() {
+	// At the domain root (`base === '/'`) there is nothing to prepend, and doing
+	// so would turn `/x` into `//x` (a protocol-relative link). No-op in that case.
+	if (base === '/') return () => {};
 	/** @param {any} node */
 	const walk = (node) => {
 		if (node.type === 'element' && node.tagName === 'a') {
@@ -40,7 +44,7 @@ function rehypeBaseLinks() {
 
 // https://astro.build/config
 export default defineConfig({
-	site: 'https://gellorg.github.io',
+	site: 'https://intunecommander.com',
 	base,
 	markdown: { rehypePlugins: [rehypeBaseLinks] },
 	integrations: [
@@ -54,7 +58,7 @@ export default defineConfig({
 				{
 					icon: 'github',
 					label: 'GitHub',
-					href: 'https://github.com/gellorg/intunecommander-release',
+					href: 'https://github.com/adamgell/IntuneCommander',
 				},
 			],
 			// Fail the build on broken internal links. The interactive Redoc page is a
@@ -65,7 +69,7 @@ export default defineConfig({
 					tag: 'meta',
 					attrs: {
 						property: 'og:image',
-						content: 'https://gellorg.github.io/intunecommander-src/og.png',
+						content: 'https://intunecommander.com/og.png',
 					},
 				},
 				{
@@ -77,7 +81,7 @@ export default defineConfig({
 					tag: 'meta',
 					attrs: {
 						name: 'twitter:image',
-						content: 'https://gellorg.github.io/intunecommander-src/og.png',
+						content: 'https://intunecommander.com/og.png',
 					},
 				},
 			],

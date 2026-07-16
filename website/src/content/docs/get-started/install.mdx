@@ -15,9 +15,9 @@ Make sure you've installed everything on the [prerequisites](/get-started/prereq
    both repositories next to each other in the same parent folder:
 
    ```powershell
-   git clone https://github.com/gellorg/intunecommander-src
+   git clone https://github.com/adamgell/IntuneCommander
    git clone https://github.com/adamgell/cmtraceopen
-   cd intunecommander-src
+   cd IntuneCommander
    ```
 
 2. **Build the .NET sidecar.**
@@ -41,7 +41,7 @@ On a clean checkout, both the sidecar and the client compile without changes. Th
 
 :::note[Why two clones?]
 `app/` references the CMTrace Open parser through a local path that expects `cmtraceopen` to sit
-beside `intunecommander-src`. Keep them as siblings and the workspace build resolves it automatically.
+beside `IntuneCommander`. Keep them as siblings and the workspace build resolves it automatically.
 :::
 
 Next: [First run](/get-started/first-run/) →
