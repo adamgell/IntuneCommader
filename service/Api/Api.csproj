@@ -1,0 +1,67 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>CmProjectX.Api</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Store\Store.csproj" />
+    <ProjectReference Include="..\Sync\Sync.csproj" />
+    <ProjectReference Include="..\Core\Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="ModelContextProtocol.AspNetCore" Version="1.4.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Syncfusion license registration at startup (Program.cs) for the CA->PPTX export in Core.
+         Explicit ref (matches Core's Syncfusion.Presentation.Net.Core 32.2.5) so
+         SyncfusionLicenseProvider is available here without relying on transitive compile-asset flow. -->
+    <PackageReference Include="Syncfusion.Licensing" Version="32.2.5" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Ship-debt telemetry: OpenTelemetry tracing + metrics. Exporters are wired in
+         Program.cs ONLY when an OTLP endpoint or the console flag is configured, so
+         these are inert (no collector required) unless telemetry is turned on. -->
+    <PackageReference Include="OpenTelemetry.Extensions.Hosting" Version="1.16.0" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.16.0" />
+    <PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.16.0" />
+    <PackageReference Include="OpenTelemetry.Exporter.Console" Version="1.16.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Let the unit-test assembly reach internal seams across the Part II milestones
+         (AutonomyPolicyStore.Normalize, PostureEndpoints helpers, GoldenResolver,
+         EcosystemCatalog, the pending-change RootOverride hook, …). -->
+    <InternalsVisibleTo Include="Api.Tests.Unit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- M21 Ecosystem seed tree: a sample policy pack (M15 export tree + manifest) and
+         sample playbook, copied beside the sidecar so EcosystemCatalog.EnsureSeeded()
+         populates %LocalAppData%\cmProjectX on first run (GET /packs|/playbooks
+         non-empty out of the box). The Web SDK already includes these .json files as
+         Content; Update (not Include) just sets them to copy to the build output. -->
+    <Content Update="Resources\ecosystem\**\*">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- M22 cross-MDM fixture: a recorded Jamf Pro computers-inventory payload the stub
+         provider projects into the ListItemDto contract. Embed it (the Web SDK otherwise
+         auto-includes .json as Content, so Remove first to avoid a duplicate item). -->
+    <Content Remove="Providers\fixtures\jamf-computers-inventory.json" />
+    <EmbeddedResource Include="Providers\fixtures\jamf-computers-inventory.json" />
+    <!-- M18 advisory catalog: curated advisories matched against posture gaps. -->
+    <Content Remove="Autonomy\advisories.json" />
+    <EmbeddedResource Include="Autonomy\advisories.json" />
+  </ItemGroup>
+
+</Project>

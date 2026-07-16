@@ -1,0 +1,8 @@
+{
+  "id": "p1",
+  "name": "Contoso GCC-High",
+  "tenantId": "22222222-2222-2222-2222-222222222222",
+  "cloud": "GCCHigh",
+  "authMethod": "ClientSecret",
+  "isActive": true
+}

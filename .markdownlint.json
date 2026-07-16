@@ -1,7 +1,0 @@
-{
-  "default": true,
-  "MD029": { "style": "ordered" },
-  "MD041": false,
-  "MD046": { "style": "fenced" },
-  "MD060": { "style": "compact_with_spaces" }
-}

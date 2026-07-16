@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "tenantId": null,
+  "tenantDomain": "sample.pack.cmprojectx",
+  "pulledUtc": "2026-01-01T00:00:00.0000000Z",
+  "pulledBy": "cmprojectx-samples",
+  "cmpxVersion": "0.15.0",
+  "surfaces": {
+    "CompliancePolicies": 1
+  },
+  "objectCount": 1,
+  "contentHash": "sha256:4a5ead7415398669f90a3d047bf2ced4f91b6eecdfae7f85ffd48b8a74ba3932"
+}

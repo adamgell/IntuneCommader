@@ -1,0 +1,4226 @@
+openapi: 3.1.0
+info:
+  title: cmProjectX Service API
+  version: 0.1.0
+  description: >
+    Contract between the Rust/WinUI 3 client and the .NET Intune engine.
+    This is the single source of truth for DTOs and endpoints — generate
+    C# and Rust types from it (see contract/README.md).
+
+servers:
+  - url: http://127.0.0.1:5099
+    description: Local sidecar (MVP)
+
+paths:
+  /health:
+    get:
+      operationId: getHealth
+      summary: Liveness probe
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SyncStatus" }
+
+  /profiles:
+    get:
+      operationId: listProfiles
+      summary: List saved tenant profiles (Entra app registrations)
+      responses:
+        "200":
+          description: Saved profiles
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/TenantProfileSummary" }
+    post:
+      operationId: createProfile
+      summary: Create a saved tenant profile (name, tenantId, clientId required)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateProfile" }
+      responses:
+        "200":
+          description: Created; returns the new profile id
+          content:
+            application/json:
+              schema:
+                type: object
+                properties: { id: { type: string } }
+                required: [id]
+        "400": { description: "name, tenantId and clientId are required, or a profile-validation error" }
+
+  /profiles/{id}:
+    patch:
+      operationId: updateProfile
+      summary: Edit a saved profile; null/blank fields keep their value, empty-string secret clears it
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateProfile" }
+      responses:
+        "204": { description: Updated }
+        "404": { description: No such profile }
+    delete:
+      operationId: deleteProfile
+      summary: Remove a saved profile
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "204": { description: Deleted }
+        "404": { description: No such profile }
+
+  /profiles/{id}/activate:
+    post:
+      operationId: activateProfile
+      summary: Make a saved profile the active tenant
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "204": { description: Activated }
+        "404": { description: No such profile }
+
+  /auth/signin:
+    post:
+      operationId: signIn
+      summary: >
+        Begin sign-in for the active profile (background). The flow is decided by the
+        profile's authMethod; poll /health for authState — a device-code prompt surfaces
+        in deviceCode (AwaitingDeviceCode) and interactive browser sign-in shows as
+        AwaitingInteractive.
+      responses:
+        "202": { description: Sign-in started; poll /health for authState + deviceCode }
+        "409": { description: No active profile }
+
+  /auth/signout:
+    post:
+      operationId: signOut
+      summary: Clear the current session
+      responses:
+        "204": { description: Signed out }
+
+  /sync:
+    post:
+      operationId: triggerSync
+      summary: Trigger a Graph delta sync for the active tenant
+      responses:
+        "202": { description: Accepted; sync started }
+        "409": { description: Not signed in }
+
+  /audit:
+    get:
+      operationId: getAuditTimeline
+      summary: Query the audit-event timeline (the time-machine)
+      parameters:
+        - { name: from, in: query, schema: { type: string, format: date-time } }
+        - { name: to,   in: query, schema: { type: string, format: date-time } }
+        - { name: q,    in: query, schema: { type: string } }
+      responses:
+        "200":
+          description: Matching audit events, newest first
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/AuditEvent" }
+
+  /drift:
+    get:
+      operationId: getDrift
+      summary: Drift between two config snapshots of an object
+      parameters:
+        - { name: objectId, in: query, required: true, schema: { type: string } }
+        - { name: baseSnapshotId, in: query, schema: { type: string } }
+        - { name: headSnapshotId, in: query, schema: { type: string } }
+      responses:
+        "200":
+          description: Drift record
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DriftRecord" }
+
+  /objects:
+    get:
+      operationId: listDriftObjects
+      summary: Objects with config-snapshot history, for the drift picker
+      description: >
+        Objects with detected drift (their two latest snapshots differ) sort to
+        the top, most-changed first, then by most-recently captured.
+      responses:
+        "200":
+          description: Objects with snapshot history
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/DriftObject" }
+
+  /preview-diff:
+    post:
+      operationId: previewDiff
+      summary: Field-level diff of a pending edit (before vs after), for the save confirm gate
+      description: >
+        Computes the change set a write would apply, using the same engine the
+        drift timeline uses. `before` is "{}" for a brand-new object. No auth.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                before: { type: string, description: Current object JSON }
+                after: { type: string, description: Edited object JSON }
+      responses:
+        "200":
+          description: The change set this edit would apply
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/DriftChange" }
+
+  /snapshots:
+    get:
+      operationId: listSnapshots
+      summary: An object's snapshot history (newest first), for the restore/undo picker
+      parameters:
+        - in: query
+          name: objectId
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Snapshot history with full bodies
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/SnapshotSummary" }
+    post:
+      operationId: captureSnapshot
+      summary: Capture the body just written (snapshot-on-write); dedups on content hash
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [objectType, objectId, bodyJson]
+              properties:
+                objectType: { type: string }
+                objectId: { type: string }
+                objectName: { type: string, nullable: true }
+                bodyJson: { type: string }
+      responses:
+        "200":
+          description: Whether a new snapshot was stored
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  captured: { type: boolean }
+                  snapshotId: { type: string, nullable: true }
+
+  # ─── M15 Policy-as-Code / GitOps ──────────────────────────────────────────
+  # pull → plan → (gate) → apply over the existing Export / Import / Drift engines.
+  # The repo tree is a normalized on-disk mirror of tenant config; plan is a
+  # read-only Terraform-style change set; apply is the M6 safe-write rail lifted
+  # to tree scope (confirm + planId pin + per-object conflict check). Conditional
+  # Access is pull/plan only — never written (locked guarantee).
+  /gitops/pull:
+    post:
+      operationId: gitopsPull
+      summary: Export the live tenant to a normalized on-disk repo tree (+ manifest)
+      description: >
+        Lists the selected surfaces via the Core engines, writes one JSON file per
+        object under per-surface folders (ExportService), normalizes the tree
+        (ExportNormalizer) so diffs are deterministic, and writes
+        migration-table.json + manifest.json. 409 when signed out.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/GitOpsPullRequest" }
+      responses:
+        "200":
+          description: The pull manifest (provenance + per-surface counts)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/GitOpsManifest" }
+        "400": { description: Missing or invalid outputPath }
+        "409": { description: Not signed in }
+
+  /gitops/plan:
+    post:
+      operationId: gitopsPlan
+      summary: Diff a repo tree against the live tenant (read-only change set)
+      description: >
+        Re-pulls the live tenant through the same normalize pipeline and diffs it
+        against the committed repo files with JsonDrift. Objects in the repo but not
+        the tenant are Added; in the tenant but not the repo are Removed; in both,
+        field-level Modified. The returned planId pins the live state the plan was
+        computed against, so apply can reject on drift. No writes. 409 when signed out.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/GitOpsPlanRequest" }
+      responses:
+        "200":
+          description: The change set the repo would apply to the tenant
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/GitOpsPlan" }
+        "400": { description: Missing repoPath or no manifest.json }
+        "409": { description: Not signed in }
+
+  /gitops/apply:
+    post:
+      operationId: gitopsApply
+      summary: Apply a reviewed plan to the tenant (gated; per-object conflict-safe)
+      description: >
+        Requires confirm:true and the planId returned by plan. Re-checks each
+        object's live state against the plan (hash mismatch → that object is reported
+        conflict and nothing is written for it). Added → create, Modified → update,
+        through the Core engines + ImportService, each snapshot-on-write. Removed
+        objects are skipped unless confirmDestroy:true. Conditional Access is never
+        written (locked guarantee).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/GitOpsApplyRequest" }
+      responses:
+        "200":
+          description: Per-object outcomes (applied / skipped / conflict)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/GitOpsApplyResult" }
+        "400": { description: confirm not set, or missing repoPath/planId }
+        "404": { description: Unknown or expired planId }
+        "409": { description: Not signed in }
+
+  /gitops/status:
+    get:
+      operationId: gitopsStatus
+      summary: Is the tenant in sync with the repo tree? (manifest vs live summary)
+      parameters:
+        - in: query
+          name: repoPath
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Drift summary between the repo tree and the live tenant
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/GitOpsStatus" }
+        "400": { description: Missing repoPath or no manifest.json }
+        "409": { description: Not signed in }
+
+  /export:
+    get:
+      operationId: exportBackup
+      summary: Back up the tenant to a downloadable .zip (M8; live Graph, 409 when signed out)
+      description: >
+        Exports every supported surface (one folder per type + a migration table).
+        Optional `types` narrows it to a comma-separated set of folder keys
+        (e.g. DeviceConfigurations,CompliancePolicies,SettingsCatalog).
+      parameters:
+        - in: query
+          name: types
+          required: false
+          schema: { type: string }
+      responses:
+        "200":
+          description: A backup .zip bundle
+          content:
+            application/zip:
+              schema: { type: string, format: binary }
+        "409": { description: Not signed in }
+
+  /import:
+    post:
+      operationId: importBundle
+      summary: Dry-run preview (default) or LIVE restore (dryRun=false) of a backup .zip (M8)
+      description: >
+        dryRun=true (default) lists what the bundle contains without writing.
+        dryRun=false restores every object in the bundle into the signed-in tenant
+        as fresh copies (ids cleared) via the Core ImportService — a live write.
+      parameters:
+        - in: query
+          name: dryRun
+          required: false
+          schema: { type: boolean, default: true }
+      requestBody:
+        required: true
+        content:
+          application/zip:
+            schema: { type: string, format: binary }
+      responses:
+        "200":
+          description: Dry-run preview (dryRun!=false) or restore result (dryRun=false)
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: object
+                    properties:
+                      total: { type: integer, format: int32 }
+                      groups:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            type: { type: string }
+                            count: { type: integer, format: int32 }
+                            names: { type: array, items: { type: string } }
+                  - $ref: "#/components/schemas/ImportRestoreResult"
+        "409": { description: Not signed in }
+
+  /baselines:
+    get:
+      operationId: listBaselines
+      summary: Embedded OIB/CIS security baselines (M8; sync, no Graph)
+      responses:
+        "200":
+          description: Baseline catalog as list rows
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/ListItem" }
+  /baselines/compare:
+    post:
+      operationId: compareBaseline
+      summary: Compare a SettingsCatalog baseline (by FileName) against a tenant policy's live settings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BaselineCompareRequest" }
+      responses:
+        "200":
+          description: Settings grouped by verdict (matching / missing / drifted / extra)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BaselineComparison" }
+        "400": { description: baselineId and policyId required, or tenant settings unreadable }
+        "404": { description: Unknown SettingsCatalog baseline }
+        "409": { description: Not signed in }
+  /policies/compare:
+    post:
+      operationId: comparePolicies
+      summary: Compare two live SettingsCatalog policies (A vs B), setting-by-setting
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PolicyCompareRequest" }
+      responses:
+        "200":
+          description: Settings grouped by verdict (matching/same · missing/only-A · drifted/different · extra/only-B)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BaselineComparison" }
+        "400": { description: aId and bId required, or policy settings unreadable }
+        "409": { description: Not signed in }
+
+  # ── M12.1 cache-dev (Cache Sync): inspect / warm / evict the LiteDB read-through
+  #    blob cache for the active tenant. All ops 409 when signed out. ──
+  /cache:
+    get:
+      operationId: cacheStatus
+      summary: Per-key blob-cache status for the active tenant (M12.1; 409 when signed out)
+      responses:
+        "200":
+          description: One status row per cacheable LIST surface
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/CacheEntryStatus" }
+        "409": { description: Not signed in }
+  /cache/summary:
+    get:
+      operationId: cacheSummary
+      summary: Cache header summary — availability, last warm, live-key counts (M12.1)
+      responses:
+        "200":
+          description: Cache summary for the active tenant
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CacheSummary" }
+        "409": { description: Not signed in }
+  /cache/warm:
+    post:
+      operationId: cacheWarm
+      summary: Warm the blob cache (fire-and-forget PrefetchAllToCacheAsync; M12.1)
+      parameters:
+        - in: query
+          name: force
+          required: false
+          schema: { type: boolean, default: false }
+      responses:
+        "202": { description: Warm started }
+        "409": { description: Not signed in }
+  /cache/evict:
+    post:
+      operationId: cacheEvict
+      summary: Evict a cache key (or all keys for the tenant when omitted; M12.1)
+      parameters:
+        - in: query
+          name: key
+          required: false
+          schema: { type: string }
+      responses:
+        "204": { description: Evicted }
+        "409": { description: Not signed in }
+
+  /apps:
+    get:
+      operationId: listApps
+      summary: Intune applications (live Graph; 409 when signed out)
+      responses:
+        "200":
+          description: Applications for the active tenant
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/AppListItem" }
+        "409": { description: Not signed in }
+
+  # ── Devices (M2): live Graph list endpoints, all returning ListItem[] ──
+  /device-configs:
+    get:
+      operationId: listDeviceConfigs
+      summary: Device configurations (live Graph; 409 when signed out)
+      responses: { "200": { $ref: "#/components/responses/ListItemArray" }, "409": { description: Not signed in } }
+    post:
+      operationId: createDeviceConfig
+      summary: Create a device configuration
+      requestBody: { $ref: "#/components/requestBodies/ObjectJson" }
+      responses: { "200": { $ref: "#/components/responses/Created" }, "409": { description: Not signed in } }
+  /compliance-policies:
+    get:
+      operationId: listCompliancePolicies
+      summary: Device compliance policies
+      responses: { "200": { $ref: "#/components/responses/ListItemArray" }, "409": { description: Not signed in } }
+    post:
+      operationId: createCompliancePolicy
+      summary: Create a compliance policy
+      requestBody: { $ref: "#/components/requestBodies/ObjectJson" }
+      responses: { "200": { $ref: "#/components/responses/Created" }, "409": { description: Not signed in } }
+  /settings-catalog:
+    get:
+      operationId: listSettingsCatalog
+      summary: Settings Catalog policies
+      responses: { "200": { $ref: "#/components/responses/ListItemArray" }, "409": { description: Not signed in } }
+    post:
+      operationId: createSettingsCatalog
+      summary: Create a Settings Catalog policy
+      requestBody: { $ref: "#/components/requestBodies/ObjectJson" }
+      responses: { "200": { $ref: "#/components/responses/Created" }, "409": { description: Not signed in } }
+  /admin-templates:
+    get:
+      operationId: listAdminTemplates
+      summary: Administrative templates (group policy configurations)
+      responses: { "200": { $ref: "#/components/responses/ListItemArray" }, "409": { description: Not signed in } }
+    post:
+      operationId: createAdminTemplate
+      summary: Create an administrative template
+      requestBody: { $ref: "#/components/requestBodies/ObjectJson" }
+      responses: { "200": { $ref: "#/components/responses/Created" }, "409": { description: Not signed in } }
+  /endpoint-security:
+    get:
+      operationId: listEndpointSecurity
+      summary: Endpoint security intents
+      responses: { "200": { $ref: "#/components/responses/ListItemArray" }, "409": { description: Not signed in } }
+    post:
+      operationId: createEndpointSecurity
+      summary: Create an endpoint security intent
+      requestBody: { $ref: "#/components/requestBodies/ObjectJson" }
+      responses: { "200": { $ref: "#/components/responses/Created" }, "409": { description: Not signed in } }
+  /device-categories:
+    get:
+      operationId: listDeviceCategories
+      summary: Device categories
+      responses: { "200": { $ref: "#/components/responses/ListItemArray" }, "409": { description: Not signed in } }
+    post:
+      operationId: createDeviceCategory
+      summary: Create a device category
+      requestBody: { $ref: "#/components/requestBodies/ObjectJson" }
+      responses: { "200": { $ref: "#/components/responses/Created" }, "409": { description: Not signed in } }
+  /remediation-scripts:
+    get:
+      operationId: listRemediationScripts
+      summary: Device health (remediation) scripts
+      responses: { "200": { $ref: "#/components/responses/ListItemArray" }, "409": { description: Not signed in } }
+    post:
+      operationId: createRemediationScript
+      summary: Create a remediation script
+      requestBody: { $ref: "#/components/requestBodies/ObjectJson" }
+      responses: { "200": { $ref: "#/components/responses/Created" }, "409": { description: Not signed in } }
+  /compliance-scripts:
+    get:
+      operationId: listComplianceScripts
+      summary: Device compliance scripts
+      responses: { "200": { $ref: "#/components/responses/ListItemArray" }, "409": { description: Not signed in } }
+    post:
+      operationId: createComplianceScript
+      summary: Create a compliance script
+      requestBody: { $ref: "#/components/requestBodies/ObjectJson" }
+      responses: { "200": { $ref: "#/components/responses/Created" }, "409": { description: Not signed in } }
+  /feature-updates:
+    get:
+      operationId: listFeatureUpdates
+      summary: Windows feature update profiles
+      responses: { "200": { $ref: "#/components/responses/ListItemArray" }, "409": { description: Not signed in } }
+    post:
+      operationId: createFeatureUpdate
+      summary: Create a feature update profile
+      requestBody: { $ref: "#/components/requestBodies/ObjectJson" }
+      responses: { "200": { $ref: "#/components/responses/Created" }, "409": { description: Not signed in } }
+  /quality-updates:
+    get:
+      operationId: listQualityUpdates
+      summary: Windows quality update profiles
+      responses: { "200": { $ref: "#/components/responses/ListItemArray" }, "409": { description: Not signed in } }
+    post:
+      operationId: createQualityUpdate
+      summary: Create a quality update profile
+      requestBody: { $ref: "#/components/requestBodies/ObjectJson" }
+      responses: { "200": { $ref: "#/components/responses/Created" }, "409": { description: Not signed in } }
+  /driver-updates:
+    get:
+      operationId: listDriverUpdates
+      summary: Windows driver update profiles
+      responses: { "200": { $ref: "#/components/responses/ListItemArray" }, "409": { description: Not signed in } }
+    post:
+      operationId: createDriverUpdate
+      summary: Create a driver update profile
+      requestBody: { $ref: "#/components/requestBodies/ObjectJson" }
+      responses: { "200": { $ref: "#/components/responses/Created" }, "409": { description: Not signed in } }
+  /platform-scripts:
+    get:
+      operationId: listPlatformScripts
+      summary: Device management (platform) scripts
+      responses: { "200": { $ref: "#/components/responses/ListItemArray" }, "409": { description: Not signed in } }
+    post:
+      operationId: createPlatformScript
+      summary: Create a platform script
+      requestBody: { $ref: "#/components/requestBodies/ObjectJson" }
+      responses: { "200": { $ref: "#/components/responses/Created" }, "409": { description: Not signed in } }
+  /shell-scripts:
+    get:
+      operationId: listShellScripts
+      summary: macOS shell scripts
+      responses: { "200": { $ref: "#/components/responses/ListItemArray" }, "409": { description: Not signed in } }
+    post:
+      operationId: createShellScript
+      summary: Create a shell script
+      requestBody: { $ref: "#/components/requestBodies/ObjectJson" }
+      responses: { "200": { $ref: "#/components/responses/Created" }, "409": { description: Not signed in } }
+  /mac-custom-attributes:
+    get:
+      operationId: listMacCustomAttributes
+      summary: macOS custom attribute shell scripts
+      responses: { "200": { $ref: "#/components/responses/ListItemArray" }, "409": { description: Not signed in } }
+    post:
+      operationId: createMacCustomAttribute
+      summary: Create a macOS custom attribute shell script
+      requestBody: { $ref: "#/components/requestBodies/ObjectJson" }
+      responses: { "200": { $ref: "#/components/responses/Created" }, "409": { description: Not signed in } }
+  /managed-devices:
+    get:
+      operationId: listManagedDevices
+      summary: Managed devices (list)
+      responses: { "200": { $ref: "#/components/responses/ListItemArray" }, "409": { description: Not signed in } }
+
+  # ── M14 device ops: detail + action verbs (Pattern F). Devices aren't authored
+  # (no config CRUD); they're acted on. Actions POST to Graph's managedDevice action
+  # verbs, gated server-side (allowlist + destructive opt-in + typed-confirm) and audited.
+  /managed-devices/{id}:
+    get:
+      operationId: getManagedDevice
+      summary: Managed device detail (inventory object JSON)
+      parameters: [ { name: id, in: path, required: true, schema: { type: string } } ]
+      responses: { "200": { $ref: "#/components/responses/ObjectJson" }, "404": { description: Not found }, "409": { description: Not signed in } }
+  /managed-devices/{id}/actions:
+    get:
+      operationId: getDeviceActionHistory
+      summary: A device's action history (Graph deviceActionResults; live — bypasses the blob cache)
+      parameters: [ { name: id, in: path, required: true, schema: { type: string } } ]
+      responses:
+        "200":
+          description: Action-history rows (newest state per Graph)
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/DeviceActionRecord" } }
+        "409": { description: Not signed in }
+  /managed-devices/actions:
+    get:
+      operationId: listDeviceActions
+      summary: The device-action catalog (which verbs are available + which are destructive)
+      responses:
+        "200":
+          description: Available device actions
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/DeviceActionInfo" } }
+  /managed-devices/{id}/actions/{action}:
+    post:
+      operationId: runDeviceAction
+      summary: Run an action verb against one device (gated; destructive needs typed-confirm)
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+        - { name: action, in: path, required: true, schema: { type: string }, description: "managedDevice action verb, e.g. syncDevice, rebootNow, wipe, retire" }
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DeviceActionRequest" }
+      responses:
+        "204": { description: Action accepted by Graph }
+        "400": { description: Unknown action, or destructive confirm token missing/mismatched }
+        "403": { description: Action disabled by policy (kill-switch or destructive opt-in off) }
+        "404": { description: Device not found }
+        "409": { description: Not signed in }
+  /managed-devices/actions/{action}:
+    post:
+      operationId: runBulkDeviceAction
+      summary: Run an action verb against many devices (capped; destructive opt-in + confirm token)
+      parameters:
+        - { name: action, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BulkDeviceActionRequest" }
+      responses:
+        "200":
+          description: Per-device outcomes
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/BulkDeviceActionResult" } }
+        "400": { description: Unknown action, selection over cap, or confirm token missing/mismatched }
+        "403": { description: Action disabled by policy }
+        "409": { description: Not signed in }
+
+  # ── Devices CRUD: detail + write for the writable device surfaces. ──
+  # List paths for these are defined above; here are GET /{id}, POST, PATCH, DELETE.
+  /device-configs/{id}:
+    get:
+      operationId: getDeviceConfig
+      summary: Device configuration object JSON
+      parameters: [ { name: id, in: path, required: true, schema: { type: string } } ]
+      responses: { "200": { $ref: "#/components/responses/ObjectJson" }, "404": { description: Not found }, "409": { description: Not signed in } }
+    patch:
+      operationId: updateDeviceConfig
+      summary: Update a device configuration
+      parameters: [ { name: id, in: path, required: true, schema: { type: string } } ]
+      requestBody: { $ref: "#/components/requestBodies/ObjectJson" }
+      responses: { "204": { description: Updated }, "409": { description: Not signed in } }
+    delete:
+      operationId: deleteDeviceConfig
+      summary: Delete a device configuration
+      parameters: [ { name: id, in: path, required: true, schema: { type: string } } ]
+      responses: { "204": { description: Deleted }, "409": { description: Not signed in } }
+
+  /compliance-policies/{id}:
+    get:
+      operationId: getCompliancePolicy
+      summary: Compliance policy object JSON
+      parameters: [ { name: id, in: path, required: true, schema: { type: string } } ]
+      responses: { "200": { $ref: "#/components/responses/ObjectJson" }, "404": { description: Not found }, "409": { description: Not signed in } }
+    patch:
+      operationId: updateCompliancePolicy
+      summary: Update a compliance policy
+      parameters: [ { name: id, in: path, required: true, schema: { type: string } } ]
+      requestBody: { $ref: "#/components/requestBodies/ObjectJson" }
+      responses: { "204": { description: Updated }, "409": { description: Not signed in } }
+    delete:
+      operationId: deleteCompliancePolicy
+      summary: Delete a compliance policy
+      parameters: [ { name: id, in: path, required: true, schema: { type: string } } ]
+      responses: { "204": { description: Deleted }, "409": { description: Not signed in } }
+
+  /settings-catalog/{id}:
+    get:
+      operationId: getSettingsCatalog
+      summary: Settings Catalog policy object JSON
+      parameters: [ { name: id, in: path, required: true, schema: { type: string } } ]
+      responses: { "200": { $ref: "#/components/responses/ObjectJson" }, "404": { description: Not found }, "409": { description: Not signed in } }
+    patch:
+      operationId: updateSettingsCatalog
+      summary: Update a Settings Catalog policy (metadata)
+      parameters: [ { name: id, in: path, required: true, schema: { type: string } } ]
+      requestBody: { $ref: "#/components/requestBodies/ObjectJson" }
+      responses: { "204": { description: Updated }, "409": { description: Not signed in } }
+    delete:
+      operationId: deleteSettingsCatalog
+      summary: Delete a Settings Catalog policy
+      parameters: [ { name: id, in: path, required: true, schema: { type: string } } ]
+      responses: { "204": { description: Deleted }, "409": { description: Not signed in } }
+
+  /settings-catalog/{id}/settings:
+    get:
+      operationId: getSettingsCatalogSettings
+      summary: The deep settingInstance tree for a Settings Catalog policy (fetched apart from metadata)
+      parameters: [ { name: id, in: path, required: true, schema: { type: string } } ]
+      responses:
+        "200":
+          description: The policy's settings as a JSON array
+          content:
+            application/json:
+              schema: { type: array, items: { type: object } }
+        "409": { description: Not signed in }
+
+  /admin-templates/{id}:
+    get:
+      operationId: getAdminTemplate
+      summary: Administrative template object JSON
+      parameters: [ { name: id, in: path, required: true, schema: { type: string } } ]
+      responses: { "200": { $ref: "#/components/responses/ObjectJson" }, "404": { description: Not found }, "409": { description: Not signed in } }
+    patch:
+      operationId: updateAdminTemplate
+      summary: Update an administrative template
+      parameters: [ { name: id, in: path, required: true, schema: { type: string } } ]
+      requestBody: { $ref: "#/components/requestBodies/ObjectJson" }
+      responses: { "204": { description: Updated }, "409": { description: Not signed in } }
+    delete:
+      operationId: deleteAdminTemplate
+      summary: Delete an administrative template
+      parameters: [ { name: id, in: path, required: true, schema: { type: string } } ]
+      responses: { "204": { description: Deleted }, "409": { description: Not signed in } }
+
+  /endpoint-security/{id}:
+    get:
+      operationId: getEndpointSecurity
+      summary: Endpoint security intent object JSON
+      parameters: [ { name: id, in: path, required: true, schema: { type: string } } ]
+      responses: { "200": { $ref: "#/components/responses/ObjectJson" }, "404": { description: Not found }, "409": { description: Not signed in } }
+    patch:
+      operationId: updateEndpointSecurity
+      summary: Update an endpoint security intent
+      parameters: [ { name: id, in: path, required: true, schema: { type: string } } ]
+      requestBody: { $ref: "#/components/requestBodies/ObjectJson" }
+      responses: { "204": { description: Updated }, "409": { description: Not signed in } }
+    delete:
+      operationId: deleteEndpointSecurity
+      summary: Delete an endpoint security intent
+      parameters: [ { name: id, in: path, required: true, schema: { type: string } } ]
+      responses: { "204": { description: Deleted }, "409": { description: Not signed in } }
+
+  /remediation-scripts/{id}:
+    get:
+      operationId: getRemediationScript
+      summary: Remediation (device health) script object JSON
+      parameters: [ { name: id, in: path, required: true, schema: { type: string } } ]
+      responses: { "200": { $ref: "#/components/responses/ObjectJson" }, "404": { description: Not found }, "409": { description: Not signed in } }
+    patch:
+      operationId: updateRemediationScript
+      summary: Update a remediation script
+      parameters: [ { name: id, in: path, required: true, schema: { type: string } } ]
+      requestBody: { $ref: "#/components/requestBodies/ObjectJson" }
+      responses: { "204": { description: Updated }, "409": { description: Not signed in } }
+    delete:
+      operationId: deleteRemediationScript
+      summary: Delete a remediation script
+      parameters: [ { name: id, in: path, required: true, schema: { type: string } } ]
+      responses: { "204": { description: Deleted }, "409": { description: Not signed in } }
+  /remediation-scripts/{id}/run-summary:
+    get:
+      operationId: remediationRunSummary
+      summary: Proactive-remediation run counts as metric tiles
+      parameters: [ { name: id, in: path, required: true, schema: { type: string } } ]
+      responses:
+        "200":
+          description: Run-summary tiles
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/ListItem" } }
+        "409": { description: Not signed in }
+  /remediation-scripts/{id}/device-states:
+    get:
+      operationId: remediationDeviceStates
+      summary: Per-device detection/remediation state (volatile; bypasses the cache)
+      parameters: [ { name: id, in: path, required: true, schema: { type: string } } ]
+      responses:
+        "200":
+          description: Per-device run states
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/DeviceRunState" } }
+        "409": { description: Not signed in }
+  /remediation-scripts/{id}/scripts:
+    get:
+      operationId: remediationScriptContent
+      summary: Decoded detection + remediation script text (for the code viewer)
+      parameters: [ { name: id, in: path, required: true, schema: { type: string } } ]
+      responses:
+        "200":
+          description: The script's decoded detection/remediation PowerShell (either may be null)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RemediationScriptContent" }
+        "404": { description: Unknown remediation script }
+        "409": { description: Not signed in }
+  /remediation-scripts/{id}/run/{deviceId}:
+    post:
+      operationId: runRemediationOnDevice
+      summary: On-demand remediation on one device (gated — DESTRUCTIVE opt-in + confirm)
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+        - { name: deviceId, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, properties: { confirm: { type: boolean } }, required: [confirm] }
+      responses:
+        "204": { description: On-demand remediation initiated }
+        "400": { description: confirm required }
+        "403": { description: Device actions disabled, or destructive not enabled }
+        "409": { description: Not signed in }
+
+  /compliance-scripts/{id}:
+    get:
+      operationId: getComplianceScript
+      summary: Compliance script object JSON
+      parameters: [ { name: id, in: path, required: true, schema: { type: string } } ]
+      responses: { "200": { $ref: "#/components/responses/ObjectJson" }, "404": { description: Not found }, "409": { description: Not signed in } }
+    patch:
+      operationId: updateComplianceScript
+      summary: Update a compliance script
+      parameters: [ { name: id, in: path, required: true, schema: { type: string } } ]
+      requestBody: { $ref: "#/components/requestBodies/ObjectJson" }
+      responses: { "204": { description: Updated }, "409": { description: Not signed in } }
+    delete:
+      operationId: deleteComplianceScript
+      summary: Delete a compliance script
+      parameters: [ { name: id, in: path, required: true, schema: { type: string } } ]
+      responses: { "204": { description: Deleted }, "409": { description: Not signed in } }
+
+  /platform-scripts/{id}:
+    get:
+      operationId: getPlatformScript
+      summary: Platform (device management) script object JSON
+      parameters: [ { name: id, in: path, required: true, schema: { type: string } } ]
+      responses: { "200": { $ref: "#/components/responses/ObjectJson" }, "404": { description: Not found }, "409": { description: Not signed in } }
+    patch:
+      operationId: updatePlatformScript
+      summary: Update a platform script
+      parameters: [ { name: id, in: path, required: true, schema: { type: string } } ]
+      requestBody: { $ref: "#/components/requestBodies/ObjectJson" }
+      responses: { "204": { description: Updated }, "409": { description: Not signed in } }
+    delete:
+      operationId: deletePlatformScript
+      summary: Delete a platform script
+      parameters: [ { name: id, in: path, required: true, schema: { type: string } } ]
+      responses: { "204": { description: Deleted }, "409": { description: Not signed in } }
+
+  /shell-scripts/{id}:
+    get:
+      operationId: getShellScript
+      summary: macOS shell script object JSON
+      parameters: [ { name: id, in: path, required: true, schema: { type: string } } ]
+      responses: { "200": { $ref: "#/components/responses/ObjectJson" }, "404": { description: Not found }, "409": { description: Not signed in } }
+    patch:
+      operationId: updateShellScript
+      summary: Update a shell script
+      parameters: [ { name: id, in: path, required: true, schema: { type: string } } ]
+      requestBody: { $ref: "#/components/requestBodies/ObjectJson" }
+      responses: { "204": { description: Updated }, "409": { description: Not signed in } }
+    delete:
+      operationId: deleteShellScript
+      summary: Delete a shell script
+      parameters: [ { name: id, in: path, required: true, schema: { type: string } } ]
+      responses: { "204": { description: Deleted }, "409": { description: Not signed in } }
+
+  /mac-custom-attributes/{id}:
+    get:
+      operationId: getMacCustomAttribute
+      summary: macOS custom attribute shell script object JSON
+      parameters: [ { name: id, in: path, required: true, schema: { type: string } } ]
+      responses: { "200": { $ref: "#/components/responses/ObjectJson" }, "404": { description: Not found }, "409": { description: Not signed in } }
+    patch:
+      operationId: updateMacCustomAttribute
+      summary: Update a macOS custom attribute shell script
+      parameters: [ { name: id, in: path, required: true, schema: { type: string } } ]
+      requestBody: { $ref: "#/components/requestBodies/ObjectJson" }
+      responses: { "204": { description: Updated }, "409": { description: Not signed in } }
+    delete:
+      operationId: deleteMacCustomAttribute
+      summary: Delete a macOS custom attribute shell script
+      parameters: [ { name: id, in: path, required: true, schema: { type: string } } ]
+      responses: { "204": { description: Deleted }, "409": { description: Not signed in } }
+
+  /device-categories/{id}:
+    get:
+      operationId: getDeviceCategory
+      summary: Device category object JSON
+      parameters: [ { name: id, in: path, required: true, schema: { type: string } } ]
+      responses: { "200": { $ref: "#/components/responses/ObjectJson" }, "404": { description: Not found }, "409": { description: Not signed in } }
+    patch:
+      operationId: updateDeviceCategory
+      summary: Update a device category
+      parameters: [ { name: id, in: path, required: true, schema: { type: string } } ]
+      requestBody: { $ref: "#/components/requestBodies/ObjectJson" }
+      responses: { "204": { description: Updated }, "409": { description: Not signed in } }
+    delete:
+      operationId: deleteDeviceCategory
+      summary: Delete a device category
+      parameters: [ { name: id, in: path, required: true, schema: { type: string } } ]
+      responses: { "204": { description: Deleted }, "409": { description: Not signed in } }
+
+  /feature-updates/{id}:
+    get:
+      operationId: getFeatureUpdate
+      summary: Windows feature update profile object JSON
+      parameters: [ { name: id, in: path, required: true, schema: { type: string } } ]
+      responses: { "200": { $ref: "#/components/responses/ObjectJson" }, "404": { description: Not found }, "409": { description: Not signed in } }
+    patch:
+      operationId: updateFeatureUpdate
+      summary: Update a feature update profile
+      parameters: [ { name: id, in: path, required: true, schema: { type: string } } ]
+      requestBody: { $ref: "#/components/requestBodies/ObjectJson" }
+      responses: { "204": { description: Updated }, "409": { description: Not signed in } }
+    delete:
+      operationId: deleteFeatureUpdate
+      summary: Delete a feature update profile
+      parameters: [ { name: id, in: path, required: true, schema: { type: string } } ]
+      responses: { "204": { description: Deleted }, "409": { description: Not signed in } }
+
+  /quality-updates/{id}:
+    get:
+      operationId: getQualityUpdate
+      summary: Windows quality update profile object JSON
+      parameters: [ { name: id, in: path, required: true, schema: { type: string } } ]
+      responses: { "200": { $ref: "#/components/responses/ObjectJson" }, "404": { description: Not found }, "409": { description: Not signed in } }
+    patch:
+      operationId: updateQualityUpdate
+      summary: Update a quality update profile
+      parameters: [ { name: id, in: path, required: true, schema: { type: string } } ]
+      requestBody: { $ref: "#/components/requestBodies/ObjectJson" }
+      responses: { "204": { description: Updated }, "409": { description: Not signed in } }
+    delete:
+      operationId: deleteQualityUpdate
+      summary: Delete a quality update profile
+      parameters: [ { name: id, in: path, required: true, schema: { type: string } } ]
+      responses: { "204": { description: Deleted }, "409": { description: Not signed in } }
+
+  /driver-updates/{id}:
+    get:
+      operationId: getDriverUpdate
+      summary: Windows driver update profile object JSON
+      parameters: [ { name: id, in: path, required: true, schema: { type: string } } ]
+      responses: { "200": { $ref: "#/components/responses/ObjectJson" }, "404": { description: Not found }, "409": { description: Not signed in } }
+    patch:
+      operationId: updateDriverUpdate
+      summary: Update a driver update profile
+      parameters: [ { name: id, in: path, required: true, schema: { type: string } } ]
+      requestBody: { $ref: "#/components/requestBodies/ObjectJson" }
+      responses: { "204": { description: Updated }, "409": { description: Not signed in } }
+    delete:
+      operationId: deleteDriverUpdate
+      summary: Delete a driver update profile
+      parameters: [ { name: id, in: path, required: true, schema: { type: string } } ]
+      responses: { "204": { description: Deleted }, "409": { description: Not signed in } }
+
+  # ── Apps ──
+  /apps/{id}:
+    get:
+      operationId: getApp
+      summary: Application object JSON (read-only)
+      parameters: [ { name: id, in: path, required: true, schema: { type: string } } ]
+      responses: { "200": { $ref: "#/components/responses/ObjectJson" }, "404": { description: Not found }, "409": { description: Not signed in } }
+  /apps/{id}/assignments:
+    get:
+      operationId: getAppAssignments
+      summary: Normalized assignment set for an application (group names resolved best-effort)
+      parameters: [ { name: id, in: path, required: true, schema: { type: string } } ]
+      responses:
+        "200":
+          description: The application's current assignments
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Assignment" }
+        "409": { description: Not signed in }
+    post:
+      operationId: setAppAssignments
+      summary: Replace ALL assignments on an application (replace-all write)
+      parameters: [ { name: id, in: path, required: true, schema: { type: string } } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items: { $ref: "#/components/schemas/Assignment" }
+      responses:
+        "204": { description: Assignments replaced }
+        "409": { description: Not signed in }
+  /apps/assign:
+    post:
+      operationId: bulkAssignApps
+      summary: Apply the same assignments to many apps at once (replace-all per app; dryRun default true)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BulkAssignRequest" }
+      responses:
+        "200":
+          description: Per-app assign results
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BulkAssignResult" }
+        "400": { description: appIds is required }
+        "409": { description: Not signed in }
+  /app-protection:
+    get:
+      operationId: listAppProtection
+      summary: App protection policies
+      responses: { "200": { $ref: "#/components/responses/ListItemArray" }, "409": { description: Not signed in } }
+    post:
+      operationId: createAppProtection
+      summary: Create an app protection policy
+      requestBody: { $ref: "#/components/requestBodies/ObjectJson" }
+      responses: { "200": { $ref: "#/components/responses/Created" }, "409": { description: Not signed in } }
+  /app-protection/{id}:
+    get:
+      operationId: getAppProtection
+      summary: App protection policy object JSON
+      parameters: [ { name: id, in: path, required: true, schema: { type: string } } ]
+      responses: { "200": { $ref: "#/components/responses/ObjectJson" }, "404": { description: Not found }, "409": { description: Not signed in } }
+    patch:
+      operationId: updateAppProtection
+      summary: Update an app protection policy
+      parameters: [ { name: id, in: path, required: true, schema: { type: string } } ]
+      requestBody: { $ref: "#/components/requestBodies/ObjectJson" }
+      responses: { "204": { description: Updated }, "409": { description: Not signed in } }
+    delete:
+      operationId: deleteAppProtection
+      summary: Delete an app protection policy
+      parameters: [ { name: id, in: path, required: true, schema: { type: string } } ]
+      responses: { "204": { description: Deleted }, "409": { description: Not signed in } }
+  /app-configs:
+    get:
+      operationId: listAppConfigs
+      summary: Managed-device app configurations
+      responses: { "200": { $ref: "#/components/responses/ListItemArray" }, "409": { description: Not signed in } }
+    post:
+      operationId: createAppConfig
+      summary: Create an app configuration
+      requestBody: { $ref: "#/components/requestBodies/ObjectJson" }
+      responses: { "200": { $ref: "#/components/responses/Created" }, "409": { description: Not signed in } }
+  /app-configs/{id}:
+    get:
+      operationId: getAppConfig
+      summary: App configuration object JSON
+      parameters: [ { name: id, in: path, required: true, schema: { type: string } } ]
+      responses: { "200": { $ref: "#/components/responses/ObjectJson" }, "404": { description: Not found }, "409": { description: Not signed in } }
+    patch:
+      operationId: updateAppConfig
+      summary: Update an app configuration
+      parameters: [ { name: id, in: path, required: true, schema: { type: string } } ]
+      requestBody: { $ref: "#/components/requestBodies/ObjectJson" }
+      responses: { "204": { description: Updated }, "409": { description: Not signed in } }
+    delete:
+      operationId: deleteAppConfig
+      summary: Delete an app configuration
+      parameters: [ { name: id, in: path, required: true, schema: { type: string } } ]
+      responses: { "204": { description: Deleted }, "409": { description: Not signed in } }
+  /vpp-tokens:
+    get:
+      operationId: listVppTokens
+      summary: Apple VPP tokens (read-only)
+      responses: { "200": { $ref: "#/components/responses/ListItemArray" }, "409": { description: Not signed in } }
+  /vpp-tokens/{id}:
+    get:
+      operationId: getVppToken
+      summary: VPP token object JSON (read-only)
+      parameters: [ { name: id, in: path, required: true, schema: { type: string } } ]
+      responses: { "200": { $ref: "#/components/responses/ObjectJson" }, "404": { description: Not found }, "409": { description: Not signed in } }
+
+  # ── Enrollment ──
+  /enrollment-configs:
+    get:
+      operationId: listEnrollmentConfigs
+      summary: Device enrollment configurations
+      responses: { "200": { $ref: "#/components/responses/ListItemArray" }, "409": { description: Not signed in } }
+    post:
+      operationId: createEnrollmentConfig
+      summary: Create an enrollment configuration
+      requestBody: { $ref: "#/components/requestBodies/ObjectJson" }
+      responses: { "200": { $ref: "#/components/responses/Created" }, "409": { description: Not signed in } }
+  /enrollment-configs/{id}:
+    get:
+      operationId: getEnrollmentConfig
+      summary: Enrollment configuration object JSON
+      parameters: [ { name: id, in: path, required: true, schema: { type: string } } ]
+      responses: { "200": { $ref: "#/components/responses/ObjectJson" }, "404": { description: Not found }, "409": { description: Not signed in } }
+    patch:
+      operationId: updateEnrollmentConfig
+      summary: Update an enrollment configuration
+      parameters: [ { name: id, in: path, required: true, schema: { type: string } } ]
+      requestBody: { $ref: "#/components/requestBodies/ObjectJson" }
+      responses: { "204": { description: Updated }, "409": { description: Not signed in } }
+    delete:
+      operationId: deleteEnrollmentConfig
+      summary: Delete an enrollment configuration
+      parameters: [ { name: id, in: path, required: true, schema: { type: string } } ]
+      responses: { "204": { description: Deleted }, "409": { description: Not signed in } }
+  /autopilot:
+    get:
+      operationId: listAutopilot
+      summary: Windows Autopilot deployment profiles
+      responses: { "200": { $ref: "#/components/responses/ListItemArray" }, "409": { description: Not signed in } }
+    post:
+      operationId: createAutopilot
+      summary: Create an Autopilot deployment profile
+      requestBody: { $ref: "#/components/requestBodies/ObjectJson" }
+      responses: { "200": { $ref: "#/components/responses/Created" }, "409": { description: Not signed in } }
+  /autopilot/{id}:
+    get:
+      operationId: getAutopilot
+      summary: Autopilot deployment profile object JSON
+      parameters: [ { name: id, in: path, required: true, schema: { type: string } } ]
+      responses: { "200": { $ref: "#/components/responses/ObjectJson" }, "404": { description: Not found }, "409": { description: Not signed in } }
+    patch:
+      operationId: updateAutopilot
+      summary: Update an Autopilot deployment profile
+      parameters: [ { name: id, in: path, required: true, schema: { type: string } } ]
+      requestBody: { $ref: "#/components/requestBodies/ObjectJson" }
+      responses: { "204": { description: Updated }, "409": { description: Not signed in } }
+    delete:
+      operationId: deleteAutopilot
+      summary: Delete an Autopilot deployment profile
+      parameters: [ { name: id, in: path, required: true, schema: { type: string } } ]
+      responses: { "204": { description: Deleted }, "409": { description: Not signed in } }
+  /apple-dep:
+    get:
+      operationId: listAppleDep
+      summary: Apple DEP onboarding settings (read-only)
+      responses: { "200": { $ref: "#/components/responses/ListItemArray" }, "409": { description: Not signed in } }
+  /apple-dep/{id}:
+    get:
+      operationId: getAppleDep
+      summary: Apple DEP onboarding setting object JSON (read-only)
+      parameters: [ { name: id, in: path, required: true, schema: { type: string } } ]
+      responses: { "200": { $ref: "#/components/responses/ObjectJson" }, "404": { description: Not found }, "409": { description: Not signed in } }
+  /cloudpc-provisioning:
+    get:
+      operationId: listCloudPcProvisioning
+      summary: Cloud PC provisioning policies (read-only)
+      responses: { "200": { $ref: "#/components/responses/ListItemArray" }, "409": { description: Not signed in } }
+  /cloudpc-provisioning/{id}:
+    get:
+      operationId: getCloudPcProvisioning
+      summary: Cloud PC provisioning policy object JSON (read-only)
+      parameters: [ { name: id, in: path, required: true, schema: { type: string } } ]
+      responses: { "200": { $ref: "#/components/responses/ObjectJson" }, "404": { description: Not found }, "409": { description: Not signed in } }
+
+  # ── Identity ──
+  /conditional-access:
+    get:
+      operationId: listConditionalAccess
+      summary: Conditional Access policies (read-only by design)
+      responses: { "200": { $ref: "#/components/responses/ListItemArray" }, "409": { description: Not signed in } }
+  /conditional-access/{id}:
+    get:
+      operationId: getConditionalAccess
+      summary: Conditional Access policy object JSON (read-only)
+      parameters: [ { name: id, in: path, required: true, schema: { type: string } } ]
+      responses: { "200": { $ref: "#/components/responses/ObjectJson" }, "404": { description: Not found }, "409": { description: Not signed in } }
+  /conditional-access/pptx:
+    get:
+      operationId: exportConditionalAccessPptx
+      summary: Export Conditional Access policies to a PowerPoint (.pptx) — one slide per policy
+      responses:
+        "200":
+          description: The generated presentation
+          content:
+            application/vnd.openxmlformats-officedocument.presentationml.presentation:
+              schema: { type: string, format: binary }
+        "409": { description: Not signed in }
+
+  /conditional-access/{id}/summary:
+    get:
+      operationId: getConditionalAccessSummary
+      summary: Readable CA conditions/grant/session with user/app GUIDs resolved to names
+      parameters: [ { name: id, in: path, required: true, schema: { type: string } } ]
+      responses:
+        "200":
+          description: CA summary
+          content: { application/json: { schema: { type: object } } }
+        "404": { description: Not found }
+        "409": { description: Not signed in }
+
+  /security-posture/summary:
+    get:
+      operationId: getSecurityPostureSummary
+      summary: Scored security posture (0-100) across weighted categories + severity gaps
+      responses:
+        "200":
+          description: Posture summary (score, breakdown, gaps, stats)
+          content: { application/json: { schema: { type: object } } }
+        "409": { description: Not signed in }
+
+  /maester/status:
+    get:
+      operationId: getMaesterStatus
+      summary: Probe Maester prerequisites (PowerShell 7 + Maester module)
+      responses:
+        "200":
+          description: Prerequisite status
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MaesterStatus" }
+  /maester/run:
+    post:
+      operationId: runMaester
+      summary: >
+        Start the Maester security-test suite against the signed-in tenant, sharing the
+        active session token. Fire-and-forget: returns 202 immediately and runs in the
+        background; poll GET /maester/run/status until it leaves Running, then GET
+        /maester/results. Each run is categorized (Entra/Intune/…) and snapshotted into
+        the append-only time-machine for posture drift.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/MaesterRunRequest" }
+      responses:
+        "202":
+          description: Run started — poll /maester/run/status
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MaesterRunState" }
+        "409": { description: Not signed in, or a run is already in progress }
+        "501": { description: Maester / PowerShell prerequisites not available }
+  /maester/run/status:
+    get:
+      operationId: getMaesterRunStatus
+      summary: In-memory status of the current/last Maester run (cheap; poll while Running)
+      responses:
+        "200":
+          description: Run state
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MaesterRunState" }
+  /maester/results:
+    get:
+      operationId: getMaesterResults
+      summary: Latest stored Maester run for the active tenant (from the time-machine)
+      responses:
+        "200":
+          description: Latest run result (empty when none stored)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MaesterRunResult" }
+        "409": { description: Not signed in }
+
+  /named-locations:
+    get:
+      operationId: listNamedLocations
+      summary: Named locations
+      responses: { "200": { $ref: "#/components/responses/ListItemArray" }, "409": { description: Not signed in } }
+    post:
+      operationId: createNamedLocation
+      summary: Create a named location
+      requestBody: { $ref: "#/components/requestBodies/ObjectJson" }
+      responses: { "200": { $ref: "#/components/responses/Created" }, "409": { description: Not signed in } }
+  /named-locations/{id}:
+    get:
+      operationId: getNamedLocation
+      summary: Named location object JSON
+      parameters: [ { name: id, in: path, required: true, schema: { type: string } } ]
+      responses: { "200": { $ref: "#/components/responses/ObjectJson" }, "404": { description: Not found }, "409": { description: Not signed in } }
+    patch:
+      operationId: updateNamedLocation
+      summary: Update a named location
+      parameters: [ { name: id, in: path, required: true, schema: { type: string } } ]
+      requestBody: { $ref: "#/components/requestBodies/ObjectJson" }
+      responses: { "204": { description: Updated }, "409": { description: Not signed in } }
+    delete:
+      operationId: deleteNamedLocation
+      summary: Delete a named location
+      parameters: [ { name: id, in: path, required: true, schema: { type: string } } ]
+      responses: { "204": { description: Deleted }, "409": { description: Not signed in } }
+  /auth-strengths:
+    get:
+      operationId: listAuthStrengths
+      summary: Authentication strength policies
+      responses: { "200": { $ref: "#/components/responses/ListItemArray" }, "409": { description: Not signed in } }
+    post:
+      operationId: createAuthStrength
+      summary: Create an authentication strength policy
+      requestBody: { $ref: "#/components/requestBodies/ObjectJson" }
+      responses: { "200": { $ref: "#/components/responses/Created" }, "409": { description: Not signed in } }
+  /auth-strengths/{id}:
+    get:
+      operationId: getAuthStrength
+      summary: Authentication strength policy object JSON
+      parameters: [ { name: id, in: path, required: true, schema: { type: string } } ]
+      responses: { "200": { $ref: "#/components/responses/ObjectJson" }, "404": { description: Not found }, "409": { description: Not signed in } }
+    patch:
+      operationId: updateAuthStrength
+      summary: Update an authentication strength policy
+      parameters: [ { name: id, in: path, required: true, schema: { type: string } } ]
+      requestBody: { $ref: "#/components/requestBodies/ObjectJson" }
+      responses: { "204": { description: Updated }, "409": { description: Not signed in } }
+    delete:
+      operationId: deleteAuthStrength
+      summary: Delete an authentication strength policy
+      parameters: [ { name: id, in: path, required: true, schema: { type: string } } ]
+      responses: { "204": { description: Deleted }, "409": { description: Not signed in } }
+  /auth-contexts:
+    get:
+      operationId: listAuthContexts
+      summary: Authentication context class references
+      responses: { "200": { $ref: "#/components/responses/ListItemArray" }, "409": { description: Not signed in } }
+    post:
+      operationId: createAuthContext
+      summary: Create an authentication context
+      requestBody: { $ref: "#/components/requestBodies/ObjectJson" }
+      responses: { "200": { $ref: "#/components/responses/Created" }, "409": { description: Not signed in } }
+  /auth-contexts/{id}:
+    get:
+      operationId: getAuthContext
+      summary: Authentication context object JSON
+      parameters: [ { name: id, in: path, required: true, schema: { type: string } } ]
+      responses: { "200": { $ref: "#/components/responses/ObjectJson" }, "404": { description: Not found }, "409": { description: Not signed in } }
+    patch:
+      operationId: updateAuthContext
+      summary: Update an authentication context
+      parameters: [ { name: id, in: path, required: true, schema: { type: string } } ]
+      requestBody: { $ref: "#/components/requestBodies/ObjectJson" }
+      responses: { "204": { description: Updated }, "409": { description: Not signed in } }
+    delete:
+      operationId: deleteAuthContext
+      summary: Delete an authentication context
+      parameters: [ { name: id, in: path, required: true, schema: { type: string } } ]
+      responses: { "204": { description: Deleted }, "409": { description: Not signed in } }
+  /terms-of-use:
+    get:
+      operationId: listTermsOfUse
+      summary: Terms of use agreements
+      responses: { "200": { $ref: "#/components/responses/ListItemArray" }, "409": { description: Not signed in } }
+    post:
+      operationId: createTermsOfUse
+      summary: Create a terms of use agreement
+      requestBody: { $ref: "#/components/requestBodies/ObjectJson" }
+      responses: { "200": { $ref: "#/components/responses/Created" }, "409": { description: Not signed in } }
+  /terms-of-use/{id}:
+    get:
+      operationId: getTermsOfUse
+      summary: Terms of use agreement object JSON
+      parameters: [ { name: id, in: path, required: true, schema: { type: string } } ]
+      responses: { "200": { $ref: "#/components/responses/ObjectJson" }, "404": { description: Not found }, "409": { description: Not signed in } }
+    patch:
+      operationId: updateTermsOfUse
+      summary: Update a terms of use agreement
+      parameters: [ { name: id, in: path, required: true, schema: { type: string } } ]
+      requestBody: { $ref: "#/components/requestBodies/ObjectJson" }
+      responses: { "204": { description: Updated }, "409": { description: Not signed in } }
+    delete:
+      operationId: deleteTermsOfUse
+      summary: Delete a terms of use agreement
+      parameters: [ { name: id, in: path, required: true, schema: { type: string } } ]
+      responses: { "204": { description: Deleted }, "409": { description: Not signed in } }
+
+  # ── Tenant Admin ──
+  /scope-tags:
+    get:
+      operationId: listScopeTags
+      summary: Role scope tags
+      responses: { "200": { $ref: "#/components/responses/ListItemArray" }, "409": { description: Not signed in } }
+    post:
+      operationId: createScopeTag
+      summary: Create a scope tag
+      requestBody: { $ref: "#/components/requestBodies/ObjectJson" }
+      responses: { "200": { $ref: "#/components/responses/Created" }, "409": { description: Not signed in } }
+  /scope-tags/{id}:
+    get:
+      operationId: getScopeTag
+      summary: Scope tag object JSON
+      parameters: [ { name: id, in: path, required: true, schema: { type: string } } ]
+      responses: { "200": { $ref: "#/components/responses/ObjectJson" }, "404": { description: Not found }, "409": { description: Not signed in } }
+    patch:
+      operationId: updateScopeTag
+      summary: Update a scope tag
+      parameters: [ { name: id, in: path, required: true, schema: { type: string } } ]
+      requestBody: { $ref: "#/components/requestBodies/ObjectJson" }
+      responses: { "204": { description: Updated }, "409": { description: Not signed in } }
+    delete:
+      operationId: deleteScopeTag
+      summary: Delete a scope tag
+      parameters: [ { name: id, in: path, required: true, schema: { type: string } } ]
+      responses: { "204": { description: Deleted }, "409": { description: Not signed in } }
+  /role-definitions:
+    get:
+      operationId: listRoleDefinitions
+      summary: RBAC role definitions
+      responses: { "200": { $ref: "#/components/responses/ListItemArray" }, "409": { description: Not signed in } }
+    post:
+      operationId: createRoleDefinition
+      summary: Create a role definition
+      requestBody: { $ref: "#/components/requestBodies/ObjectJson" }
+      responses: { "200": { $ref: "#/components/responses/Created" }, "409": { description: Not signed in } }
+  /role-definitions/{id}:
+    get:
+      operationId: getRoleDefinition
+      summary: Role definition object JSON
+      parameters: [ { name: id, in: path, required: true, schema: { type: string } } ]
+      responses: { "200": { $ref: "#/components/responses/ObjectJson" }, "404": { description: Not found }, "409": { description: Not signed in } }
+    patch:
+      operationId: updateRoleDefinition
+      summary: Update a role definition
+      parameters: [ { name: id, in: path, required: true, schema: { type: string } } ]
+      requestBody: { $ref: "#/components/requestBodies/ObjectJson" }
+      responses: { "204": { description: Updated }, "409": { description: Not signed in } }
+    delete:
+      operationId: deleteRoleDefinition
+      summary: Delete a role definition
+      parameters: [ { name: id, in: path, required: true, schema: { type: string } } ]
+      responses: { "204": { description: Deleted }, "409": { description: Not signed in } }
+  /role-assignments:
+    get:
+      operationId: listRoleAssignments
+      summary: RBAC role assignments (read-only)
+      responses: { "200": { $ref: "#/components/responses/ListItemArray" }, "409": { description: Not signed in } }
+  /role-assignments/{id}:
+    get:
+      operationId: getRoleAssignment
+      summary: Role assignment object JSON
+      parameters: [ { name: id, in: path, required: true, schema: { type: string } } ]
+      responses: { "200": { $ref: "#/components/responses/ObjectJson" }, "404": { description: Not found }, "409": { description: Not signed in } }
+  /assignment-filters:
+    get:
+      operationId: listAssignmentFilters
+      summary: Assignment filters (read-only)
+      responses: { "200": { $ref: "#/components/responses/ListItemArray" }, "409": { description: Not signed in } }
+  /assignment-filters/{id}:
+    get:
+      operationId: getAssignmentFilter
+      summary: Assignment filter object JSON (read-only)
+      parameters: [ { name: id, in: path, required: true, schema: { type: string } } ]
+      responses: { "200": { $ref: "#/components/responses/ObjectJson" }, "404": { description: Not found }, "409": { description: Not signed in } }
+  /policy-sets:
+    get:
+      operationId: listPolicySets
+      summary: Policy sets (read-only)
+      responses: { "200": { $ref: "#/components/responses/ListItemArray" }, "409": { description: Not signed in } }
+  /policy-sets/{id}:
+    get:
+      operationId: getPolicySet
+      summary: Policy set object JSON (read-only)
+      parameters: [ { name: id, in: path, required: true, schema: { type: string } } ]
+      responses: { "200": { $ref: "#/components/responses/ObjectJson" }, "404": { description: Not found }, "409": { description: Not signed in } }
+  /intune-branding:
+    get:
+      operationId: listIntuneBranding
+      summary: Intune branding profiles
+      responses: { "200": { $ref: "#/components/responses/ListItemArray" }, "409": { description: Not signed in } }
+    post:
+      operationId: createIntuneBranding
+      summary: Create an Intune branding profile
+      requestBody: { $ref: "#/components/requestBodies/ObjectJson" }
+      responses: { "200": { $ref: "#/components/responses/Created" }, "409": { description: Not signed in } }
+  /intune-branding/{id}:
+    get:
+      operationId: getIntuneBranding
+      summary: Intune branding profile object JSON
+      parameters: [ { name: id, in: path, required: true, schema: { type: string } } ]
+      responses: { "200": { $ref: "#/components/responses/ObjectJson" }, "404": { description: Not found }, "409": { description: Not signed in } }
+    patch:
+      operationId: updateIntuneBranding
+      summary: Update an Intune branding profile
+      parameters: [ { name: id, in: path, required: true, schema: { type: string } } ]
+      requestBody: { $ref: "#/components/requestBodies/ObjectJson" }
+      responses: { "204": { description: Updated }, "409": { description: Not signed in } }
+    delete:
+      operationId: deleteIntuneBranding
+      summary: Delete an Intune branding profile
+      parameters: [ { name: id, in: path, required: true, schema: { type: string } } ]
+      responses: { "204": { description: Deleted }, "409": { description: Not signed in } }
+  /azure-branding:
+    get:
+      operationId: listAzureBranding
+      summary: Azure (organizational) branding localizations
+      responses: { "200": { $ref: "#/components/responses/ListItemArray" }, "409": { description: Not signed in } }
+    post:
+      operationId: createAzureBranding
+      summary: Create a branding localization
+      requestBody: { $ref: "#/components/requestBodies/ObjectJson" }
+      responses: { "200": { $ref: "#/components/responses/Created" }, "409": { description: Not signed in } }
+  /azure-branding/{id}:
+    get:
+      operationId: getAzureBranding
+      summary: Branding localization object JSON
+      parameters: [ { name: id, in: path, required: true, schema: { type: string } } ]
+      responses: { "200": { $ref: "#/components/responses/ObjectJson" }, "404": { description: Not found }, "409": { description: Not signed in } }
+    patch:
+      operationId: updateAzureBranding
+      summary: Update a branding localization
+      parameters: [ { name: id, in: path, required: true, schema: { type: string } } ]
+      requestBody: { $ref: "#/components/requestBodies/ObjectJson" }
+      responses: { "204": { description: Updated }, "409": { description: Not signed in } }
+    delete:
+      operationId: deleteAzureBranding
+      summary: Delete a branding localization
+      parameters: [ { name: id, in: path, required: true, schema: { type: string } } ]
+      responses: { "204": { description: Deleted }, "409": { description: Not signed in } }
+  /terms-conditions:
+    get:
+      operationId: listTermsConditions
+      summary: Terms and conditions
+      responses: { "200": { $ref: "#/components/responses/ListItemArray" }, "409": { description: Not signed in } }
+    post:
+      operationId: createTermsConditions
+      summary: Create a terms and conditions
+      requestBody: { $ref: "#/components/requestBodies/ObjectJson" }
+      responses: { "200": { $ref: "#/components/responses/Created" }, "409": { description: Not signed in } }
+  /terms-conditions/{id}:
+    get:
+      operationId: getTermsConditions
+      summary: Terms and conditions object JSON
+      parameters: [ { name: id, in: path, required: true, schema: { type: string } } ]
+      responses: { "200": { $ref: "#/components/responses/ObjectJson" }, "404": { description: Not found }, "409": { description: Not signed in } }
+    patch:
+      operationId: updateTermsConditions
+      summary: Update a terms and conditions
+      parameters: [ { name: id, in: path, required: true, schema: { type: string } } ]
+      requestBody: { $ref: "#/components/requestBodies/ObjectJson" }
+      responses: { "204": { description: Updated }, "409": { description: Not signed in } }
+    delete:
+      operationId: deleteTermsConditions
+      summary: Delete a terms and conditions
+      parameters: [ { name: id, in: path, required: true, schema: { type: string } } ]
+      responses: { "204": { description: Deleted }, "409": { description: Not signed in } }
+  /cloudpc-user-settings:
+    get:
+      operationId: listCloudPcUserSettings
+      summary: Cloud PC user settings (read-only)
+      responses: { "200": { $ref: "#/components/responses/ListItemArray" }, "409": { description: Not signed in } }
+  /cloudpc-user-settings/{id}:
+    get:
+      operationId: getCloudPcUserSetting
+      summary: Cloud PC user setting object JSON (read-only)
+      parameters: [ { name: id, in: path, required: true, schema: { type: string } } ]
+      responses: { "200": { $ref: "#/components/responses/ObjectJson" }, "404": { description: Not found }, "409": { description: Not signed in } }
+  /admx-files:
+    get:
+      operationId: listAdmxFiles
+      summary: ADMX uploaded definition files
+      responses: { "200": { $ref: "#/components/responses/ListItemArray" }, "409": { description: Not signed in } }
+    post:
+      operationId: createAdmxFile
+      summary: Upload an ADMX file (immutable; no update)
+      requestBody: { $ref: "#/components/requestBodies/ObjectJson" }
+      responses: { "200": { $ref: "#/components/responses/Created" }, "409": { description: Not signed in } }
+  /admx-files/{id}:
+    get:
+      operationId: getAdmxFile
+      summary: ADMX file object JSON
+      parameters: [ { name: id, in: path, required: true, schema: { type: string } } ]
+      responses: { "200": { $ref: "#/components/responses/ObjectJson" }, "404": { description: Not found }, "409": { description: Not signed in } }
+    delete:
+      operationId: deleteAdmxFile
+      summary: Delete an ADMX file
+      parameters: [ { name: id, in: path, required: true, schema: { type: string } } ]
+      responses: { "204": { description: Deleted }, "409": { description: Not signed in } }
+  /reusable-settings:
+    get:
+      operationId: listReusableSettings
+      summary: Reusable policy settings
+      responses: { "200": { $ref: "#/components/responses/ListItemArray" }, "409": { description: Not signed in } }
+    post:
+      operationId: createReusableSetting
+      summary: Create a reusable policy setting
+      requestBody: { $ref: "#/components/requestBodies/ObjectJson" }
+      responses: { "200": { $ref: "#/components/responses/Created" }, "409": { description: Not signed in } }
+  /reusable-settings/{id}:
+    get:
+      operationId: getReusableSetting
+      summary: Reusable policy setting object JSON
+      parameters: [ { name: id, in: path, required: true, schema: { type: string } } ]
+      responses: { "200": { $ref: "#/components/responses/ObjectJson" }, "404": { description: Not found }, "409": { description: Not signed in } }
+    patch:
+      operationId: updateReusableSetting
+      summary: Update a reusable policy setting
+      parameters: [ { name: id, in: path, required: true, schema: { type: string } } ]
+      requestBody: { $ref: "#/components/requestBodies/ObjectJson" }
+      responses: { "204": { description: Updated }, "409": { description: Not signed in } }
+    delete:
+      operationId: deleteReusableSetting
+      summary: Delete a reusable policy setting
+      parameters: [ { name: id, in: path, required: true, schema: { type: string } } ]
+      responses: { "204": { description: Deleted }, "409": { description: Not signed in } }
+  /notification-templates:
+    get:
+      operationId: listNotificationTemplates
+      summary: Notification message templates
+      responses: { "200": { $ref: "#/components/responses/ListItemArray" }, "409": { description: Not signed in } }
+    post:
+      operationId: createNotificationTemplate
+      summary: Create a notification template
+      requestBody: { $ref: "#/components/requestBodies/ObjectJson" }
+      responses: { "200": { $ref: "#/components/responses/Created" }, "409": { description: Not signed in } }
+  /notification-templates/{id}:
+    get:
+      operationId: getNotificationTemplate
+      summary: Notification template object JSON
+      parameters: [ { name: id, in: path, required: true, schema: { type: string } } ]
+      responses: { "200": { $ref: "#/components/responses/ObjectJson" }, "404": { description: Not found }, "409": { description: Not signed in } }
+    patch:
+      operationId: updateNotificationTemplate
+      summary: Update a notification template
+      parameters: [ { name: id, in: path, required: true, schema: { type: string } } ]
+      requestBody: { $ref: "#/components/requestBodies/ObjectJson" }
+      responses: { "204": { description: Updated }, "409": { description: Not signed in } }
+    delete:
+      operationId: deleteNotificationTemplate
+      summary: Delete a notification template
+      parameters: [ { name: id, in: path, required: true, schema: { type: string } } ]
+      responses: { "204": { description: Deleted }, "409": { description: Not signed in } }
+
+  # ── Groups ──
+  /groups:
+    get:
+      operationId: listGroups
+      summary: Entra groups (assigned + dynamic, merged; read-only)
+      responses: { "200": { $ref: "#/components/responses/ListItemArray" }, "409": { description: Not signed in } }
+
+  /search:
+    get:
+      operationId: search
+      summary: Full-text search across audit events and config snapshots
+      parameters:
+        - { name: q, in: query, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Search results
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/SearchResult" }
+
+  # ─── M13.2 Pending AI changes — the human-in-the-loop write queue ───────────
+  /pending-changes:
+    get:
+      operationId: listPendingChanges
+      summary: List AI-proposed writes awaiting operator approval (the "Pending AI changes" inbox)
+      parameters:
+        - { name: state, in: query, required: false, schema: { type: string, default: pending, enum: [pending, applied, rejected, failed] } }
+      responses:
+        "200":
+          description: Pending changes
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/PendingChange" }
+    post:
+      operationId: enqueuePendingChange
+      summary: Enqueue a proposed write (called by the MCP propose_* tools, not the UI)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreatePendingChange" }
+      responses:
+        "200": { description: Queued; returns the change id }
+        "400": { description: Missing kind/path, or bodyJson over the 256 KB cap }
+
+  /pending-changes/{id}:
+    get:
+      operationId: getPendingChange
+      summary: Single proposed-change status (for the MCP get_change_status tool)
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200": { description: Change status (state, kind, path, note, timestamps) }
+        "404": { description: No such change }
+
+  /pending-changes/{id}/approve:
+    post:
+      operationId: approvePendingChange
+      summary: Approve and REPLAY the proposed write through the normal pipeline (snapshot + audit)
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200": { description: Applied }
+        "404": { description: No such change }
+        "409": { description: Change is not pending }
+        "500": { description: Apply failed; the change is marked failed with the error }
+
+  /pending-changes/{id}/reject:
+    post:
+      operationId: rejectPendingChange
+      summary: Reject a proposed write (recorded in the audit trail)
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties: { note: { type: string, nullable: true } }
+      responses:
+        "200": { description: Rejected }
+        "404": { description: No such change }
+        "409": { description: Change is not pending }
+
+  # ─── M16 Foresight: blast-radius simulator (simulate-before-write) ───────────
+  # Read-only: resolves the proposed vs live assignment target set over the
+  # assignment graph and reports WHO a change hits, before any write. Attached to
+  # the M6 gate, the M13 inbox, and the M18 auto-loop's severity decision.
+  /simulate:
+    post:
+      operationId: simulateChange
+      summary: Blast-radius of a proposed write (who does this hit?) — read-only, no write
+      description: >
+        Resolves the proposed change's target set vs the live target set over the
+        assignment graph (AssignmentCheckerService + GroupService) and returns a
+        BlastRadiusReport — affected users/devices, conflicts, redundancies,
+        cross-policy impacts. Requires sign-in. No write reaches Graph.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SimulateRequest" }
+      responses:
+        "200":
+          description: The blast-radius report
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BlastRadiusReport" }
+        "400": { description: Missing verb/path }
+        "409": { description: Not signed in }
+
+  /simulate/assignment:
+    post:
+      operationId: simulateAssignment
+      summary: Blast-radius of a proposed assignment change (verb=assign convenience alias)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SimulateRequest" }
+      responses:
+        "200":
+          description: The blast-radius report
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BlastRadiusReport" }
+        "400": { description: Invalid request }
+        "409": { description: Not signed in }
+
+  /simulate/graph:
+    get:
+      operationId: getSimulateGraph
+      summary: The live assignment target set a simulation diffs against (debug/inspection)
+      parameters:
+        - { name: objectId, in: query, required: true, schema: { type: string } }
+        - { name: path, in: query, required: false, schema: { type: string } }
+      responses:
+        "200":
+          description: Resolved current target set for the object
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  objectId:            { type: string }
+                  path:                { type: string, nullable: true }
+                  includeGroups:       { type: array, items: { type: string } }
+                  excludeGroups:       { type: array, items: { type: string } }
+                  allUsers:            { type: boolean }
+                  allDevices:          { type: boolean }
+                  affectedUserCount:   { type: integer, format: int32 }
+                  affectedDeviceCount: { type: integer, format: int32 }
+        "409": { description: Not signed in }
+
+  # ─── M18 Autonomy: the closed-loop AI SRE (watch → detect → plan → simulate →
+  # propose → approve → apply → verify → audit) ────────────────────────────────
+  # LOCKED: autonomy ends at the inbox. /autonomy/policy toggles only which signals
+  # may auto-ENQUEUE a proposal; no value here auto-applies a write. The terminal
+  # action of the loop is POST /pending-changes (state=pending) — byte-identical to
+  # what an MCP propose_* tool produces. A human still approves the exact diff.
+  /autonomy/policy:
+    get:
+      operationId: getAutonomyPolicy
+      summary: Read which signals may auto-enqueue, cadence, scope, severity floor
+      description: >
+        The per-tenant autonomy policy. enabled gates the whole loop; each signal
+        (drift / postureRegression / advisory) is independently toggled with its own
+        severity/score floor. Returns the stored policy, or the safe defaults
+        (drift on, regression opt-in, advisory off) when none is saved. 409 when
+        signed out (no active tenant to scope the policy to).
+      responses:
+        "200":
+          description: The active tenant's autonomy policy
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AutonomyPolicy" }
+        "409": { description: Not signed in }
+    put:
+      operationId: putAutonomyPolicy
+      summary: Edit the autonomy policy (enqueue-eligibility only — never auto-apply)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AutonomyPolicy" }
+      responses:
+        "200":
+          description: The stored policy (echoed back, tenantId stamped server-side)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AutonomyPolicy" }
+        "409": { description: Not signed in }
+
+  /autonomy/runs:
+    get:
+      operationId: listAutonomyRuns
+      summary: Loop history — each tick's watched / detected / proposed / decision / verify
+      parameters:
+        - { name: limit, in: query, required: false, schema: { type: integer, format: int32, default: 50 } }
+      responses:
+        "200":
+          description: Recent autonomy runs (newest first)
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/AutonomyRun" }
+
+  /autonomy/runs/{id}:
+    get:
+      operationId: getAutonomyRun
+      summary: One run with its full chain (links to the pending-change ids it raised)
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: The run
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AutonomyRun" }
+        "404": { description: No such run }
+
+  # /mcp — Model Context Protocol server (Streamable HTTP, M13). Intentionally not
+  # modeled as REST: it speaks JSON-RPC/MCP. Its tools proxy the surfaces above, so
+  # an operator's MCP client (Claude Desktop, Cursor, Copilot) can drive cmProjectX.
+
+  # ─── M17 Tenant digital twin — offline graph analytics ──────────────────────
+  # Assembles ONE local graph of the tenant from the cache + snapshot store and runs
+  # the cross-cutting analytics no per-screen view can — orphans, conflicts, cycles,
+  # coverage gaps, drift hotspots. The analytics path never calls Graph.
+  /twin/rebuild:
+    post:
+      operationId: twinRebuild
+      summary: Re-materialize the twin graph from cache + store (offline; optional online warm)
+      description: >
+        Reads the cached node/edge projection (+ the snapshot store for the time axis)
+        and rebuilds the in-memory adjacency, persisting twin.json for warm starts.
+        With ?warm=true and a signed-in client it first refreshes the cached projection
+        from the engines; the analytics path itself never calls Graph.
+      parameters:
+        - { name: warm, in: query, required: false, schema: { type: boolean, default: false } }
+      responses:
+        "200":
+          description: Twin stats after rebuild
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TwinStats" }
+        "409": { description: "warm=true requested but not signed in" }
+  /twin/stats:
+    get:
+      operationId: twinStats
+      summary: Node/edge counts + freshness without rebuilding
+      responses:
+        "200":
+          description: Twin stats
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TwinStats" }
+  /twin/analytics/{query}:
+    get:
+      operationId: twinAnalytics
+      summary: Run one canned analytic over the materialized graph (no Graph call)
+      parameters:
+        - name: query
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [orphaned-policies, redundant-assignments, conflicting-assignments, assignment-cycles, ca-escape-paths, coverage-gaps, drift-hotspots]
+      responses:
+        "200":
+          description: Analytics findings (empty when the twin is cold)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TwinAnalyticsResult" }
+        "400": { description: Unknown query id }
+  /twin/node/{id}:
+    get:
+      operationId: twinNode
+      summary: A node's neighborhood — node + in/out edges + 1-hop neighbors + members
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Node neighborhood
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TwinNeighborhood" }
+        "404": { description: No such node }
+  /twin/query:
+    post:
+      operationId: twinQuery
+      summary: Structural typed traversal (canned vocabulary — not arbitrary Cypher)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/TwinQueryRequest" }
+      responses:
+        "200":
+          description: Matching nodes + edges
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TwinQueryResult" }
+
+
+  # ─── M19 — continuous posture: benchmark mapping, trend, evidence pack, POA&M ──
+  # Extends the point-in-time /security-posture/summary into a benchmark-mapped,
+  # trended, evidence-exporting compliance product. See docs/part-ii/M19-posture.md.
+  /posture/score:
+    get:
+      operationId: getPostureScore
+      summary: Benchmark-mapped posture score; also self-snapshots into the time-machine
+      parameters:
+        - name: benchmark
+          in: query
+          required: false
+          schema: { type: string, enum: [cis, oib, e8, nist], default: cis }
+      responses:
+        "200":
+          description: The posture score with control IDs grafted on + framework coverage
+          content: { application/json: { schema: { $ref: "#/components/schemas/BenchmarkedPosture" } } }
+        "409": { description: Not signed in }
+  /posture/trend:
+    get:
+      operationId: getPostureTrend
+      summary: Posture score + per-category scores over time, replayed from the time-machine
+      parameters:
+        - name: benchmark
+          in: query
+          required: false
+          schema: { type: string, enum: [cis, oib, e8, nist], default: cis }
+        - name: from
+          in: query
+          required: false
+          schema: { type: string, format: date-time }
+        - name: to
+          in: query
+          required: false
+          schema: { type: string, format: date-time }
+      responses:
+        "200":
+          description: Trend points (one per historical posture snapshot) + delta vs. the earliest
+          content: { application/json: { schema: { $ref: "#/components/schemas/PostureTrend" } } }
+  /posture/evidence-pack:
+    post:
+      operationId: createPostureEvidencePack
+      summary: Generate an all-surface, point-in-time assessor evidence pack (zip on disk)
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/EvidencePackRequest" }
+      responses:
+        "200":
+          description: The evidence-pack manifest (zip written under %LocalAppData%\cmProjectX\evidence\)
+          content: { application/json: { schema: { $ref: "#/components/schemas/EvidencePackManifest" } } }
+        "409": { description: Not signed in }
+  /posture/poam:
+    get:
+      operationId: getPosturePoam
+      summary: Plan of Action & Milestones — open gaps mapped to controls + remediation + due date
+      parameters:
+        - name: benchmark
+          in: query
+          required: false
+          schema: { type: string, enum: [cis, oib, e8, nist], default: cis }
+      responses:
+        "200":
+          description: The live POA&M (open items; closed items inferred when their gap disappears)
+          content: { application/json: { schema: { $ref: "#/components/schemas/Poam" } } }
+        "409": { description: Not signed in }
+  # ─── M20 Fleet — MSP-scale multi-tenant fan-out (Pattern G) ─────────────────
+  # The single-tenant surfaces above keyed cache + store by {tenantId}; /fleet/*
+  # lifts that latent key into first-class fan-out: tenant groups, a fleet LIST
+  # spanning N tenants (rows tenant-tagged), and cross-tenant campaigns where one
+  # broadcast = N gated M13 replays (POST /pending-changes per target). Every fleet
+  # write is gated — never one bulk call. See docs/part-ii/M20-fleet.md.
+  /fleet/tenants:
+    get:
+      operationId: listFleetTenants
+      summary: All known tenant profiles + live session state (which are signed in)
+      responses:
+        "200":
+          description: Tenant profiles with live fleet-session status
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/FleetTenant" }
+
+  /fleet/groups:
+    get:
+      operationId: listFleetGroups
+      summary: List saved tenant groups (named fan-out targets)
+      responses:
+        "200":
+          description: Saved tenant groups
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/TenantGroup" }
+    post:
+      operationId: upsertFleetGroup
+      summary: Create or update a tenant group (a named set of tenantIds)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/TenantGroup" }
+      responses:
+        "200":
+          description: The persisted group
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TenantGroup" }
+        "400": { description: "name and at least one tenantId are required" }
+
+  /fleet/groups/{id}:
+    delete:
+      operationId: deleteFleetGroup
+      summary: Delete a tenant group
+      parameters: [ { name: id, in: path, required: true, schema: { type: string } } ]
+      responses:
+        "204": { description: Deleted }
+        "404": { description: No such group }
+
+  /fleet/list/{surface}:
+    get:
+      operationId: fleetList
+      summary: Fan-out LIST across a group; rows tenant-tagged, partial failures per tenant
+      parameters:
+        - { name: surface, in: path, required: true, schema: { type: string }, description: "Surface key (e.g. compliance-policies)" }
+        - { name: group, in: query, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Merged tenant-tagged rows
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/FleetListResponse" }
+        "404": { description: No such group, or unknown surface }
+
+  /fleet/campaign:
+    post:
+      operationId: createFleetCampaign
+      summary: Broadcast a baseline to a tenant set; each target a gated M13 replay (dryRun previews)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CampaignRequest" }
+      responses:
+        "200":
+          description: Per-tenant campaign result (dryRun previews, or queued gated replays)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CampaignResult" }
+        "400": { description: Missing group/surface/objectName, or unknown surface }
+        "404": { description: No such group }
+
+  /fleet/campaign/{id}:
+    get:
+      operationId: getFleetCampaign
+      summary: Poll a campaign's per-tenant outcomes
+      parameters: [ { name: id, in: path, required: true, schema: { type: string } } ]
+      responses:
+        "200":
+          description: Campaign result with per-tenant outcomes
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CampaignResult" }
+        "404": { description: No such campaign }
+
+  /fleet/drift:
+    get:
+      operationId: fleetDrift
+      summary: Per-tenant divergence from the resolved effective golden, field-level
+      parameters:
+        - { name: group, in: query, required: true, schema: { type: string } }
+        - { name: surface, in: query, required: true, schema: { type: string } }
+        - { name: objectName, in: query, required: true, schema: { type: string } }
+        - { name: golden, in: query, required: false, schema: { type: string }, description: "goldenTenant id; defaults to the group's goldenTenantId" }
+      responses:
+        "200":
+          description: Per-tenant drift summary (accepted overrides excluded)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/FleetDriftResponse" }
+        "404": { description: No such group, or unknown surface }
+
+  /fleet/posture:
+    get:
+      operationId: fleetPosture
+      summary: Fleet-wide posture — per-tenant score + fleet roll-up
+      parameters:
+        - { name: group, in: query, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Per-tenant posture scores + fleet roll-up
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/FleetPostureResponse" }
+        "404": { description: No such group }
+
+  /fleet/templates:
+    get:
+      operationId: listFleetTemplates
+      summary: List golden templates + override layers
+      responses:
+        "200":
+          description: Saved golden templates
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/GoldenTemplate" }
+    post:
+      operationId: upsertFleetTemplate
+      summary: Create or update a golden template (baseline + group/tenant override layers)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/GoldenTemplate" }
+      responses:
+        "200":
+          description: The persisted template
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/GoldenTemplate" }
+        "400": { description: "id, surface and objectName are required" }
+
+  # ─── M21 Ecosystem — shareable packs, playbooks, and a plugin marketplace ───
+  # Three discovery + run surfaces. Every WRITE they cause terminates in existing
+  # machinery: pack adopt → M15 gitops plan/apply; playbook run → M13 /pending-changes;
+  # marketplace install → an M13.3 plugins.json row. None introduces a new write path.
+  /packs:
+    get:
+      operationId: listPacks
+      summary: List installed/available policy packs (M15 desired-state repos + pack.json)
+      responses:
+        "200":
+          description: Pack manifests
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/PackManifest" }
+
+  /packs/{id}:
+    get:
+      operationId: getPack
+      summary: One pack's manifest + repo summary
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Pack manifest
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PackManifest" }
+        "404": { description: No such pack }
+
+  /packs/{id}/adopt:
+    post:
+      operationId: adoptPack
+      summary: >
+        Bind parameters → M15 gitops plan (JsonDrift) → gated apply. Read-only by
+        default (plan-only); pass confirm:true with a reviewed planId to apply.
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PackAdoptRequest" }
+      responses:
+        "200":
+          description: Adoption result (the M15 plan, or the apply outcome)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PackAdoptResult" }
+        "404": { description: No such pack }
+        "409": { description: Not signed in }
+        "501": { description: GitOps (M15) endpoints not present in this build }
+
+  /playbooks:
+    get:
+      operationId: listPlaybooks
+      summary: List playbooks (params + step summary)
+      responses:
+        "200":
+          description: Playbooks
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Playbook" }
+
+  /playbooks/{id}:
+    get:
+      operationId: getPlaybook
+      summary: Full playbook definition
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Playbook
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Playbook" }
+        "404": { description: No such playbook }
+
+  /playbooks/{id}/run:
+    post:
+      operationId: runPlaybook
+      summary: >
+        Bind parameters → expand the ordered propose_* steps; each native step lands
+        as a PendingChange in the M13 inbox. Plugin steps are pass-through. Returns
+        the created change ids so the caller can poll get_change_status.
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PlaybookRunRequest" }
+      responses:
+        "200":
+          description: Run result (per-step outcomes + created PendingChange ids)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PlaybookRunResult" }
+        "404": { description: No such playbook }
+        "400": { description: Missing a required parameter }
+
+  /marketplace:
+    get:
+      operationId: listMarketplace
+      summary: Curated registry of installable downstream MCP plugins
+      responses:
+        "200":
+          description: Marketplace entries
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/MarketplaceEntry" }
+
+  /marketplace/{id}/install:
+    post:
+      operationId: installMarketplaceEntry
+      summary: >
+        Append a plugins.json row for a curated entry (binds configFields). The
+        aggregation reloads on the next sidecar start. Curated allowlist is the trust
+        boundary — plugin tools are pass-through (not inbox-gated).
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/MarketplaceInstallRequest" }
+      responses:
+        "200":
+          description: Install result (the plugins.json row written)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MarketplaceInstallResult" }
+        "404": { description: No such marketplace entry }
+        "400": { description: Missing a required configField }
+
+  /providers:
+    get:
+      operationId: listProviders
+      summary: List registered MDM providers (M22 cross-MDM) and the surfaces each backs.
+      responses:
+        "200":
+          description: Registered providers.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/MdmProviderDescriptor" }
+  /providers/{providerId}/{surface}:
+    get:
+      operationId: providerList
+      summary: List a surface from a specific MDM provider, projected into the shared ListItem contract.
+      parameters:
+        - { name: providerId, in: path, required: true, schema: { type: string } }
+        - { name: surface, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Rows in the shared ListItem shape (the source field names the provider).
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/ListItem" }
+        "404": { description: Unknown provider, or surface unsupported by this provider }
+  /providers/{providerId}/{surface}/{id}:
+    get:
+      operationId: providerGet
+      summary: Get one object's provider-native JSON body (DETAIL parity is out of scope in M22).
+      parameters:
+        - { name: providerId, in: path, required: true, schema: { type: string } }
+        - { name: surface, in: path, required: true, schema: { type: string } }
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200": { description: Provider-native JSON body (rendered as-is by the client) }
+        "404": { description: Unknown provider, surface, or id }
+
+  # ── Per-surface assignment read/replace (M7) — mirror /apps/{id}/assignments. GET
+  #    returns the normalized Assignment[]; POST replaces ALL assignments. device-configs
+  #    is read-only (GET only). Assignment schema is shared (see components/schemas). ──
+  /device-configs/{id}/assignments:
+    get:
+      operationId: getDeviceConfigAssignments
+      summary: Normalized assignment set for a device configuration (read-only surface, no replace)
+      parameters: [ { name: id, in: path, required: true, schema: { type: string } } ]
+      responses:
+        "200": { description: Current assignments, content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/Assignment" } } } } }
+        "409": { description: Not signed in }
+  /compliance-policies/{id}/assignments:
+    get:
+      operationId: getComplianceAssignments
+      summary: Normalized assignment set (group names resolved best-effort)
+      parameters: [ { name: id, in: path, required: true, schema: { type: string } } ]
+      responses:
+        "200": { description: Current assignments, content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/Assignment" } } } } }
+        "409": { description: Not signed in }
+    post:
+      operationId: setComplianceAssignments
+      summary: Replace ALL assignments on a compliance policy (replace-all write)
+      parameters: [ { name: id, in: path, required: true, schema: { type: string } } ]
+      requestBody: { required: true, content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/Assignment" } } } } }
+      responses: { "204": { description: Assignments replaced }, "409": { description: Not signed in } }
+  /admin-templates/{id}/assignments:
+    get:
+      operationId: getAdminTemplateAssignments
+      summary: Normalized assignment set for an administrative template
+      parameters: [ { name: id, in: path, required: true, schema: { type: string } } ]
+      responses:
+        "200": { description: Current assignments, content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/Assignment" } } } } }
+        "409": { description: Not signed in }
+    post:
+      operationId: setAdminTemplateAssignments
+      summary: Replace ALL assignments on an administrative template (replace-all write)
+      parameters: [ { name: id, in: path, required: true, schema: { type: string } } ]
+      requestBody: { required: true, content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/Assignment" } } } } }
+      responses: { "204": { description: Assignments replaced }, "409": { description: Not signed in } }
+  /endpoint-security/{id}/assignments:
+    get:
+      operationId: getEndpointSecurityAssignments
+      summary: Normalized assignment set for an endpoint-security policy
+      parameters: [ { name: id, in: path, required: true, schema: { type: string } } ]
+      responses:
+        "200": { description: Current assignments, content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/Assignment" } } } } }
+        "409": { description: Not signed in }
+    post:
+      operationId: setEndpointSecurityAssignments
+      summary: Replace ALL assignments on an endpoint-security policy (replace-all write)
+      parameters: [ { name: id, in: path, required: true, schema: { type: string } } ]
+      requestBody: { required: true, content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/Assignment" } } } } }
+      responses: { "204": { description: Assignments replaced }, "409": { description: Not signed in } }
+  /platform-scripts/{id}/assignments:
+    get:
+      operationId: getPlatformScriptAssignments
+      summary: Normalized assignment set for a device-management (platform) script
+      parameters: [ { name: id, in: path, required: true, schema: { type: string } } ]
+      responses:
+        "200": { description: Current assignments, content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/Assignment" } } } } }
+        "409": { description: Not signed in }
+    post:
+      operationId: setPlatformScriptAssignments
+      summary: Replace ALL assignments on a device-management script (replace-all write)
+      parameters: [ { name: id, in: path, required: true, schema: { type: string } } ]
+      requestBody: { required: true, content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/Assignment" } } } } }
+      responses: { "204": { description: Assignments replaced }, "409": { description: Not signed in } }
+  /settings-catalog/{id}/assignments:
+    get:
+      operationId: getSettingsCatalogAssignments
+      summary: Normalized assignment set for a settings-catalog policy
+      parameters: [ { name: id, in: path, required: true, schema: { type: string } } ]
+      responses:
+        "200": { description: Current assignments, content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/Assignment" } } } } }
+        "409": { description: Not signed in }
+    post:
+      operationId: setSettingsCatalogAssignments
+      summary: Replace ALL assignments on a settings-catalog policy (replace-all write)
+      parameters: [ { name: id, in: path, required: true, schema: { type: string } } ]
+      requestBody: { required: true, content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/Assignment" } } } } }
+      responses: { "204": { description: Assignments replaced }, "409": { description: Not signed in } }
+  /shell-scripts/{id}/assignments:
+    get:
+      operationId: getShellScriptAssignments
+      summary: Normalized assignment set for a macOS shell script
+      parameters: [ { name: id, in: path, required: true, schema: { type: string } } ]
+      responses:
+        "200": { description: Current assignments, content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/Assignment" } } } } }
+        "409": { description: Not signed in }
+    post:
+      operationId: setShellScriptAssignments
+      summary: Replace ALL assignments on a macOS shell script (replace-all write)
+      parameters: [ { name: id, in: path, required: true, schema: { type: string } } ]
+      requestBody: { required: true, content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/Assignment" } } } } }
+      responses: { "204": { description: Assignments replaced }, "409": { description: Not signed in } }
+
+  # ── Read-only aggregate / debug surfaces. Tile lists project to ListItem; the deep CA /
+  #    group / posture / assignment-explorer bodies are documented as objects whose
+  #    authoritative shape is the mirrored DTO in Contracts.cs / lib.rs (cited per route). ──
+  /dashboard:
+    get:
+      operationId: getDashboard
+      summary: Overview metric tiles (title=metric, subtitle=description, badge=count)
+      responses:
+        "200": { description: Metric tiles, content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/ListItem" } } } } }
+        "409": { description: Not signed in }
+  /permission-check:
+    get:
+      operationId: getPermissionCheck
+      summary: Signed-in app-registration permission/scope check rows (PermissionCheckService)
+      responses:
+        "200": { description: Permission rows as ListItem tiles, content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/ListItem" } } } } }
+        "409": { description: Not signed in }
+  /security-posture:
+    get:
+      operationId: getSecurityPosture
+      summary: Point-in-time security-posture summary (score + breakdown + gaps). Authoritative shape is SecurityPostureDto.
+      responses:
+        "200": { description: Posture summary (object; see SecurityPostureDto), content: { application/json: { schema: { type: object } } } }
+        "409": { description: Not signed in }
+  /conditional-access/list:
+    get:
+      operationId: listConditionalAccess
+      summary: Conditional Access policies projected to list rows. Authoritative shape is CaPolicyListItemDto[].
+      responses:
+        "200": { description: CA list rows (array of objects; see CaPolicyListItemDto), content: { application/json: { schema: { type: array, items: { type: object } } } } }
+        "409": { description: Not signed in }
+  /conditional-access/{id}/detail:
+    get:
+      operationId: getConditionalAccessDetail
+      summary: Full Conditional Access policy detail (resolved names). Authoritative shape is CaDetailDto.
+      parameters: [ { name: id, in: path, required: true, schema: { type: string } } ]
+      responses:
+        "200": { description: CA detail (object; see CaDetailDto), content: { application/json: { schema: { type: object } } } }
+        "404": { description: No such policy }
+        "409": { description: Not signed in }
+  /groups/{id}/detail:
+    get:
+      operationId: getGroupDetail
+      summary: Group detail — members + reverse assignment properties. Authoritative shape is GroupDetailDto.
+      parameters: [ { name: id, in: path, required: true, schema: { type: string } } ]
+      responses:
+        "200": { description: Group detail (object; see GroupDetailDto), content: { application/json: { schema: { type: object } } } }
+        "409": { description: Not signed in }
+  /assignment-explorer:
+    get:
+      operationId: getAssignmentExplorer
+      summary: Assignment Explorer report rows (IntuneAssignmentChecker) for the requested mode.
+      parameters: [ { name: mode, in: query, required: false, schema: { type: string } } ]
+      responses:
+        "200": { description: Report rows (array of objects; see AssignmentReportRow), content: { application/json: { schema: { type: array, items: { type: object } } } } }
+        "409": { description: Not signed in }
+  /assignment-explorer/report:
+    get:
+      operationId: getAssignmentExplorerReport
+      summary: Assignment Explorer report exported as HTML or CSV (binary download)
+      parameters: [ { name: mode, in: query, required: false, schema: { type: string } }, { name: format, in: query, required: false, schema: { type: string, enum: [html, csv] } } ]
+      responses:
+        "200": { description: The rendered report (text/html or text/csv) }
+        "409": { description: Not signed in }
+
+components:
+  responses:
+    ListItemArray:
+      description: Normalized list rows for the active tenant
+      content:
+        application/json:
+          schema:
+            type: array
+            items: { $ref: "#/components/schemas/ListItem" }
+
+    ObjectJson:
+      description: The full resource as a free-form Graph object (normalized JSON)
+      content:
+        application/json:
+          schema: { type: object, additionalProperties: true }
+
+    Created:
+      description: Created; returns the new object's id
+      content:
+        application/json:
+          schema:
+            type: object
+            properties: { id: { type: string, nullable: true } }
+
+  requestBodies:
+    ObjectJson:
+      description: The resource as a free-form Graph object (normalized JSON); the @odata.type drives deserialization
+      required: true
+      content:
+        application/json:
+          schema: { type: object, additionalProperties: true }
+
+  schemas:
+    Error:
+      type: object
+      description: >
+        Uniform error envelope. EVERY non-2xx response carries this one shape —
+        unhandled exceptions (500, via UseExceptionHandler), bare framework status
+        codes (via UseStatusCodePages), and endpoint-level validation/conflict errors
+        (via ApiResults). `error` is the short human-readable message the thin Rust
+        client reads verbatim (api_client.rs body_error); `detail` is optional extra
+        context; `status` echoes the HTTP status code; `traceId` correlates the body
+        with the server-side Activity/trace when OpenTelemetry is enabled.
+      properties:
+        error:   { type: string, description: "short human-readable message" }
+        detail:  { type: string, nullable: true, description: "optional extra context" }
+        status:  { type: integer, format: int32, description: "HTTP status code" }
+        traceId: { type: string, nullable: true, description: "server trace id for correlation" }
+      required: [error, status]
+
+    DeviceActionInfo:
+      type: object
+      description: One row in the M14 device-action catalog.
+      properties:
+        id:          { type: string, description: "Graph action verb, e.g. syncDevice" }
+        displayName: { type: string }
+        destructive: { type: boolean, description: "wipe/retire/fresh-start — typed-confirm + opt-in gated" }
+        needsConfirm: { type: boolean }
+      required: [id, displayName, destructive, needsConfirm]
+
+    DeviceActionRequest:
+      type: object
+      description: >
+        Optional body for a single device action. `confirm` is required for destructive
+        actions and must equal the target device's name (typed-confirmation). `parameters`
+        is the raw Graph action parameter object (e.g. { keepUserData: true } for wipe,
+        { quickScan: true } for windowsDefenderScan) — passed through verbatim.
+      properties:
+        confirm:    { type: string, nullable: true }
+        parameters: { type: object, additionalProperties: true, nullable: true }
+
+    BulkDeviceActionRequest:
+      type: object
+      description: >
+        Body for a bulk device action. `confirm` is required for destructive actions and
+        must equal the literal token "{action} {count}" (e.g. "wipe 5"), since per-device
+        name typing doesn't scale. `parameters` is the shared Graph action parameter object.
+      properties:
+        deviceIds:  { type: array, items: { type: string } }
+        confirm:    { type: string, nullable: true }
+        parameters: { type: object, additionalProperties: true, nullable: true }
+      required: [deviceIds]
+
+    BulkDeviceActionResult:
+      type: object
+      description: One per-device outcome from a bulk action.
+      properties:
+        deviceId: { type: string }
+        ok:       { type: boolean }
+        error:    { type: string, nullable: true }
+      required: [deviceId, ok]
+
+    DeviceActionRecord:
+      type: object
+      description: >
+        One row of a device's action history (GET /managed-devices/{id}/actions),
+        projected from a Graph deviceActionResult. `id` is synthesized (actionName#index —
+        Graph gives no per-record id); `actor` is null from Graph's deviceActionResults and
+        is reserved for a future audit-log join.
+      properties:
+        id:           { type: string, description: "synthesized: actionName#index" }
+        action:       { type: string, description: "Graph actionName, e.g. syncDevice" }
+        state:        { type: string, nullable: true, description: "Graph actionState, e.g. done/pending/failed" }
+        requestedUtc: { type: string, format: date-time, nullable: true, description: "startDateTime" }
+        completedUtc: { type: string, format: date-time, nullable: true, description: "lastUpdatedDateTime" }
+        actor:        { type: string, nullable: true, description: "initiator when known; null from Graph" }
+      required: [id, action]
+
+    CacheEntryStatus:
+      type: object
+      description: >
+        One LIST-key blob-cache status row for the active tenant (M12.1). DETAIL keys
+        ({key}/{id}) are lazy-only and not enumerable, so this reflects LIST coverage
+        only. `cachedAtUtc` is null when the key is missing or expired.
+      properties:
+        key:          { type: string, description: "cache dataType, e.g. DeviceConfigurations" }
+        displayName:  { type: string }
+        cachedAtUtc:  { type: string, format: date-time, nullable: true }
+        itemCount:    { type: integer, format: int32 }
+        warmAhead:    { type: boolean, description: "true when PrefetchAllToCacheAsync warms this key ahead of first use" }
+      required: [key, displayName, itemCount, warmAhead]
+
+    CacheSummary:
+      type: object
+      description: Header summary for the cache-dev screen (M12.1).
+      properties:
+        available:     { type: boolean, description: "false on NullCacheService — cache disabled" }
+        lastWarmedUtc: { type: string, format: date-time, nullable: true }
+        entryCount:    { type: integer, format: int32, description: "live (non-expired) LIST keys" }
+        totalItems:    { type: integer, format: int32, description: "summed item counts across live keys" }
+      required: [available, entryCount, totalItems]
+
+    SyncStatus:
+      type: object
+      properties:
+        healthy:     { type: boolean }
+        authState:   { $ref: "#/components/schemas/AuthState" }
+        tenantId:    { type: string, nullable: true }
+        profileName: { type: string, nullable: true }
+        lastSyncUtc: { type: string, format: date-time, nullable: true }
+        lastWarmedUtc: { type: string, format: date-time, nullable: true }  # M12.1 — when the blob cache last completed a full warm
+        cloud:       { type: string, enum: [Commercial, GCC, GCCHigh, DoD], nullable: true }
+        deviceCode:  { allOf: [ { $ref: "#/components/schemas/DeviceCodePrompt" } ], nullable: true }
+        error:       { type: string, nullable: true }
+      required: [healthy, authState]
+
+    AuthState:
+      type: string
+      description: >
+        Sign-in lifecycle. AwaitingDeviceCode → the device-code prompt is in
+        SyncStatus.deviceCode. AwaitingInteractive → the sidecar opened the system
+        browser for a delegated sign-in and is waiting for the user to finish.
+      enum: [SignedOut, AwaitingDeviceCode, AwaitingInteractive, SigningIn, SignedIn, Failed]
+
+    DeviceCodePrompt:
+      type: object
+      description: Surfaced while authState == AwaitingDeviceCode so the UI can show the code/URL.
+      properties:
+        userCode:        { type: string }
+        verificationUri: { type: string }
+        message:         { type: string }
+        expiresUtc:      { type: string, format: date-time, nullable: true }
+      required: [userCode, verificationUri, message]
+
+    TenantProfileSummary:
+      type: object
+      properties:
+        id:         { type: string }
+        name:       { type: string }
+        tenantId:   { type: string }
+        cloud:      { type: string, enum: [Commercial, GCC, GCCHigh, DoD] }
+        authMethod: { type: string, enum: [Interactive, ClientSecret, DeviceCode] }
+        isActive:   { type: boolean }
+      required: [id, name, tenantId, isActive]
+
+    CreateProfile:
+      type: object
+      description: >
+        Create (POST /profiles) or edit (PATCH /profiles/{id}) a saved tenant profile.
+        For create, name/tenantId/clientId are required. On edit, null name/tenantId/clientId
+        (and blank strings) keep their current value; cloud/authMethod are updated whenever
+        non-null (an unrecognized value falls back to Commercial/Interactive); an empty-string
+        clientSecret clears the saved secret. clientSecret is only used by the ClientSecret
+        auth method; Interactive and DeviceCode are delegated (public-client) flows and ignore it.
+      properties:
+        name:         { type: string, nullable: true }
+        tenantId:     { type: string, nullable: true }
+        clientId:     { type: string, nullable: true }
+        cloud:        { type: string, enum: [Commercial, GCC, GCCHigh, DoD], nullable: true }
+        authMethod:   { type: string, enum: [Interactive, ClientSecret, DeviceCode], nullable: true }
+        clientSecret: { type: string, nullable: true }
+
+    AuditEvent:
+      type: object
+      properties:
+        id:         { type: string }
+        timestamp:  { type: string, format: date-time }
+        actor:      { type: string, description: "who made the change" }
+        action:     { type: string }
+        objectType: { type: string }
+        objectId:   { type: string }
+        objectName: { type: string }
+      required: [id, timestamp, action, objectType, objectId]
+
+    ConfigSnapshot:
+      type: object
+      properties:
+        snapshotId: { type: string }
+        objectId:   { type: string }
+        objectType: { type: string }
+        capturedUtc: { type: string, format: date-time }
+        body:       { type: object, additionalProperties: true }
+      required: [snapshotId, objectId, objectType, capturedUtc]
+
+    DriftRecord:
+      type: object
+      properties:
+        objectId:       { type: string }
+        baseSnapshotId: { type: string }
+        headSnapshotId: { type: string }
+        changes:
+          type: array
+          items: { $ref: "#/components/schemas/DriftChange" }
+      required: [objectId, changes]
+
+    DriftChange:
+      type: object
+      properties:
+        path:     { type: string, description: "JSON path of the changed field" }
+        kind:     { type: string, enum: [Added, Removed, Modified] }
+        before:   { nullable: true }
+        after:    { nullable: true }
+      required: [path, kind]
+
+    # ─── M15 Policy-as-Code / GitOps ──────────────────────────────────────────
+    GitOpsPullRequest:
+      type: object
+      description: Where to write the repo tree, and which surfaces to include ("*" = all supported).
+      properties:
+        outputPath: { type: string, description: Destination directory for the repo tree }
+        surfaces:
+          type: array
+          items: { type: string }
+          description: Surface keys to pull, or ["*"] for all supported surfaces
+      required: [outputPath]
+
+    GitOpsManifest:
+      type: object
+      description: >
+        Provenance for a pull. contentHash is the SHA-256 roll-up of every
+        normalized file, so a manifest equality check is a cheap "is this tree
+        identical" test.
+      properties:
+        schemaVersion: { type: integer, format: int32 }
+        tenantId:      { type: string, nullable: true }
+        tenantDomain:  { type: string, nullable: true }
+        pulledUtc:     { type: string, format: date-time }
+        pulledBy:      { type: string, nullable: true }
+        cmpxVersion:   { type: string }
+        surfaces:
+          type: object
+          additionalProperties: { type: integer, format: int32 }
+          description: Per-surface object counts (folder name → count)
+        objectCount:   { type: integer, format: int32 }
+        contentHash:   { type: string }
+      required: [schemaVersion, pulledUtc, cmpxVersion, surfaces, objectCount, contentHash]
+
+    GitOpsPlanRequest:
+      type: object
+      properties:
+        repoPath: { type: string }
+        surfaces:
+          type: array
+          items: { type: string }
+      required: [repoPath]
+
+    GitOpsPlan:
+      type: object
+      description: A Terraform-style change set — per-object DriftChange[] grouped by verdict.
+      properties:
+        planId:       { type: string }
+        repoPath:     { type: string }
+        generatedUtc: { type: string, format: date-time }
+        summary:      { $ref: "#/components/schemas/GitOpsPlanSummary" }
+        objects:
+          type: array
+          items: { $ref: "#/components/schemas/GitOpsPlanObject" }
+      required: [planId, repoPath, generatedUtc, summary, objects]
+
+    GitOpsPlanSummary:
+      type: object
+      properties:
+        add:     { type: integer, format: int32 }
+        change:  { type: integer, format: int32 }
+        destroy: { type: integer, format: int32 }
+        noop:    { type: integer, format: int32 }
+      required: [add, change, destroy, noop]
+
+    GitOpsPlanObject:
+      type: object
+      properties:
+        surface:    { type: string, description: "Surface key, e.g. device-configs" }
+        objectType: { type: string }
+        objectName: { type: string }
+        verdict:    { type: string, enum: [Added, Removed, Modified] }
+        changes:
+          type: array
+          items: { $ref: "#/components/schemas/DriftChange" }
+      required: [surface, objectType, objectName, verdict, changes]
+
+    GitOpsApplyRequest:
+      type: object
+      properties:
+        repoPath:       { type: string }
+        planId:         { type: string }
+        confirm:        { type: boolean, description: "Must be true (M6 gate)" }
+        confirmDestroy: { type: boolean, description: "Allow deleting tenant objects absent from the repo (default false)" }
+      required: [repoPath, planId, confirm]
+
+    GitOpsApplyResult:
+      type: object
+      properties:
+        planId:     { type: string }
+        appliedUtc: { type: string, format: date-time }
+        objects:
+          type: array
+          items: { $ref: "#/components/schemas/GitOpsApplyObject" }
+        summary:    { $ref: "#/components/schemas/GitOpsApplySummary" }
+      required: [planId, appliedUtc, objects, summary]
+
+    GitOpsApplyObject:
+      type: object
+      properties:
+        objectName: { type: string }
+        outcome:    { type: string, enum: [applied, skipped, conflict] }
+        snapshotId: { type: string, nullable: true }
+        newId:      { type: string, nullable: true }
+        reason:     { type: string, nullable: true }
+      required: [objectName, outcome]
+
+    GitOpsApplySummary:
+      type: object
+      properties:
+        applied:  { type: integer, format: int32 }
+        skipped:  { type: integer, format: int32 }
+        conflict: { type: integer, format: int32 }
+      required: [applied, skipped, conflict]
+
+    GitOpsStatus:
+      type: object
+      description: Whether the live tenant matches the repo tree (manifest vs live).
+      properties:
+        repoPath:         { type: string }
+        manifestTenantId: { type: string, nullable: true }
+        inSync:           { type: boolean }
+        summary:          { $ref: "#/components/schemas/GitOpsPlanSummary" }
+      required: [repoPath, inSync, summary]
+
+    PendingChange:
+      type: object
+      description: >
+        One AI-proposed write awaiting operator approval (M13.2). kind is
+        create|update|delete|assign; changes is the field-level diff the AI saw
+        (rendered with the same panel as a human edit); state is
+        pending|applied|rejected|failed.
+      properties:
+        id:         { type: string }
+        proposer:   { type: string }
+        kind:       { type: string, enum: [create, update, delete, assign] }
+        path:       { type: string, description: "Surface path, e.g. /scope-tags" }
+        objectId:   { type: string, nullable: true }
+        objectName: { type: string, nullable: true }
+        changes:
+          type: array
+          items: { $ref: "#/components/schemas/DriftChange" }
+        blastRadius:
+          description: "M16 blast-radius report attached at propose time (null if not simulated)"
+          nullable: true
+          allOf: [ { $ref: "#/components/schemas/BlastRadiusReport" } ]
+        state:      { type: string, enum: [pending, applied, rejected, failed] }
+        createdUtc: { type: string, format: date-time }
+      required: [id, proposer, kind, path, changes, state, createdUtc]
+
+    CreatePendingChange:
+      type: object
+      description: Payload the MCP propose_* tools post to enqueue a proposed write.
+      properties:
+        proposer:   { type: string }
+        kind:       { type: string, enum: [create, update, delete, assign] }
+        path:       { type: string }
+        objectId:   { type: string, nullable: true }
+        objectName: { type: string, nullable: true }
+        bodyJson:   { type: string, nullable: true }
+        diffJson:   { type: string, nullable: true, description: "Serialized DriftChange[] the AI computed" }
+        simulationJson: { type: string, nullable: true, description: "Serialized BlastRadiusReport from /simulate" }
+      required: [kind, path]
+
+    # ─── M16 Foresight: blast-radius simulator ────────────────────────────────
+    SimulateRequest:
+      type: object
+      description: >
+        A proposed write to pre-flight. Reuses the PendingChange vocabulary so the
+        same payload flows inbox → simulator. verb is create|update|delete|assign;
+        bodyJson is the object JSON (or an Assignment[] for verb=assign).
+      properties:
+        proposer: { type: string, nullable: true }
+        verb:     { type: string, enum: [create, update, delete, assign] }
+        path:     { type: string, description: "Surface path, e.g. compliance-policies" }
+        objectId: { type: string, nullable: true }
+        bodyJson: { type: string, nullable: true }
+      required: [verb, path]
+
+    BlastRadiusReport:
+      type: object
+      description: >
+        Who a proposed change hits — pure compute over resolved assignments, no write.
+        affected counts are the proposed-minus-live delta (newly affected); severity
+        rolls counts + conflicts into info|low|medium|high|critical.
+      properties:
+        severity:              { type: string, enum: [info, low, medium, high, critical] }
+        summary:               { type: string }
+        affectedUserCount:     { type: integer, format: int32 }
+        affectedDeviceCount:   { type: integer, format: int32 }
+        noLongerAffectedCount: { type: integer, format: int32 }
+        sampleAffectedPrincipals:
+          type: array
+          items: { $ref: "#/components/schemas/SamplePrincipal" }
+        conflicts:
+          type: array
+          items: { $ref: "#/components/schemas/SimConflict" }
+        redundancies:
+          type: array
+          items: { $ref: "#/components/schemas/SimRedundancy" }
+        crossPolicyImpacts:
+          type: array
+          items: { $ref: "#/components/schemas/CrossPolicyImpact" }
+      required: [severity, summary, affectedUserCount, affectedDeviceCount, noLongerAffectedCount, sampleAffectedPrincipals, conflicts, redundancies, crossPolicyImpacts]
+
+    SamplePrincipal:
+      type: object
+      description: One affected user or device, for the report's preview slice.
+      properties:
+        type:        { type: string, enum: [user, device, group] }
+        displayName: { type: string }
+        upn:         { type: string, nullable: true }
+        id:          { type: string }
+        reason:      { type: string }
+      required: [type, displayName, id, reason]
+
+    SimConflict:
+      type: object
+      description: A proposed include that overlaps an exclude (e.g. include All Devices vs exclude Kiosks).
+      properties:
+        kind:   { type: string }
+        detail: { type: string }
+      required: [kind, detail]
+
+    SimRedundancy:
+      type: object
+      description: A proposed target already covered by a live target (e.g. a group subset of All Users).
+      properties:
+        kind:   { type: string }
+        detail: { type: string }
+      required: [kind, detail]
+
+    CrossPolicyImpact:
+      type: object
+      description: A second-order impact on another policy (a compliance flip cascading into a CA lockout).
+      properties:
+        policyId:   { type: string }
+        policyName: { type: string }
+        detail:     { type: string }
+      required: [policyId, policyName, detail]
+
+    # ─── M18 Autonomy: policy + run-history DTOs ──────────────────────────────
+    AutonomyPolicy:
+      type: object
+      description: >
+        Per-tenant autonomy policy. enabled gates the whole loop; each signal is
+        toggled independently with its own severity/score floor. LOCKED: every
+        value here governs only enqueue-eligibility — none auto-applies a write.
+      properties:
+        tenantId:       { type: string, nullable: true }
+        enabled:        { type: boolean }
+        cadenceMinutes: { type: integer, format: int32, minimum: 1 }
+        scope:          { $ref: "#/components/schemas/AutonomyScope" }
+        signals:        { $ref: "#/components/schemas/AutonomySignals" }
+        throttle:       { $ref: "#/components/schemas/AutonomyThrottle" }
+        note:           { type: string }
+      required: [enabled, cadenceMinutes, scope, signals, throttle, note]
+
+    AutonomyScope:
+      type: object
+      description: Which object types and assignment groups the loop is allowed to act on.
+      properties:
+        objectTypes:
+          type: array
+          items: { type: string }
+        assignmentGroupAllowlist:
+          type: array
+          items: { type: string }
+      required: [objectTypes, assignmentGroupAllowlist]
+
+    AutonomySignals:
+      type: object
+      description: Per-signal enqueue toggles. drift defaults on; regression opt-in; advisory off.
+      properties:
+        drift:             { $ref: "#/components/schemas/AutonomySignalConfig" }
+        postureRegression: { $ref: "#/components/schemas/AutonomySignalConfig" }
+        advisory:          { $ref: "#/components/schemas/AutonomySignalConfig" }
+      required: [drift, postureRegression, advisory]
+
+    AutonomySignalConfig:
+      type: object
+      description: >
+        One signal's enqueue toggle. minSeverity gates drift/advisory
+        (info|low|medium|high|critical); minScoreDrop gates postureRegression (the
+        whole-number posture-score drop that triggers a proposal). Both nullable so
+        a signal can be on/off without the unused floor.
+      properties:
+        enabled:      { type: boolean }
+        minSeverity:  { type: string, nullable: true, enum: [info, low, medium, high, critical] }
+        minScoreDrop: { type: integer, format: int32, nullable: true }
+      required: [enabled]
+
+    AutonomyThrottle:
+      type: object
+      description: Politeness rails — caps per run and total in-flight pending proposals.
+      properties:
+        maxProposalsPerRun: { type: integer, format: int32, minimum: 0 }
+        maxInflightPending: { type: integer, format: int32, minimum: 0 }
+      required: [maxProposalsPerRun, maxInflightPending]
+
+    AutonomyRun:
+      type: object
+      description: >
+        One scheduled loop tick, end-to-end. watched is the delta-sync result;
+        detected is the signals found; proposed is the pending-changes raised (with
+        their blast-radius); decision/verify are filled in as the operator acts and
+        the next tick re-checks. The whole chain is queryable and audited.
+      properties:
+        runId:       { type: string }
+        tenantId:    { type: string, nullable: true }
+        startedUtc:  { type: string, format: date-time }
+        finishedUtc: { type: string, format: date-time, nullable: true }
+        watched:     { $ref: "#/components/schemas/AutonomyWatched" }
+        detected:
+          type: array
+          items: { $ref: "#/components/schemas/AutonomyDetection" }
+        proposed:
+          type: array
+          items: { $ref: "#/components/schemas/AutonomyProposal" }
+        decision:   { nullable: true, allOf: [ { $ref: "#/components/schemas/AutonomyDecision" } ] }
+        verify:     { nullable: true, allOf: [ { $ref: "#/components/schemas/AutonomyVerify" } ] }
+      required: [runId, startedUtc, watched, detected, proposed]
+
+    AutonomyWatched:
+      type: object
+      description: The watch step's result — what the delta-sync pulled this tick.
+      properties:
+        auditEventsPulled: { type: integer, format: int32 }
+        snapshotsChanged:  { type: integer, format: int32 }
+        objectTypes:
+          type: array
+          items: { type: string }
+      required: [auditEventsPulled, snapshotsChanged, objectTypes]
+
+    AutonomyDetection:
+      type: object
+      description: >
+        One detected signal (drift|postureRegression|advisory) on one object, with
+        the field-level diff (DriftChange[], same shape as the inbox + drift timeline)
+        and the base/head snapshot ids it was computed between.
+      properties:
+        signal:         { type: string, enum: [drift, postureRegression, advisory] }
+        objectId:       { type: string }
+        objectName:     { type: string, nullable: true }
+        severity:       { type: string, enum: [info, low, medium, high, critical] }
+        baseSnapshotId: { type: string, nullable: true }
+        headSnapshotId: { type: string, nullable: true }
+        changes:
+          type: array
+          items: { $ref: "#/components/schemas/DriftChange" }
+      required: [signal, objectId, severity, changes]
+
+    AutonomyProposal:
+      type: object
+      description: A pending-change the loop raised, with the blast-radius it carries.
+      properties:
+        pendingChangeId: { type: string }
+        kind:            { type: string, enum: [create, update, delete, assign] }
+        path:            { type: string }
+        blastRadius:     { nullable: true, allOf: [ { $ref: "#/components/schemas/BlastRadiusReport" } ] }
+      required: [pendingChangeId, kind, path]
+
+    AutonomyDecision:
+      type: object
+      description: >
+        The operator's verdict on the raised proposal — mirrors what
+        /pending-changes/{id}/approve|reject writes (replay + snapshot + audit).
+      properties:
+        pendingChangeId: { type: string }
+        operator:        { type: string, nullable: true }
+        action:          { type: string, enum: [approved, rejected, failed, pending] }
+        decidedUtc:      { type: string, format: date-time, nullable: true }
+        appliedObjectId: { type: string, nullable: true }
+        auditEventId:    { type: string, nullable: true }
+      required: [pendingChangeId, action]
+
+    AutonomyVerify:
+      type: object
+      description: >
+        The follow-up convergence check — re-diff the object's new head against its
+        baseline. residualDriftChanges == 0 ⇒ converged.
+      properties:
+        verifiedUtc:          { type: string, format: date-time }
+        verifySnapshotId:     { type: string, nullable: true }
+        residualDriftChanges: { type: integer, format: int32 }
+        converged:            { type: boolean }
+      required: [verifiedUtc, residualDriftChanges, converged]
+
+    DriftObject:
+      type: object
+      description: >
+        One object that has config-snapshot history, for the drift picker.
+        snapshotCount >= 2 means there is something to diff; changeCount is the
+        field-level difference between the two latest snapshots (0 if only one).
+      properties:
+        objectId:        { type: string }
+        objectType:      { type: string }
+        objectName:      { type: string, nullable: true }
+        snapshotCount:   { type: integer, format: int32, minimum: 0 }
+        lastCapturedUtc: { type: string, format: date-time }
+        changeCount:     { type: integer, format: int32, minimum: 0 }
+      required: [objectId, objectType, snapshotCount, lastCapturedUtc, changeCount]
+
+    DriftReport:
+      type: object
+      description: >
+        The headless drift-gate CLI's report (Api.exe drift-gate --format json). Not an
+        HTTP endpoint — a CLI stdout/`--output` artifact for CI. `objects` is the DriftObject
+        set filtered to changeCount >= minChanges. `mode` is "store-only" today.
+      properties:
+        generatedUtc:       { type: string, format: date-time }
+        mode:               { type: string }
+        tenantId:           { type: string, nullable: true }
+        trackedObjectCount: { type: integer, format: int32, minimum: 0 }
+        driftedObjectCount: { type: integer, format: int32, minimum: 0 }
+        minChanges:         { type: integer, format: int32, minimum: 1 }
+        driftDetected:      { type: boolean }
+        objects:            { type: array, items: { $ref: "#/components/schemas/DriftObject" } }
+      required: [generatedUtc, mode, trackedObjectCount, driftedObjectCount, minChanges, driftDetected, objects]
+
+    SnapshotSummary:
+      type: object
+      description: >
+        One row in an object's snapshot history (newest first), for the
+        restore/undo picker. Carries the full body so restore can re-PATCH it.
+      properties:
+        snapshotId:  { type: string }
+        capturedUtc: { type: string, format: date-time }
+        objectType:  { type: string }
+        objectName:  { type: string, nullable: true }
+        bodyJson:    { type: string }
+      required: [snapshotId, capturedUtc, objectType, bodyJson]
+
+    ImportRestoreGroup:
+      type: object
+      description: One restored surface — objects created vs failed in the live tenant.
+      properties:
+        type:    { type: string }
+        created: { type: integer, format: int32 }
+        failed:  { type: integer, format: int32 }
+        errors:  { type: array, items: { type: string } }
+      required: [type, created, failed]
+
+    ImportRestoreResult:
+      type: object
+      description: Result of a live restore (POST /import?dryRun=false) — per-type totals.
+      properties:
+        applied:      { type: boolean }
+        totalCreated: { type: integer, format: int32 }
+        totalFailed:  { type: integer, format: int32 }
+        groups:
+          type: array
+          items: { $ref: "#/components/schemas/ImportRestoreGroup" }
+      required: [applied, totalCreated, totalFailed, groups]
+
+    AppListItem:
+      type: object
+      description: One Intune application (Graph MobileApp), flattened for the Applications list.
+      properties:
+        id:                   { type: string }
+        displayName:          { type: string }
+        description:          { type: string, nullable: true }
+        publisher:            { type: string, nullable: true }
+        appType:              { type: string, description: "Friendly app type, e.g. Win32, iOS Store" }
+        platform:             { type: string, enum: [Windows, iOS, Android, macOS, Web, Other] }
+        createdDateTime:      { type: string }
+        lastModifiedDateTime: { type: string }
+        isAssigned:           { type: boolean }
+        publishingState:      { type: string }
+        isFeatured:           { type: boolean }
+      required: [id, displayName, appType, platform, createdDateTime, lastModifiedDateTime, isAssigned, publishingState, isFeatured]
+
+    ListItem:
+      type: object
+      description: >
+        Normalized list row used by the generic LIVE list screens (Devices, and
+        later Identity/Admin). Per-feature endpoints project their Graph element
+        type into this shape server-side.
+      properties:
+        id:       { type: string }
+        title:    { type: string }
+        subtitle: { type: string }
+        badge:    { type: string, nullable: true }
+        platform: { type: string, nullable: true }
+        modified: { type: string, nullable: true }
+        source:   { type: string, nullable: true, description: "Backing MDM provider (e.g. 'jamf') when the row is from a non-Intune provider (M22); null = Intune." }
+      required: [id, title, subtitle]
+
+    MdmProviderDescriptor:
+      type: object
+      description: One registered MDM provider (M22 cross-MDM) and the catalog surfaces it backs.
+      properties:
+        id:                { type: string }
+        supportedSurfaces: { type: array, items: { type: string } }
+      required: [id, supportedSurfaces]
+
+    BaselineCompareRequest:
+      type: object
+      description: POST /baselines/compare body — a baseline FileName + a tenant SettingsCatalog policy id.
+      properties:
+        baselineId: { type: string }
+        policyId:   { type: string }
+      required: [baselineId, policyId]
+
+    PolicyCompareRequest:
+      type: object
+      description: POST /policies/compare body — two live SettingsCatalog policy ids (A vs B).
+      properties:
+        aId: { type: string }
+        bId: { type: string }
+      required: [aId, bId]
+
+    BaselineSettingComparison:
+      type: object
+      description: >-
+        One setting's A-vs-B values (both nullable — missing on the B side, or extra beyond A).
+        settingName is the human-readable label from the embedded Settings Catalog registry.
+      properties:
+        settingDefinitionId: { type: string }
+        settingName:         { type: string, nullable: true }
+        baselineValue:       { type: string, nullable: true }
+        tenantValue:         { type: string, nullable: true }
+      required: [settingDefinitionId]
+
+    BaselineComparison:
+      type: object
+      description: >
+        A SettingsCatalog baseline vs a tenant policy, grouped by verdict (mirrors
+        api_types::BaselineComparison / BaselineComparisonDto byte-for-byte).
+      properties:
+        baselineName:     { type: string }
+        tenantPolicyId:   { type: string, nullable: true }
+        tenantPolicyName: { type: string, nullable: true }
+        matching: { type: array, items: { $ref: "#/components/schemas/BaselineSettingComparison" } }
+        missing:  { type: array, items: { $ref: "#/components/schemas/BaselineSettingComparison" } }
+        drifted:  { type: array, items: { $ref: "#/components/schemas/BaselineSettingComparison" } }
+        extra:    { type: array, items: { $ref: "#/components/schemas/BaselineSettingComparison" } }
+      required: [baselineName, matching, missing, drifted, extra]
+
+    Assignment:
+      type: object
+      description: >
+        Normalized Intune assignment row shared by every assignable surface
+        (mirrors api_types::Assignment / AssignmentDto byte-for-byte). The sidecar
+        translates this to/from the per-resource typed Graph assignment target.
+        `intent` is apps-only (null elsewhere).
+      properties:
+        kind:       { type: string, description: "group | exclusionGroup | allDevices | allUsers" }
+        groupId:    { type: string, nullable: true }
+        groupName:  { type: string, nullable: true }
+        filterId:   { type: string, nullable: true }
+        filterMode: { type: string, nullable: true, description: "include | exclude" }
+        intent:     { type: string, nullable: true, description: "apps: required | available | uninstall | availableWithoutEnrollment" }
+      required: [kind]
+
+    BulkAssignRequest:
+      type: object
+      description: POST /apps/assign body — the same assignments applied to every app in appIds.
+      properties:
+        appIds:      { type: array, items: { type: string } }
+        assignments: { type: array, items: { $ref: "#/components/schemas/Assignment" } }
+        dryRun:      { type: boolean, nullable: true, description: "default true — preview without writing" }
+      required: [appIds, assignments]
+
+    BulkAssignItemResult:
+      type: object
+      properties:
+        appId: { type: string }
+        ok:    { type: boolean }
+        error: { type: string, nullable: true }
+      required: [appId, ok]
+
+    BulkAssignResult:
+      type: object
+      properties:
+        results: { type: array, items: { $ref: "#/components/schemas/BulkAssignItemResult" } }
+      required: [results]
+
+    DeviceRunState:
+      type: object
+      description: One device's detection + remediation state for a deployed remediation script.
+      properties:
+        deviceId:          { type: string }
+        deviceName:        { type: string, nullable: true }
+        detectionState:    { type: string, nullable: true }
+        remediationState:  { type: string, nullable: true }
+        lastStateUpdateUtc: { type: string, nullable: true }
+      required: [deviceId]
+
+    RemediationScriptContent:
+      type: object
+      description: >-
+        A remediation (device health) script's decoded detection + remediation PowerShell.
+        Either body may be null (detection-only, or a global/Microsoft-managed script whose
+        bytes Graph does not return).
+      properties:
+        scriptId:    { type: string }
+        scriptName:  { type: string, nullable: true }
+        detection:   { type: string, nullable: true }
+        remediation: { type: string, nullable: true }
+      required: [scriptId]
+
+    SearchResult:
+      type: object
+      properties:
+        kind:    { type: string, enum: [AuditEvent, ConfigSnapshot] }
+        id:      { type: string }
+        score:   { type: number }
+        summary: { type: string }
+      required: [kind, id, summary]
+
+    # ── Maester security-test integration (maester365/maester) ─────────────────
+    MaesterStatus:
+      type: object
+      description: Whether the sidecar can run Maester (PowerShell 7 + Maester module present).
+      properties:
+        available:      { type: boolean }
+        pwshVersion:    { type: string, nullable: true }
+        maesterVersion: { type: string, nullable: true }
+        message:        { type: string, nullable: true }
+      required: [available]
+
+    MaesterRunState:
+      type: object
+      description: >
+        In-memory status of the current/last Maester run (cheap to poll — not the results,
+        see MaesterRunResult). POST /maester/run returns this; poll GET /maester/run/status
+        until status leaves Running, then GET /maester/results.
+      properties:
+        status:     { type: string, enum: [Idle, Running, Completed, Failed], description: Current run status }
+        startedAt:  { type: string, nullable: true, description: ISO-8601 start of the in-flight/last run }
+        finishedAt: { type: string, nullable: true, description: ISO-8601 finish of the last run }
+        error:      { type: string, nullable: true, description: Failure message when status is Failed }
+        phase:      { type: string, nullable: true, description: 'Live phase while Running (e.g. "Connecting to services", "Running checks")' }
+        completed:  { type: integer, format: int32, description: Checks completed so far in the in-flight run (0 when not running) }
+        total:      { type: integer, format: int32, description: Expected total checks (from the prior run; 0 when unknown) }
+      required: [status]
+
+    MaesterRunRequest:
+      type: object
+      description: Optional Pester tag filter (e.g. ["Intune","Entra"]); omitted runs every check.
+      properties:
+        tags:
+          type: array
+          items: { type: string }
+
+    MaesterControl:
+      type: object
+      description: One Maester test (control), categorized by the service it covers.
+      properties:
+        id:       { type: string, description: "Maester test id, e.g. MT.1054" }
+        title:    { type: string }
+        category: { type: string, description: "Entra | Intune | Exchange | Defender | Teams | SharePoint | Other" }
+        severity: { type: string, nullable: true }
+        result:   { type: string, description: "Passed | Failed | Skipped | NotRun | Error" }
+        helpUrl:  { type: string, nullable: true }
+      required: [id, title, category, result]
+
+    MaesterCategory:
+      type: object
+      description: Per-category roll-up (one per covered service).
+      properties:
+        name:    { type: string }
+        total:   { type: integer }
+        passed:  { type: integer }
+        failed:  { type: integer }
+        skipped: { type: integer }
+        score:   { type: integer, description: "0-100: passed / (passed+failed)" }
+      required: [name, total, passed, failed, skipped, score]
+
+    MaesterRunResult:
+      type: object
+      description: A categorized Maester run; the stored snapshot body drops timestamps so drift is meaningful.
+      properties:
+        executedAt:    { type: string, nullable: true }
+        overallResult: { type: string }
+        total:         { type: integer }
+        passed:        { type: integer }
+        failed:        { type: integer }
+        skipped:       { type: integer }
+        error:         { type: integer }
+        categories:
+          type: array
+          items: { $ref: "#/components/schemas/MaesterCategory" }
+        controls:
+          type: array
+          items: { $ref: "#/components/schemas/MaesterControl" }
+      required: [overallResult, total, passed, failed, skipped, error, categories, controls]
+    # ─── M17 Tenant digital twin ───────────────────────────────────────────────
+    TwinStats:
+      type: object
+      properties:
+        nodeCount: { type: integer, format: int32 }
+        edgeCount: { type: integer, format: int32 }
+        builtUtc:  { type: string, format: date-time, nullable: true }
+        stale:     { type: boolean }
+        source:    { type: string, description: "cache | twinjson | empty" }
+      required: [nodeCount, edgeCount, stale, source]
+
+    TwinNode:
+      type: object
+      properties:
+        id:    { type: string }
+        type:  { type: string, description: "Device | User | Group | Policy | CAPolicy | Filter" }
+        name:  { type: string }
+        props: { type: object, additionalProperties: { type: string } }
+      required: [id, type, name, props]
+
+    TwinEdge:
+      type: object
+      properties:
+        from:     { type: string }
+        to:       { type: string }
+        type:     { type: string, description: "memberOf | includes | excludes" }
+        filterId: { type: string, nullable: true }
+        intent:   { type: string, nullable: true }
+      required: [from, to, type]
+
+    TwinRef:
+      type: object
+      description: A related node referenced by a finding (a group, a contending policy).
+      properties:
+        id:    { type: string }
+        name:  { type: string }
+        role:  { type: string, description: "includeGroup | excludeGroup | contendsWith | target" }
+        count: { type: integer, format: int32, nullable: true }
+      required: [id, name, role]
+
+    TwinFinding:
+      type: object
+      description: One normalized analytics finding (uniform shape across all queries).
+      properties:
+        id:      { type: string, nullable: true }
+        name:    { type: string, nullable: true }
+        kind:    { type: string, description: "finding kind, e.g. emptyGroupOnly | includeExcludeOverlap" }
+        detail:  { type: string }
+        refs:    { type: array, items: { $ref: "#/components/schemas/TwinRef" } }
+        metrics: { type: object, additionalProperties: { type: integer, format: int32 } }
+      required: [kind, detail, refs, metrics]
+
+    TwinAnalyticsResult:
+      type: object
+      properties:
+        query:    { type: string }
+        builtUtc: { type: string, format: date-time, nullable: true }
+        source:   { type: string }
+        findings: { type: array, items: { $ref: "#/components/schemas/TwinFinding" } }
+      required: [query, source, findings]
+
+    TwinEdgeView:
+      type: object
+      description: An edge plus the node on the other end (for the neighborhood view).
+      properties:
+        from:      { type: string }
+        to:        { type: string }
+        type:      { type: string }
+        otherNode: { $ref: "#/components/schemas/TwinNode" }
+      required: [from, to, type, otherNode]
+
+    TwinNeighborhood:
+      type: object
+      properties:
+        node:     { $ref: "#/components/schemas/TwinNode" }
+        inbound:  { type: array, items: { $ref: "#/components/schemas/TwinEdgeView" } }
+        outbound: { type: array, items: { $ref: "#/components/schemas/TwinEdgeView" } }
+        members:  { type: array, items: { $ref: "#/components/schemas/TwinNode" } }
+        warnings: { type: array, items: { type: string } }
+      required: [node, inbound, outbound, members, warnings]
+
+    TwinQueryRequest:
+      type: object
+      properties:
+        fromType:   { type: string, description: "node type to start from, e.g. Policy" }
+        edgePath:   { type: array, items: { type: string }, description: "edge types to traverse, e.g. [includes, memberOf]" }
+        predicates: { type: object, additionalProperties: { type: string }, nullable: true }
+      required: [fromType, edgePath]
+
+    TwinQueryResult:
+      type: object
+      properties:
+        nodes: { type: array, items: { $ref: "#/components/schemas/TwinNode" } }
+        edges: { type: array, items: { $ref: "#/components/schemas/TwinEdge" } }
+      required: [nodes, edges]
+
+    # ─── M19 — continuous posture (docs/part-ii/M19-posture.md) ─────────────────
+    BenchmarkControlRef:
+      type: object
+      description: One external control reference grafted onto a score category or gap.
+      properties:
+        framework: { type: string, description: "cis | oib | e8 | nist" }
+        id:        { type: string }
+        title:     { type: string, nullable: true }
+      required: [framework, id]
+
+    BenchmarkCoverage:
+      type: object
+      description: Per-benchmark coverage rollup — satisfied controls over controls in scope.
+      properties:
+        controlsCovered: { type: integer }
+        controlsTotal:   { type: integer }
+        percent:         { type: integer }
+      required: [controlsCovered, controlsTotal, percent]
+
+    BenchmarkedScoreCategory:
+      type: object
+      description: A ScoreCategory with external control references grafted on.
+      properties:
+        category: { type: string }
+        score:    { type: integer }
+        maxScore: { type: integer }
+        items:    { type: array, items: { type: string } }
+        controls: { type: array, items: { $ref: "#/components/schemas/BenchmarkControlRef" } }
+      required: [category, score, maxScore, items, controls]
+
+    BenchmarkedGap:
+      type: object
+      description: A SecurityGap with external control references grafted on.
+      properties:
+        severity:    { type: string, description: "high | medium | low" }
+        category:    { type: string }
+        description: { type: string }
+        controls:    { type: array, items: { $ref: "#/components/schemas/BenchmarkControlRef" } }
+      required: [severity, category, description, controls]
+
+    BenchmarkedPosture:
+      type: object
+      description: >
+        The /security-posture/summary shape (score, breakdown, gaps, stats) with control IDs
+        grafted onto each category and gap, plus the framework coverage rollup. Score weights
+        are unchanged; only the labeling and the framework rollup are new.
+      properties:
+        benchmark:        { type: string, description: "cis | oib | e8 | nist" }
+        benchmarkVersion: { type: string }
+        score:            { type: integer }
+        coverage:         { $ref: "#/components/schemas/BenchmarkCoverage" }
+        breakdown:        { type: array, items: { $ref: "#/components/schemas/BenchmarkedScoreCategory" } }
+        gaps:             { type: array, items: { $ref: "#/components/schemas/BenchmarkedGap" } }
+        stats:            { $ref: "#/components/schemas/PostureStats" }
+      required: [benchmark, benchmarkVersion, score, coverage, breakdown, gaps, stats]
+
+    PostureStats:
+      type: object
+      description: Headline counts behind the posture score (mirrors PostureStatsDto).
+      properties:
+        caTotal:                { type: integer }
+        caEnabled:              { type: integer }
+        caReportOnly:           { type: integer }
+        caDisabled:             { type: integer }
+        compliancePolicies:     { type: integer }
+        compliancePlatforms:    { type: array, items: { type: string } }
+        endpointSecurityIntents: { type: integer }
+        appProtectionPolicies:  { type: integer }
+        authStrengthPolicies:   { type: integer }
+        namedLocations:         { type: integer }
+      required:
+        - caTotal
+        - caEnabled
+        - caReportOnly
+        - caDisabled
+        - compliancePolicies
+        - compliancePlatforms
+        - endpointSecurityIntents
+        - appProtectionPolicies
+        - authStrengthPolicies
+        - namedLocations
+
+    PostureTrendPoint:
+      type: object
+      description: One historical posture snapshot projected to its score + per-category scores.
+      properties:
+        capturedUtc:    { type: string, format: date-time }
+        score:          { type: integer }
+        categoryScores: { type: object, additionalProperties: { type: integer } }
+      required: [capturedUtc, score, categoryScores]
+
+    PostureTrendDelta:
+      type: object
+      description: Change between the earliest and latest trend point — score delta + regressions.
+      properties:
+        since:                 { type: string, format: date-time, nullable: true }
+        scoreChange:           { type: integer }
+        regressions:           { type: array, items: { type: string } }
+        remediationCandidates: { type: array, items: { $ref: "#/components/schemas/PostureRemediationCandidate" } }
+      required: [scoreChange, regressions, remediationCandidates]
+
+    PostureRemediationCandidate:
+      type: object
+      description: >
+        A regressed category surfaced as an M18 remediation candidate (read-only; feeds the
+        autonomy loop's candidate list, never auto-enqueued).
+      properties:
+        category:                { type: string }
+        scoreChange:             { type: integer }
+        remediationCandidateRef: { type: string, nullable: true }
+      required: [category, scoreChange]
+
+    PostureTrend:
+      type: object
+      description: Posture score over time, replayed from the time-machine.
+      properties:
+        benchmark: { type: string }
+        points:    { type: array, items: { $ref: "#/components/schemas/PostureTrendPoint" } }
+        delta:     { $ref: "#/components/schemas/PostureTrendDelta" }
+      required: [benchmark, points, delta]
+
+    PoamItem:
+      type: object
+      description: One Plan of Action & Milestones item — gap → control(s) → remediation → due.
+      properties:
+        id:                      { type: string }
+        severity:                { type: string, description: "high | medium | low" }
+        category:                { type: string }
+        finding:                 { type: string }
+        controls:                { type: array, items: { $ref: "#/components/schemas/BenchmarkControlRef" } }
+        remediation:             { type: string }
+        source:                  { type: string, description: "security-gap | baseline-drift" }
+        owner:                   { type: string, nullable: true }
+        openedUtc:               { type: string, format: date-time }
+        dueUtc:                  { type: string, format: date-time }
+        state:                   { type: string, description: "open | closed" }
+        remediationCandidateRef: { type: string, nullable: true }
+      required: [id, severity, category, finding, controls, remediation, source, openedUtc, dueUtc, state]
+
+    Poam:
+      type: object
+      description: The live Plan of Action & Milestones for a benchmark.
+      properties:
+        benchmark:    { type: string }
+        generatedUtc: { type: string, format: date-time }
+        items:        { type: array, items: { $ref: "#/components/schemas/PoamItem" } }
+      required: [benchmark, generatedUtc, items]
+
+    EvidencePackRequest:
+      type: object
+      description: Selects what point-in-time evidence the pack bundles.
+      properties:
+        asOf:      { type: string, format: date-time, nullable: true, description: "Pins the time-machine read; null = now." }
+        benchmark: { type: string, nullable: true, description: "cis | oib | e8 | nist; default cis." }
+        surfaces:  { type: array, items: { type: string }, nullable: true }
+        formats:   { type: array, items: { type: string }, nullable: true }
+
+    EvidenceArtifactRef:
+      type: object
+      description: One artifact inside the evidence pack zip.
+      properties:
+        kind:         { type: string }
+        format:       { type: string }
+        path:         { type: string }
+        sourceEngine: { type: string }
+      required: [kind, format, path, sourceEngine]
+
+    EvidencePackManifest:
+      type: object
+      description: >
+        The signed manifest of a point-in-time evidence pack. Reproducible: the same asOf
+        produces the same manifestHash (modulo render timestamp).
+      properties:
+        packId:       { type: string }
+        asOf:         { type: string, format: date-time }
+        benchmark:    { type: string }
+        tenantName:   { type: string }
+        score:        { type: integer }
+        zipPath:      { type: string }
+        artifacts:    { type: array, items: { $ref: "#/components/schemas/EvidenceArtifactRef" } }
+        snapshotIds:  { type: array, items: { type: string } }
+        manifestHash: { type: string }
+      required: [packId, asOf, benchmark, tenantName, score, zipPath, artifacts, snapshotIds, manifestHash]
+
+    # ─── M20 Fleet — multi-tenant fan-out (docs/part-ii/M20-fleet.md) ──────────
+    FleetTenant:
+      type: object
+      description: A known tenant profile plus its live fleet-session sign-in state.
+      properties:
+        tenantId:   { type: string }
+        profileId:  { type: string }
+        tenantName: { type: string }
+        authState:  { $ref: "#/components/schemas/AuthState" }
+        signedIn:   { type: boolean }
+      required: [tenantId, profileId, tenantName, authState, signedIn]
+
+    TenantGroup:
+      type: object
+      description: A named, persisted set of tenantIds — a saved fan-out target.
+      properties:
+        id:             { type: string }
+        name:           { type: string }
+        tenantIds:      { type: array, items: { type: string } }
+        goldenTenantId: { type: string, nullable: true }
+        createdUtc:     { type: string, format: date-time }
+      required: [id, name, tenantIds, createdUtc]
+
+    FleetTenantStatus:
+      type: object
+      description: Per-tenant status header in a fan-out response (ok | throttled | unsupported | error | signedOut).
+      properties:
+        tenantId:   { type: string }
+        tenantName: { type: string }
+        status:     { type: string, enum: [ok, throttled, unsupported, error, signedOut] }
+      required: [tenantId, tenantName, status]
+
+    FleetListItem:
+      type: object
+      description: A normalized list row stamped with its source tenant (the fleet-tagged ListItem).
+      properties:
+        id:         { type: string }
+        title:      { type: string }
+        subtitle:   { type: string }
+        badge:      { type: string, nullable: true }
+        platform:   { type: string, nullable: true }
+        modified:   { type: string, nullable: true }
+        tenantId:   { type: string }
+        tenantName: { type: string }
+      required: [id, title, subtitle, tenantId, tenantName]
+
+    FleetError:
+      type: object
+      description: A per-tenant error reported in a fan-out response (the tenant's rows are omitted, fleet still returns).
+      properties:
+        tenantId: { type: string }
+        code:     { type: string }
+        message:  { type: string }
+      required: [tenantId, code, message]
+
+    FleetListResponse:
+      type: object
+      description: Fan-out LIST across a group; rows tenant-tagged, partial failures reported per tenant.
+      properties:
+        surface: { type: string }
+        group:   { type: string }
+        tenants:
+          type: array
+          items: { $ref: "#/components/schemas/FleetTenantStatus" }
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/FleetListItem" }
+        errors:
+          type: array
+          items: { $ref: "#/components/schemas/FleetError" }
+      required: [surface, group, tenants, items, errors]
+
+    GoldenRef:
+      type: object
+      description: Where a campaign's baseline comes from. kind=goldenTenant reads the surface from a live tenant; goldenRepo (M15) is deferred.
+      properties:
+        kind:     { type: string, enum: [goldenTenant, goldenRepo] }
+        tenantId: { type: string, nullable: true }
+        repoRef:  { type: string, nullable: true }
+      required: [kind]
+
+    CampaignRequest:
+      type: object
+      description: >
+        Broadcast a baseline to a group. dryRun=true resolves effective = golden ⊕
+        groupOverride ⊕ tenantOverride per target and returns a /preview-diff for each,
+        applying nothing. Otherwise each target is enqueued as a gated M13 replay
+        (POST /pending-changes), so each write is individually approved — N gates, not one.
+      properties:
+        campaignId: { type: string, nullable: true }
+        group:      { type: string }
+        golden:     { $ref: "#/components/schemas/GoldenRef" }
+        surface:    { type: string }
+        objectName: { type: string }
+        verb:       { type: string, enum: [POST, PATCH], default: PATCH }
+        dryRun:     { type: boolean, default: true }
+        gate:       { type: string, default: perTenantConfirm }
+        overrides:
+          type: object
+          description: "Per-tenant sparse JSON-merge-patch override, keyed by tenantId."
+          additionalProperties: { type: object, additionalProperties: true }
+      required: [group, golden, surface, objectName]
+
+    CampaignTenantResult:
+      type: object
+      description: One target tenant's campaign outcome (success | skip | conflict | error | pending).
+      properties:
+        tenantId:      { type: string }
+        tenantName:    { type: string }
+        outcome:       { type: string, enum: [success, skip, conflict, error, pending] }
+        reason:        { type: string, nullable: true }
+        pendingId:     { type: string, nullable: true, description: "The /pending-changes id this target was gated through (the M13 inbox row)." }
+        newId:         { type: string, nullable: true }
+        appliedFields: { type: array, items: { type: string } }
+        diff:
+          type: array
+          description: "Field-level /preview-diff of effective-golden vs the target's live object (dryRun)."
+          items: { $ref: "#/components/schemas/DriftChange" }
+      required: [tenantId, tenantName, outcome, appliedFields, diff]
+
+    CampaignSummary:
+      type: object
+      properties:
+        success:  { type: integer, format: int32 }
+        skip:     { type: integer, format: int32 }
+        conflict: { type: integer, format: int32 }
+        error:    { type: integer, format: int32 }
+        pending:  { type: integer, format: int32 }
+        total:    { type: integer, format: int32 }
+      required: [success, skip, conflict, error, pending, total]
+
+    CampaignResult:
+      type: object
+      description: A campaign's aggregated per-tenant outcomes — never collapsed into one.
+      properties:
+        campaignId: { type: string }
+        surface:    { type: string }
+        objectName: { type: string }
+        dryRun:     { type: boolean }
+        results:
+          type: array
+          items: { $ref: "#/components/schemas/CampaignTenantResult" }
+        summary: { $ref: "#/components/schemas/CampaignSummary" }
+      required: [campaignId, surface, objectName, dryRun, results, summary]
+
+    FleetDriftField:
+      type: object
+      properties:
+        field:  { type: string }
+        golden: { nullable: true }
+        actual: { nullable: true }
+      required: [field]
+
+    FleetDriftTenant:
+      type: object
+      description: One tenant's divergence from the resolved effective golden (golden | inSync | diverged | error).
+      properties:
+        tenantId:   { type: string }
+        tenantName: { type: string }
+        status:     { type: string, enum: [golden, inSync, diverged, error] }
+        driftCount: { type: integer, format: int32 }
+        note:       { type: string, nullable: true }
+        drifts:
+          type: array
+          items: { $ref: "#/components/schemas/FleetDriftField" }
+      required: [tenantId, tenantName, status, driftCount, drifts]
+
+    FleetDriftSummary:
+      type: object
+      properties:
+        golden:   { type: integer, format: int32 }
+        inSync:   { type: integer, format: int32 }
+        diverged: { type: integer, format: int32 }
+        error:    { type: integer, format: int32 }
+      required: [golden, inSync, diverged, error]
+
+    FleetDriftResponse:
+      type: object
+      properties:
+        group:      { type: string }
+        golden:     { type: string, nullable: true }
+        surface:    { type: string }
+        objectName: { type: string }
+        tenants:
+          type: array
+          items: { $ref: "#/components/schemas/FleetDriftTenant" }
+        summary: { $ref: "#/components/schemas/FleetDriftSummary" }
+      required: [group, surface, objectName, tenants, summary]
+
+    FleetPostureTenant:
+      type: object
+      properties:
+        tenantId:   { type: string }
+        tenantName: { type: string }
+        status:     { type: string, enum: [ok, error, signedOut] }
+        score:      { type: integer, format: int32, nullable: true }
+      required: [tenantId, tenantName, status]
+
+    FleetPostureResponse:
+      type: object
+      description: Fleet-wide posture — per-tenant score plus a fleet roll-up (average over scored tenants).
+      properties:
+        group:        { type: string }
+        averageScore: { type: integer, format: int32 }
+        scoredTenants: { type: integer, format: int32 }
+        tenants:
+          type: array
+          items: { $ref: "#/components/schemas/FleetPostureTenant" }
+      required: [group, averageScore, scoredTenants, tenants]
+
+    GoldenTemplate:
+      type: object
+      description: >
+        A desired-state baseline for one {surface, objectName}, with sparse override
+        layers. effective = golden ⊕ groupOverride ⊕ tenantOverride. Override values
+        are JSON-merge-patch documents keyed by group id / tenant id.
+      properties:
+        id:         { type: string }
+        name:       { type: string }
+        surface:    { type: string }
+        objectName: { type: string }
+        golden:     { $ref: "#/components/schemas/GoldenRef" }
+        baselineJson: { type: string, nullable: true, description: "The captured baseline body (when sourced from a repo / snapshot rather than a live read)." }
+        groupOverrides:
+          type: object
+          additionalProperties: { type: object, additionalProperties: true }
+        tenantOverrides:
+          type: object
+          additionalProperties: { type: object, additionalProperties: true }
+        createdUtc: { type: string, format: date-time }
+      required: [id, name, surface, objectName, golden, createdUtc]
+
+    # ─── M21 Ecosystem — packs, playbooks, marketplace ─────────────────────────
+
+    PackManifest:
+      type: object
+      description: >
+        A pack is a versioned M15 desired-state repo plus this top-level pack.json
+        manifest. targetSurfaces mirror the path catalog (Surfaces.cs); the repo body
+        is byte-identical to a `cmpx pull` export. Adopting = the M15 round-trip
+        (plan → gate → apply) against the operator's tenant, parameter-substituted.
+      properties:
+        schemaVersion:  { type: string }
+        id:             { type: string }
+        name:           { type: string }
+        version:        { type: string }
+        publisher:      { type: string, nullable: true }
+        description:    { type: string, nullable: true }
+        targetSurfaces:
+          type: array
+          items: { type: string }
+        minSidecar:     { type: string, nullable: true }
+        parameters:
+          type: array
+          items: { $ref: "#/components/schemas/PackParameter" }
+        repoPath:       { type: string, nullable: true, description: "Local working-tree path the manifest was loaded from" }
+        objectCount:    { type: integer, format: int32, minimum: 0 }
+        signature:      { type: string, nullable: true, description: "Reserved — detached signature for supply-chain trust" }
+      required: [schemaVersion, id, name, version, targetSurfaces, parameters, objectCount]
+
+    PackParameter:
+      type: object
+      description: One adoption parameter the operator binds before plan (e.g. a target group id).
+      properties:
+        name:      { type: string }
+        type:      { type: string, description: "groupId | filterId | int | string | bool" }
+        prompt:    { type: string, nullable: true }
+        required:  { type: boolean }
+        default:   { type: string, nullable: true }
+        appliesTo: { type: string, nullable: true, description: "JSON path the value substitutes into" }
+      required: [name, type, required]
+
+    PackAdoptRequest:
+      type: object
+      description: >
+        Bind operator-supplied parameters, then plan (default) or apply. confirm:false
+        (default) returns the M15 plan only — a Terraform-style preview. confirm:true
+        with the reviewed planId runs the gated M15 apply.
+      properties:
+        parameters:
+          type: object
+          additionalProperties: { type: string }
+          description: name → value bindings for the manifest parameters
+        confirm:        { type: boolean, description: "false (default) = plan only; true = apply the reviewed plan" }
+        planId:         { type: string, nullable: true, description: "Required when confirm:true — the planId returned by a prior plan" }
+        confirmDestroy: { type: boolean, description: "Allow deletes when applying (default false)" }
+
+    PackAdoptResult:
+      type: object
+      description: >
+        The outcome of an adopt. phase = plan when confirm:false (plan carries the M15
+        plan id + change summary the operator reviews), apply when confirm:true (applyResult
+        carries the per-object outcome). requiresM15 is true when the GitOps endpoints are
+        absent in this build (this branch bases off main, where M15 is not yet merged).
+      properties:
+        packId:       { type: string }
+        phase:        { type: string, enum: [plan, apply, error] }
+        requiresM15:  { type: boolean }
+        message:      { type: string, nullable: true }
+        planId:       { type: string, nullable: true }
+        summary:      { type: string, nullable: true, description: "Human-readable change summary from the M15 plan" }
+        plan:         { nullable: true, description: "The raw M15 plan body (passthrough), when phase=plan" }
+        applyResult:  { nullable: true, description: "The raw M15 apply result (passthrough), when phase=apply" }
+      required: [packId, phase, requiresM15]
+
+    Playbook:
+      type: object
+      description: >
+        A parameterized, ordered set of proposed writes. Each native step expands to a
+        propose_* call that lands as a PendingChange in the M13 inbox; plugin steps
+        (plugin_<name>_<tool>) are pass-through. proposer carries playbook:{id}.
+      properties:
+        schemaVersion: { type: string }
+        id:            { type: string }
+        name:          { type: string }
+        version:       { type: string }
+        description:   { type: string, nullable: true }
+        parameters:
+          type: array
+          items: { $ref: "#/components/schemas/PackParameter" }
+        steps:
+          type: array
+          items: { $ref: "#/components/schemas/PlaybookStep" }
+      required: [schemaVersion, id, name, version, parameters, steps]
+
+    PlaybookStep:
+      type: object
+      description: >
+        One ordered step. tool is a native propose_* (propose_create/update/delete/
+        assignments) or an aggregated plugin tool (plugin_<name>_<tool>). gated defaults
+        to true for native steps; plugin steps are pass-through. {{param}} tokens in
+        path/objectId/body are substituted from the run parameters.
+      properties:
+        id:        { type: string }
+        tool:      { type: string }
+        path:      { type: string, nullable: true, description: "Surface key for native propose_* steps" }
+        objectId:  { type: string, nullable: true }
+        body:      { type: object, additionalProperties: true, nullable: true }
+        args:      { type: object, additionalProperties: true, nullable: true, description: "Args for a plugin tool step" }
+        gated:     { type: boolean, nullable: true }
+        dependsOn:
+          type: array
+          items: { type: string }
+          nullable: true
+      required: [id, tool]
+
+    PlaybookRunRequest:
+      type: object
+      description: Bind the playbook parameters before expanding the ordered steps.
+      properties:
+        parameters:
+          type: object
+          additionalProperties: { type: string }
+          description: name → value bindings for the playbook parameters
+
+    PlaybookRunResult:
+      type: object
+      description: >
+        The outcome of a run. Each native step yields a PendingChange id (state pending);
+        plugin steps are reported as pass-through (not enqueued). pendingChangeIds is the
+        flat list of created change ids for polling via get_change_status.
+      properties:
+        playbookId:       { type: string }
+        proposer:         { type: string, description: "playbook:{id} — the audit-trail origin" }
+        steps:
+          type: array
+          items: { $ref: "#/components/schemas/PlaybookStepResult" }
+        pendingChangeIds:
+          type: array
+          items: { type: string }
+      required: [playbookId, proposer, steps, pendingChangeIds]
+
+    PlaybookStepResult:
+      type: object
+      description: One step's outcome — enqueued (native, with a change id), passthrough (plugin), or skipped/error.
+      properties:
+        stepId:          { type: string }
+        tool:            { type: string }
+        outcome:         { type: string, enum: [enqueued, passthrough, skipped, error] }
+        pendingChangeId: { type: string, nullable: true }
+        message:         { type: string, nullable: true }
+      required: [stepId, tool, outcome]
+
+    MarketplaceEntry:
+      type: object
+      description: >
+        A curated, installable downstream MCP plugin. Installing binds configFields and
+        appends a plugins.json row (M13.3 shape). trust surfaces whether the plugin's
+        own side-effects are read-only or writes-side-effecting (the operator's curation
+        decision, recorded in plugins.json).
+      properties:
+        id:           { type: string }
+        name:         { type: string }
+        category:     { type: string, nullable: true }
+        publisher:    { type: string, nullable: true }
+        verified:     { type: boolean }
+        description:  { type: string, nullable: true }
+        transport:    { type: string, enum: [http, streamablehttp, sse, stdio] }
+        urlTemplate:  { type: string, nullable: true, description: "http transports — {{field}} tokens bound from configFields" }
+        command:      { type: string, nullable: true, description: "stdio transport — the child command" }
+        args:
+          type: array
+          items: { type: string }
+          nullable: true
+        configFields:
+          type: array
+          items: { $ref: "#/components/schemas/MarketplaceConfigField" }
+        exposesTools:
+          type: array
+          items: { type: string }
+          nullable: true
+        trust:        { type: string, nullable: true, description: "read-only | writes-side-effecting" }
+        installed:    { type: boolean, description: "true when a plugins.json row already exists for this entry" }
+      required: [id, name, transport, verified, configFields, installed]
+
+    MarketplaceConfigField:
+      type: object
+      description: One value the operator supplies at install (e.g. instance, token).
+      properties:
+        name:     { type: string }
+        type:     { type: string, description: "string | secret" }
+        required: { type: boolean }
+        header:   { type: string, nullable: true, description: "When set, the bound value becomes this HTTP header" }
+        format:   { type: string, nullable: true, description: "Value template, e.g. 'Bearer {{token}}'" }
+      required: [name, type, required]
+
+    MarketplaceInstallRequest:
+      type: object
+      description: Bind the entry's configFields before writing the plugins.json row.
+      properties:
+        config:
+          type: object
+          additionalProperties: { type: string }
+          description: configField name → value bindings
+
+    MarketplaceInstallResult:
+      type: object
+      description: The plugins.json row written (with secrets redacted in the echo).
+      properties:
+        entryId:    { type: string }
+        pluginName: { type: string }
+        transport:  { type: string }
+        installed:  { type: boolean }
+        message:    { type: string, nullable: true }
+      required: [entryId, pluginName, transport, installed]

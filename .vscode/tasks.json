@@ -1,247 +1,157 @@
 {
+  // Build/run tasks for the two halves of cmProjectX:
+  //   • Rust client  (app/ + crates/, cargo workspace at the repo root → target/)
+  //   • .NET sidecar (service/Api, ASP.NET host that binds 127.0.0.1:5099)
+  // The launch configs in launch.json reference these by label.
   "version": "2.0.0",
   "tasks": [
+    // ─── Rust client (cargo workspace at repo root) ──────────────────────────
     {
-      "label": "build",
-      "command": "dotnet",
+      "label": "rust: build app (debug)",
+      "type": "shell",
+      "command": "cargo",
+      "args": ["build", "-p", "app"],
+      "options": { "cwd": "${workspaceFolder}" },
+      "problemMatcher": ["$rustc"],
+      "group": "build",
+      "presentation": { "reveal": "silent", "panel": "shared", "clear": true }
+    },
+    {
+      "label": "rust: build app (release)",
+      "type": "shell",
+      "command": "cargo",
+      "args": ["build", "-p", "app", "--release"],
+      "options": { "cwd": "${workspaceFolder}" },
+      "problemMatcher": ["$rustc"],
+      "group": "build"
+    },
+    {
+      "label": "rust: clippy",
+      "type": "shell",
+      "command": "cargo",
+      "args": ["clippy", "--workspace", "--all-targets"],
+      "options": { "cwd": "${workspaceFolder}" },
+      "problemMatcher": ["$rustc"],
+      "group": "build"
+    },
+    {
+      "label": "rust: test",
+      "type": "shell",
+      "command": "cargo",
+      "args": ["test", "--workspace"],
+      "options": { "cwd": "${workspaceFolder}" },
+      "problemMatcher": ["$rustc"],
+      "group": "test"
+    },
+
+    // ─── .NET sidecar (service/Api → Api.dll) ────────────────────────────────
+    // Builds Api plus its ProjectReferences (Store / Sync / Core). SDK is pinned
+    // by service/global.json, so run dotnet from the service/Api csproj.
+    {
+      "label": "dotnet: build service",
       "type": "process",
+      "command": "dotnet",
       "args": [
         "build",
-        "${workspaceFolder}/Intune.Commander.sln",
-        "--no-restore"
+        "${workspaceFolder}/service/Api/Api.csproj",
+        "/property:GenerateFullPaths=true",
+        "/consoleloggerparameters:NoSummary"
       ],
-      "problemMatcher": "$msCompile",
-      "presentation": {
-        "panel": "dedicated",
-        "reveal": "always"
-      },
-      "group": {
-        "kind": "build",
-        "isDefault": true
-      }
+      "problemMatcher": ["$msCompile"],
+      "group": "build",
+      "presentation": { "reveal": "silent", "panel": "shared", "clear": true }
     },
+
+    // ─── Free port 5099 ──────────────────────────────────────────────────────
+    // Kills whatever is listening on 5099. Run before launching the sidecar so a
+    // leftover process from a previous (or crashed) debug session can't (a) hold
+    // the port — making the new sidecar crash on bind — or (b) keep Api.dll
+    // locked — which stalls `dotnet build` and shows up as a stuck preLaunchTask.
     {
-      "label": "build-release",
-      "command": "dotnet",
-      "type": "process",
+      "label": "prep: stop sidecar",
+      "type": "shell",
+      "command": "powershell",
       "args": [
-        "build",
-        "${workspaceFolder}/src/Intune.Commander.DesktopReact/Intune.Commander.DesktopReact.csproj",
-        "--configuration",
-        "Release"
-      ],
-      "problemMatcher": "$msCompile",
-      "presentation": {
-        "panel": "dedicated",
-        "reveal": "always"
-      }
-    },
-    {
-      "label": "restore",
-      "command": "dotnet",
-      "type": "process",
-      "args": [
-        "restore",
-        "${workspaceFolder}/src/Intune.Commander.DesktopReact/Intune.Commander.DesktopReact.csproj"
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-Command",
+        "Get-NetTCPConnection -LocalPort 5099 -State Listen -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess -Unique | ForEach-Object { Stop-Process -Id $_ -Force -ErrorAction SilentlyContinue }; exit 0"
       ],
       "problemMatcher": [],
-      "presentation": {
-        "panel": "dedicated",
-        "reveal": "always"
-      }
+      "presentation": { "reveal": "silent", "panel": "shared", "close": true }
     },
+
+    // ─── Run the sidecar (undebugged) as a background gate ───────────────────
+    // preLaunchTask for "App + sidecar (run)". dependsOn (sequence) frees the
+    // port and builds the client first; then `dotnet run` starts the sidecar and
+    // the background matcher holds the debug launch until it logs
+    // "Application started." — so the app is NEVER launched before the sidecar.
     {
-      "label": "build-solution",
+      "label": "serve: sidecar (background)",
+      "dependsOn": ["prep: stop sidecar", "rust: build app (debug)"],
+      "dependsOrder": "sequence",
+      "type": "process",
       "command": "dotnet",
-      "type": "process",
-      "args": [
-        "build",
-        "${workspaceFolder}/Intune.Commander.sln",
-        "--no-restore"
-      ],
-      "problemMatcher": "$msCompile",
-      "presentation": {
-        "panel": "dedicated",
-        "reveal": "always"
-      }
-    },
-    {
-      "label": "restore-solution",
-      "command": "dotnet",
-      "type": "process",
-      "args": [
-        "restore",
-        "${workspaceFolder}/Intune.Commander.sln"
-      ],
-      "problemMatcher": [],
-      "presentation": {
-        "panel": "dedicated",
-        "reveal": "always"
-      }
-    },
-    {
-      "label": "test",
-      "command": "dotnet",
-      "type": "process",
-      "args": [
-        "test",
-        "${workspaceFolder}/Intune.Commander.sln",
-        "--filter",
-        "Category!=Integration"
-      ],
-      "problemMatcher": "$msCompile",
-      "presentation": {
-        "panel": "dedicated",
-        "reveal": "always"
-      },
-      "group": {
-        "kind": "test",
-        "isDefault": true
-      }
-    },
-    {
-      "label": "test-with-coverage",
-      "command": "dotnet",
-      "type": "process",
-      "args": [
-        "test",
-        "${workspaceFolder}/Intune.Commander.sln",
-        "/p:CollectCoverage=true",
-        "/p:Threshold=40",
-        "/p:ThresholdType=line",
-        "/p:ThresholdStat=total",
-        "--filter",
-        "Category!=Integration"
-      ],
-      "problemMatcher": "$msCompile",
-      "presentation": {
-        "panel": "dedicated",
-        "reveal": "always"
-      }
-    },
-    {
-      "label": "clean",
-      "command": "dotnet",
-      "type": "process",
-      "args": [
-        "clean",
-        "${workspaceFolder}/Intune.Commander.sln"
-      ],
-      "problemMatcher": "$msCompile",
-      "presentation": {
-        "panel": "dedicated",
-        "reveal": "always"
-      }
-    },
-    {
-      "label": "build-desktop-react",
-      "command": "dotnet",
-      "type": "process",
-      "args": [
-        "build",
-        "${workspaceFolder}/src/Intune.Commander.DesktopReact/Intune.Commander.DesktopReact.csproj"
-      ],
-      "problemMatcher": "$msCompile",
-      "presentation": {
-        "panel": "dedicated",
-        "reveal": "always",
-        "group": "dotnet-dev"
-      }
-    },
-    {
-      "label": "npm-ci",
-      "type": "process",
-      "command": "npm",
-      "args": [
-        "ci"
-      ],
-      "options": {
-        "cwd": "${workspaceFolder}/intune-commander-react"
-      },
-      "problemMatcher": [],
-      "presentation": {
-        "panel": "dedicated",
-        "reveal": "always"
-      }
-    },
-    {
-      "label": "run-desktop-react",
-      "command": "dotnet",
-      "type": "process",
-      "args": [
-        "run",
-        "--project",
-        "${workspaceFolder}/src/Intune.Commander.DesktopReact/Intune.Commander.DesktopReact.csproj"
-      ],
-      "problemMatcher": [],
-      "presentation": {
-        "panel": "dedicated",
-        "reveal": "always",
-        "group": "app-dev"
-      }
-    },
-    {
-      "label": "run-desktop-avalonia",
-      "command": "dotnet",
-      "type": "process",
-      "args": [
-        "run",
-        "--project",
-        "${workspaceFolder}/src/Intune.Commander.Desktop/Intune.Commander.Desktop.csproj"
-      ],
-      "problemMatcher": [],
-      "presentation": {
-        "panel": "dedicated",
-        "reveal": "always",
-        "group": "app-dev"
-      }
-    },
-    {
-      "label": "react-dev-server",
-      "type": "process",
-      "command": "npm",
-      "args": [
-        "run",
-        "dev"
-      ],
-      "options": {
-        "cwd": "${workspaceFolder}/intune-commander-react"
-      },
+      "args": ["run", "--project", "${workspaceFolder}/service/Api/Api.csproj"],
       "isBackground": true,
       "problemMatcher": {
-        "owner": "custom",
-        "pattern": {
-          "regexp": ".+"
-        },
+        "owner": "dotnet-run",
+        // `\b\B` can never match, so no spurious problems are reported; the
+        // background begin/end patterns drive the "task is ready" state.
+        "pattern": { "regexp": "\\b\\B", "file": 1, "location": 2, "message": 3 },
         "background": {
           "activeOnStart": true,
-          "beginsPattern": ".",
-          "endsPattern": "Local:\\s+https?://localhost:\\d+/"
+          "beginsPattern": "^.*Now listening on.*$",
+          "endsPattern": "^\\s*Application started\\..*$"
         }
       },
-      "presentation": {
-        "panel": "dedicated",
-        "reveal": "always",
-        "group": "app-dev"
-      }
+      "presentation": { "reveal": "always", "panel": "dedicated", "group": "serve" }
     },
+
+    // ─── Composite preLaunch tasks for launch.json ───────────────────────────
     {
-      "label": "dev-react-host",
+      // For the standalone "Service: .NET sidecar (debug)" config: free the port
+      // (so coreclr can bind), then build the service.
+      "label": "prep: service",
+      "dependsOn": ["prep: stop sidecar", "dotnet: build service"],
       "dependsOrder": "sequence",
-      "dependsOn": [
-        "prepare-react-host-debug",
-        "run-desktop-react"
-      ],
       "problemMatcher": []
     },
     {
-      "label": "prepare-react-host-debug",
+      // For the "Full stack" compound: free the port, then build BOTH halves
+      // once — so the two (no-prelaunch) sessions don't race separate builds.
+      "label": "prep: full-stack",
+      "dependsOn": ["prep: stop sidecar", "build: all"],
       "dependsOrder": "sequence",
-      "dependsOn": [
-        "build-desktop-react",
-        "react-dev-server"
-      ],
       "problemMatcher": []
+    },
+
+    // ─── Convenience: build both halves ──────────────────────────────────────
+    {
+      "label": "build: all",
+      "dependsOn": ["rust: build app (debug)", "dotnet: build service"],
+      "dependsOrder": "parallel",
+      "group": { "kind": "build", "isDefault": true },
+      "problemMatcher": []
+    },
+
+    // ─── Manual diagnostic ───────────────────────────────────────────────────
+    // Reports whether the local .NET sidecar is answering /health. Not a
+    // preLaunchTask — just a quick "is the sidecar up?" check you can run by hand.
+    {
+      "label": "sidecar: check health",
+      "type": "shell",
+      "command": "powershell",
+      "args": [
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-Command",
+        "$deadline = (Get-Date).AddSeconds(10); do { try { $status = Invoke-RestMethod -Uri 'http://127.0.0.1:5099/health' -TimeoutSec 2; Write-Host 'cmProjectX sidecar is running on http://127.0.0.1:5099'; if ($status.authState) { Write-Host \"Auth: $($status.authState)\" }; exit 0 } catch { Start-Sleep -Milliseconds 500 } } while ((Get-Date) -lt $deadline); Write-Warning 'cmProjectX sidecar is not responding on http://127.0.0.1:5099. Start task \"serve: sidecar (background)\" or use launch compound \"Full stack: service + client\".'; exit 0"
+      ],
+      "problemMatcher": [],
+      "presentation": { "reveal": "always", "panel": "shared", "clear": false }
     }
   ]
 }

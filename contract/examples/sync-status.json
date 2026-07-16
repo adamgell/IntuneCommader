@@ -1,0 +1,11 @@
+{
+  "healthy": true,
+  "authState": "SignedIn",
+  "tenantId": "11111111-1111-1111-1111-111111111111",
+  "profileName": "Contoso",
+  "lastSyncUtc": "2026-06-21T08:00:00Z",
+  "cloud": "Commercial",
+  "deviceCode": null,
+  "error": null,
+  "lastWarmedUtc": "2026-06-21T08:05:00Z"
+}

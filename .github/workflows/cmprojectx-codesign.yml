@@ -1,0 +1,321 @@
+name: "IntuneCommander: Signed Release (MSI + MSIX)"
+
+# Builds the Rust client + self-contained .NET sidecar (+ bundled Maester), packages a SIGNED
+# MSI and MSIX per arch with Master Packager Dev (mpdev), and publishes them to THIS repo's
+# GitHub Releases. mpdev signs the installers via Azure Trusted Signing in the same step (see
+# packaging/installer.mpdev.json). Signing config lives in the `codesigning` environment secrets.
+
+on:
+  push:
+    tags:
+      # v<semver>, including prereleases like v1.0.0-beta.1. (Do NOT add a "!*.*.*.*" negative
+      # filter — a -beta.N suffix makes the tag four dot-segments and it would wrongly be excluded.)
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version to release (for example 1.0.0-beta.1 or v1.0.0-beta.1)
+        required: true
+        type: string
+
+permissions: {}
+
+jobs:
+  prepare:
+    name: Prepare release
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    outputs:
+      version: ${{ steps.resolve.outputs.version }}
+      package_version: ${{ steps.resolve.outputs.package_version }}
+      tag_name: ${{ steps.resolve.outputs.tag_name }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+
+      - name: Resolve version (display + 4-part package)
+        id: resolve
+        shell: pwsh
+        run: |
+          if ("${{ github.event_name }}" -eq "workflow_dispatch") { $raw = "${{ inputs.version }}" }
+          else { $raw = "${{ github.ref_name }}" }
+          $v = $raw.Trim()
+          if ($v.StartsWith("v")) { $v = $v.Substring(1) }
+          if (-not $v) { throw "Could not determine a release version." }
+
+          # Installer (MSI/MSIX) versions are 4-part numeric with NO prerelease suffix. Derive it
+          # from the SemVer: core X.Y.Z, with the -beta.N number as the revision so each beta is a
+          # valid upgrade of the last (1.0.0-beta.2 -> 1.0.0.2). GA must be >= 1.0.1.0 to outrank
+          # the betas (4-part versions have no prerelease ordering) — see packaging/README.md.
+          $core = ($v -split '-')[0]
+          $p = $core -split '\.'
+          if ($p.Count -ne 3) { throw "Version core must be X.Y.Z (got '$v')." }
+          $rev = 0
+          if ($v -match '-beta\.(\d+)') { $rev = [int]$Matches[1] }
+          $major = [int]$p[0]
+          if ($major -eq 0) { $major = 1 }   # MSIX identity major must be >= 1
+          $pkg = "$major.$([int]$p[1]).$([int]$p[2]).$rev"
+
+          "version=$v"           | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          "package_version=$pkg" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          "tag_name=v$v"         | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          Write-Host "display=$v  package=$pkg"
+
+      - name: Validate version consistency (app/Cargo.toml)
+        shell: pwsh
+        env:
+          VERSION: ${{ steps.resolve.outputs.version }}
+        run: |
+          $cargo = $null; $inPkg = $false
+          foreach ($line in Get-Content app/Cargo.toml) {
+            if ($line -match '^\[package\]\s*$') { $inPkg = $true; continue }
+            if ($inPkg -and $line -match '^\[') { break }
+            if ($inPkg -and $line -match '^version\s*=\s*"([^"]+)"\s*$') { $cargo = $Matches[1]; break }
+          }
+          if ($cargo -ne $env:VERSION) {
+            throw "Version mismatch: app/Cargo.toml=[$cargo] tag=[$($env:VERSION)]. Bump [package] version to match the tag."
+          }
+
+      - name: Create tag for manual dispatch
+        if: github.event_name == 'workflow_dispatch'
+        shell: pwsh
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG_NAME: ${{ steps.resolve.outputs.tag_name }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch --tags --force
+          $exists = git rev-parse --verify --quiet "refs/tags/$env:TAG_NAME"
+          if (-not $exists) { git tag $env:TAG_NAME; git push origin $env:TAG_NAME }
+
+      - name: Ensure draft release exists
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG_NAME: ${{ steps.resolve.outputs.tag_name }}
+          VERSION: ${{ steps.resolve.outputs.version }}
+        run: |
+          gh release view $env:TAG_NAME *> $null
+          if ($LASTEXITCODE -ne 0) {
+            $title = "IntuneCommander $env:TAG_NAME"
+            $args = @('release','create',$env:TAG_NAME,'--draft','--title',$title)
+            # Curated per-version notes if present (docs/release-notes/<tag>.md), else a one-line fallback.
+            $notesFile = "docs/release-notes/$($env:TAG_NAME).md"
+            if (Test-Path $notesFile) { $args += @('--notes-file', $notesFile) }
+            else { $args += @('--notes', "IntuneCommander $env:TAG_NAME — signed MSI + MSIX for Windows (arm64 + x64). See the bundled docs/RUNBOOK.md for prerequisites and the smoke test.") }
+            if ($env:VERSION -match '-') { $args += '--prerelease' }   # any -beta.N is a prerelease
+            gh @args
+            if ($LASTEXITCODE -ne 0) { throw "Failed to create draft release." }
+          }
+
+  build:
+    name: Build & sign (${{ matrix.label }})
+    needs: prepare
+    runs-on: windows-latest
+    environment: codesigning
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - label: Windows-x64
+            rust_target: x86_64-pc-windows-msvc
+            dotnet_rid: win-x64
+            arch: x64
+          - label: Windows-arm64
+            rust_target: aarch64-pc-windows-msvc
+            dotnet_rid: win-arm64
+            arch: arm64
+    env:
+      VERSION: ${{ needs.prepare.outputs.version }}
+      PACKAGE_VERSION: ${{ needs.prepare.outputs.package_version }}
+      TAG_NAME: ${{ needs.prepare.outputs.tag_name }}
+      # Signing config — all from the `codesigning` environment secrets. mpdev reads these to sign
+      # the MSI + MSIX (see packaging/installer.mpdev.json). SYNCFUSION_LICENSE_KEY licenses the
+      # CA->PPTX export (mpdev bakes it into the installer's env var); empty => trial watermark.
+      SYNCFUSION_LICENSE_KEY: ${{ secrets.SYNCFUSION_LICENSE_KEY }}
+      # Non-secret signing identifiers as environment VARIABLES (verifiable). Only the client
+      # secret is a real credential. All live in the `codesigning` environment.
+      AZURE_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+      AZURE_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
+      AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+      SIGNING_ENDPOINT: ${{ vars.SIGNING_ENDPOINT }}
+      SIGNING_ACCOUNT_NAME: ${{ vars.SIGNING_ACCOUNT_NAME }}
+      SIGNING_PROFILE_NAME: ${{ vars.SIGNING_PROFILE_NAME }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+
+      - name: Checkout parser dependency (cmtraceopen)
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          repository: adamgell/cmtraceopen
+          # Pin to the commit the app is written against (Severity enum drifted on main); keep in sync with cmprojectx-ci.yml.
+          ref: 67633ea043a561c0d1ca5c3d75ed7f3e65a8af27
+          path: cmtraceopen
+
+      - name: Checkout Windows Reactor fork (windows-rs)
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          repository: adamgell/windows-rs
+          ref: cmprojectx-reactor-patch
+          path: windows-rs
+
+      - name: Link sibling checkouts
+        shell: pwsh
+        run: |
+          $parent = Split-Path $env:GITHUB_WORKSPACE -Parent
+          foreach ($name in 'cmtraceopen','windows-rs') {
+            $link = Join-Path $parent $name
+            if (Test-Path $link) { Remove-Item $link -Recurse -Force }
+            cmd /c mklink /J "$link" (Join-Path $env:GITHUB_WORKSPACE $name)
+          }
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
+        with:
+          targets: ${{ matrix.rust_target }}
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: service/global.json
+
+      - name: Install Master Packager Dev (mpdev)
+        shell: pwsh
+        run: |
+          $msi = "$env:TEMP\mpdev.msi"
+          Invoke-WebRequest -Uri "https://cdn.masterpackager.com/installer/dev/2.1.1/mpdev_self_contained_x64_2.1.1.msi" -OutFile $msi
+          Start-Process msiexec.exe -ArgumentList "/i `"$msi`" /quiet /norestart" -Wait
+          "C:\Program Files\Master Packager Ltd\Master Packager Dev" | Out-File -FilePath $env:GITHUB_PATH -Append -Encoding utf8
+
+      - name: Build Rust client
+        run: cargo build --release --package app --target ${{ matrix.rust_target }}
+
+      - name: Publish .NET sidecar (self-contained)
+        run: >-
+          dotnet publish service/Api/Api.csproj
+          --configuration Release
+          --runtime ${{ matrix.dotnet_rid }}
+          --self-contained true
+          -p:DebugType=none -p:DebugSymbols=false
+          --output publish/service
+
+      - name: Bundle Maester + service modules (offline runtime)
+        shell: pwsh
+        run: |
+          # Pinned so a release is reproducible — bump deliberately after re-testing. See
+          # docs/MAESTER-INTEGRATION.md. Save-Module also drags in each module's transitive deps at
+          # LATEST (can drop a 2nd version of a pinned module) and the PSGallery infra modules; prune
+          # both so the pins win at import time and system copies aren't shadowed.
+          $pinned = @(
+            @{ Name = 'Maester';                        Version = '2.1.0'  }
+            @{ Name = 'Microsoft.Graph.Authentication'; Version = '2.38.0' }
+            @{ Name = 'Pester';                         Version = '5.7.1'  }
+            @{ Name = 'ExchangeOnlineManagement';       Version = '3.10.0' }
+            @{ Name = 'MicrosoftTeams';                 Version = '7.8.0'  }
+            @{ Name = 'PnP.PowerShell';                 Version = '3.3.0'  }
+          )
+          $psm = Join-Path $PWD 'publish/service/psmodules'
+          New-Item -ItemType Directory -Force -Path $psm | Out-Null
+          foreach ($m in $pinned) {
+            Save-Module -Name $m.Name -RequiredVersion $m.Version -Path $psm -Repository PSGallery -Force -ErrorAction Stop
+          }
+          foreach ($m in $pinned) {
+            Get-ChildItem (Join-Path $psm $m.Name) -Directory -ErrorAction SilentlyContinue |
+              Where-Object { $_.Name -ne $m.Version } | ForEach-Object { Remove-Item $_.FullName -Recurse -Force }
+          }
+          foreach ($infra in 'PackageManagement','PowerShellGet') {
+            $d = Join-Path $psm $infra; if (Test-Path $d) { Remove-Item $d -Recurse -Force }
+          }
+          if (-not (Test-Path (Join-Path $psm 'Maester'))) { throw "Maester module bundle is empty." }
+
+      - name: Stage runnable bundle
+        id: stage
+        shell: pwsh
+        run: |
+          $bundle = Join-Path $PWD "staging/IntuneCommander-$($env:VERSION)-${{ matrix.arch }}"
+          New-Item -ItemType Directory -Force -Path $bundle | Out-Null
+          Copy-Item "target/${{ matrix.rust_target }}/release/app.exe" (Join-Path $bundle "IntuneCommander.exe") -Force
+          Copy-Item "publish/service" (Join-Path $bundle "sidecar") -Recurse -Force
+          New-Item -ItemType Directory -Force -Path (Join-Path $bundle "docs") | Out-Null
+          Copy-Item "docs/RUNBOOK.md" (Join-Path $bundle "docs") -Force
+          Copy-Item "LICENSE" $bundle -Force
+          Copy-Item "THIRD-PARTY-NOTICES.md" $bundle -Force
+          Set-Content (Join-Path $bundle "VERSION") $env:VERSION
+          # Convenience launcher (the client also auto-spawns the sidecar; this is a fallback).
+          # Built as an array to avoid a pwsh here-string colliding with YAML block indentation.
+          # For the portable zip (no installer to set the env var), bake the Syncfusion key into the
+          # launcher if one was provided at build time, so PPTX export is licensed there too.
+          $setLine = if ($env:SYNCFUSION_LICENSE_KEY) { @("set `"SYNCFUSION_LICENSE_KEY=$($env:SYNCFUSION_LICENSE_KEY)`"") } else { @() }
+          $launcher = @('@echo off') + $setLine + @(
+            'REM Start the sidecar, wait for :5099, then the client.',
+            'start "IntuneCommander sidecar" /min "%~dp0sidecar\Api.exe"',
+            'timeout /t 3 /nobreak >nul',
+            'start "" "%~dp0IntuneCommander.exe"'
+          )
+          Set-Content (Join-Path $bundle "Start-IntuneCommander.cmd") $launcher -Encoding ascii
+          "bundle_dir=$bundle" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+
+      - name: Build signed MSI + MSIX (mpdev)
+        shell: pwsh
+        env:
+          IC_BUNDLE_DIR: ${{ steps.stage.outputs.bundle_dir }}
+        run: |
+          New-Item -ItemType Directory -Force -Path "publish/installer" | Out-Null
+          # $. property paths are escaped (`$) so pwsh doesn't treat them as variables.
+          mpdev build packaging/installer.mpdev.json --working-dir "$env:GITHUB_WORKSPACE" `
+            --properties `
+              "`$.version=$env:PACKAGE_VERSION" `
+              "`$.msix.version=$env:PACKAGE_VERSION" `
+              "`$.outputFileName=IntuneCommander-$($env:VERSION)-${{ matrix.arch }}" `
+              "`$.platform=${{ matrix.arch }}"
+          if ($LASTEXITCODE -ne 0) { throw "mpdev build failed for ${{ matrix.arch }}." }
+
+      - name: Package portable zip
+        shell: pwsh
+        run: |
+          $zip = "publish/installer/IntuneCommander-$($env:VERSION)-win-${{ matrix.arch }}.zip"
+          Compress-Archive -Path "${{ steps.stage.outputs.bundle_dir }}" -DestinationPath $zip -Force
+
+      - name: Verify installer output
+        shell: pwsh
+        run: |
+          foreach ($ext in 'msi','msix') {
+            $f = "publish/installer/IntuneCommander-$($env:VERSION)-${{ matrix.arch }}.$ext"
+            if (-not (Test-Path $f)) { Get-ChildItem publish/installer; throw "Expected installer not found: $f" }
+          }
+
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4.1.0
+        with:
+          subject-path: |
+            publish/installer/IntuneCommander-${{ env.VERSION }}-${{ matrix.arch }}.msi
+            publish/installer/IntuneCommander-${{ env.VERSION }}-${{ matrix.arch }}.msix
+
+      - name: Upload workflow artifacts
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: IntuneCommander-${{ matrix.arch }}-${{ env.VERSION }}
+          path: publish/installer/IntuneCommander-${{ env.VERSION }}-*
+          if-no-files-found: error
+
+      - name: Publish signed installers to the release (draft)
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $assets = @(
+            "publish/installer/IntuneCommander-$($env:VERSION)-${{ matrix.arch }}.msi",
+            "publish/installer/IntuneCommander-$($env:VERSION)-${{ matrix.arch }}.msix",
+            "publish/installer/IntuneCommander-$($env:VERSION)-win-${{ matrix.arch }}.zip"
+          )
+          gh release upload $env:TAG_NAME @assets --clobber
+          if ($LASTEXITCODE -ne 0) { throw "Failed to upload ${{ matrix.arch }} assets to the release." }

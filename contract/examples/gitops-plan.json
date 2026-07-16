@@ -1,0 +1,55 @@
+{
+  "planId": "p_3f9a1c8b2d04",
+  "repoPath": "C:\\src\\tenant-contoso",
+  "generatedUtc": "2026-06-24T14:30:02Z",
+  "summary": {
+    "add": 1,
+    "change": 1,
+    "destroy": 1,
+    "noop": 5
+  },
+  "objects": [
+    {
+      "surface": "device-configs",
+      "objectType": "DeviceConfiguration",
+      "objectName": "Windows Baseline - BitLocker",
+      "verdict": "Modified",
+      "changes": [
+        {
+          "path": "/firewallProfileDomain/firewallEnabled",
+          "kind": "Modified",
+          "before": "notConfigured",
+          "after": "allowed"
+        }
+      ]
+    },
+    {
+      "surface": "compliance-policies",
+      "objectType": "CompliancePolicy",
+      "objectName": "macOS Firewall Required",
+      "verdict": "Added",
+      "changes": [
+        {
+          "path": "/",
+          "kind": "Added",
+          "before": null,
+          "after": { "displayName": "macOS Firewall Required" }
+        }
+      ]
+    },
+    {
+      "surface": "device-configs",
+      "objectType": "DeviceConfiguration",
+      "objectName": "Legacy WiFi Profile",
+      "verdict": "Removed",
+      "changes": [
+        {
+          "path": "/",
+          "kind": "Removed",
+          "before": { "displayName": "Legacy WiFi Profile" },
+          "after": null
+        }
+      ]
+    }
+  ]
+}

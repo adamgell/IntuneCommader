@@ -1,0 +1,6 @@
+{
+  "error": "kind and path are required",
+  "detail": "the request body was missing required fields",
+  "status": 400,
+  "traceId": "00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01"
+}

@@ -1,0 +1,60 @@
+---
+title: IntuneCommander
+description: Logs that know the cloud — a Windows-native tool that enriches local Intune & Entra logs with live tenant context, with full management CRUD and an audit time-machine.
+template: splash
+hero:
+  tagline: Logs that know the cloud.
+  image:
+    file: ../../assets/cmx-mark.svg
+  actions:
+    # Hero actions bypass Markdown, so the base path is baked in here (see astro.config.mjs).
+    - text: Get started
+      link: /intunecommander-src/get-started/prerequisites/
+      icon: right-arrow
+      variant: primary
+    - text: How sign-in works
+      link: /intunecommander-src/sign-in/overview/
+      variant: minimal
+---
+
+import { Card, CardGrid } from '@astrojs/starlight/components';
+
+IntuneCommander is a Windows-native desktop tool that unifies **local diagnostics** (cmtrace heritage)
+with **Entra & Intune management** (IntuneCommander heritage) — and pulls cloud context _down onto
+the endpoint_, so every log line carries its tenant reality. You stop alt-tabbing between a log
+viewer and the portal; the answer is on the line.
+
+<CardGrid>
+	<Card title="Diagnostics">
+		Live-tail Intune logs, `dsregcmd`, Sysmon, the Windows Event Log, Secure Boot, and a
+		Windows/Intune error-code database — correlated on one timeline.
+	</Card>
+	<Card title="Management">
+		List, view, and safely edit Intune & Entra surfaces. Every write is diff-previewed,
+		confirmed, and snapshotted first.
+	</Card>
+	<Card title="Time-machine">
+		An append-only audit, drift detection, full-text search, and **point-in-time restore** —
+		roll any change back to a past snapshot.
+	</Card>
+</CardGrid>
+
+![The IntuneCommander desktop app — a grouped navigation rail on the left, the enrichment workspace in the centre, and the Sign in card on the right.](../../assets/screenshots/app-overview.png)
+
+## New here? Start with the basics
+
+<CardGrid>
+	<Card title="Install &amp; run it">
+		Set up the prerequisites, build the .NET sidecar and the Rust client, and launch it for the
+		first time. → [Prerequisites](/get-started/prerequisites/)
+	</Card>
+	<Card title="Sign in to your tenant">
+		Connect to Entra & Intune with a saved tenant profile — silent client-secret or interactive
+		device-code. → [How sign-in works](/sign-in/overview/)
+	</Card>
+</CardGrid>
+
+:::note[Preview software]
+IntuneCommander is an early, fast-moving build. Expect some surfaces to be read-only and some
+diagnostics still landing. Where a step touches your tenant, the app tells you before it writes.
+:::

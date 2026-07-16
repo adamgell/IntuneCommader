@@ -1,0 +1,4 @@
+{
+  "id": "jamf",
+  "supportedSurfaces": ["managed-devices"]
+}

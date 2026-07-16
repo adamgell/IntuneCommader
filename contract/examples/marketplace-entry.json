@@ -1,0 +1,31 @@
+{
+  "id": "servicenow-itsm",
+  "name": "ServiceNow ITSM",
+  "category": "ticketing",
+  "publisher": "cmprojectx-curated",
+  "verified": true,
+  "description": "Open/update ServiceNow incidents from playbook steps.",
+  "transport": "http",
+  "urlTemplate": "https://{{instance}}.service-now.com/api/mcp",
+  "command": null,
+  "args": null,
+  "configFields": [
+    {
+      "name": "instance",
+      "type": "string",
+      "required": true,
+      "header": null,
+      "format": null
+    },
+    {
+      "name": "token",
+      "type": "secret",
+      "required": true,
+      "header": "Authorization",
+      "format": "Bearer {{token}}"
+    }
+  ],
+  "exposesTools": ["create_incident", "update_incident", "get_incident"],
+  "trust": "writes-side-effecting",
+  "installed": false
+}

@@ -2,184 +2,99 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Project Overview
+## Operating guide
 
-Intune Commander is a **.NET 10 / React 19 / WPF+WebView2** Windows desktop application for managing Microsoft Intune configurations across multiple cloud environments (Commercial, GCC, GCC-High, DoD). It is a ground-up remake of [Micke-K/IntuneManagement](https://github.com/Micke-K/IntuneManagement) (PowerShell/WPF).
+[AGENTS.md](./AGENTS.md) is the canonical operating guide — read it first. Its project rules are non-negotiable and not repeated here. The most load-bearing ones:
 
-## Build & Run
+- `contract/openapi.yaml` is the **single source of truth** for shared DTOs and endpoints. Change the contract first when the API surface changes; don't grow the hand-written Rust/C# DTOs in parallel.
+- Don't reimplement the Intune/Graph engine in Rust. The architecture is a Rust client talking to a local .NET sidecar over REST. Graph coverage lives in `service/Core/` (a hard-forked Intune Commander core) — reuse it.
+- `service/Store/` is **append-only by design**. Preserve that model.
+- The CMTrace parser (`cmtraceopen-parser`) is an **external upstream dependency**, not vendored. Fixes go upstream; this repo changes only the pin or integration code.
 
-```bash
-# Build all projects
-dotnet build
+## The big picture
 
-# Run unit tests (excludes integration tests)
-dotnet test --filter "Category!=Integration"
-
-# Run unit tests with coverage threshold (40% line coverage enforced)
-dotnet test /p:CollectCoverage=true /p:Threshold=40 /p:ThresholdType=line /p:ThresholdStat=total
-
-# Run integration tests (requires AZURE_TENANT_ID, AZURE_CLIENT_ID, AZURE_CLIENT_SECRET env vars)
-dotnet test --filter "Category=Integration"
-
-# Run a single test class
-dotnet test --filter "FullyQualifiedName~ProfileServiceTests"
-
-# Run the desktop application (WPF + WebView2 host)
-dotnet run --project src/Intune.Commander.DesktopReact
-
-# Run the React frontend dev server (for UI development)
-cd intune-commander-react && npm run dev
-```
-
-## Technology Stack
-
-| Component | Technology |
-|-----------|-----------|
-| Runtime | .NET 10, C# 12 |
-| Desktop Host | WPF + WebView2 (Windows-only) |
-| Frontend | React 19, TypeScript, Vite |
-| State Management | Zustand |
-| .NET ↔ React Bridge | `ic/1` protocol via `window.chrome.webview.postMessage` |
-| Authentication | Azure.Identity 1.17.x |
-| Graph API | **Microsoft.Graph.Beta** 5.130.x-preview |
-| Cache | LiteDB 5.0.x (encrypted via DataProtection) |
-| Profile storage | `Microsoft.AspNetCore.DataProtection` |
-| DI | `Microsoft.Extensions.DependencyInjection` 10.0.x |
-| Testing | xUnit, NSubstitute 5.3.x |
-
-**Important:** The project uses `Microsoft.Graph.Beta` (not the stable `Microsoft.Graph` package). All models and the `GraphServiceClient` come from `Microsoft.Graph.Beta.*`.
-
-## Architecture
-
-### Project layout
+A two-process desktop app for **Microsoft Intune / Entra device management**, with a persistent, searchable **audit/drift time-machine**:
 
 ```
-src/
-  Intune.Commander.Core/        # Business logic (.NET 10 class library)
-    Auth/                        # IAuthenticationProvider, InteractiveBrowserAuthProvider, IntuneGraphClientFactory
-    Models/                      # Enums (CloudEnvironment, AuthMethod), TenantProfile, ProfileStore,
-                                 #   CloudEndpoints, MigrationEntry/Table, export DTOs, CacheEntry, GroupAssignmentResult
-    Services/                    # 30+ Graph API services + ProfileService, CacheService, ExportService, ImportService
-    Extensions/                  # ServiceCollectionExtensions (AddIntuneCommanderCore)
-  Intune.Commander.DesktopReact/ # WPF + WebView2 host
-    Services/                    # Bridge services (IBridgeService implementations), BridgeRouter
-    MainWindow.xaml              # WPF window hosting WebView2
-  Intune.Commander.Installer/    # Master Packager Dev package (MSI + MSIX)
-intune-commander-react/          # React 19 + TypeScript frontend (Vite)
-  src/
-    components/                  # UI components organized by feature (login/, shell/, workspace/)
-    store/                       # Zustand stores — one per domain
-    bridge/                      # Typed bridge client for .NET interop
-tests/
-  Intune.Commander.Core.Tests/   # xUnit tests mirroring src structure
+app/  Rust + WinUI 3 (Windows Reactor)  ──HTTP/REST──▶  service/  .NET 10 sidecar
+  • Reactor reactive UI (hooks model)        :5099        • Api/    minimal-API host
+  • api_client.rs → 127.0.0.1:5099                        • Core/   hard-forked Graph engine
+  • crates/api-types  (shared DTOs)                       • Sync/   Graph delta sync
+                          contract/openapi.yaml ──────────• Store/  SQLite + Lucene time-machine
+                          (one schema → both sides)
 ```
 
-### DI and service lifetimes
+The client is **thin**: nearly every screen is data-driven. `app/src/features.rs` is the registry that drives both the left-nav and workspace routing, so adding a LIVE list screen is roughly one registry entry plus one match arm. The API client (`app/src/api_client.rs`) is a thin blocking-`reqwest` wrapper; the server projects rich Graph types down into normalized DTOs (`ListItem`, `Assignment`, etc.) shared via `crates/api-types`.
 
-`App.xaml.cs` calls `services.AddIntuneCommanderCore()` and registers bridge services.
+The server is a **minimal API**: each feature is a `Map*()` extension under `service/Api/Endpoints/`, wired in `service/Api/Program.cs`. `service/Api/Mappers/` projects `Microsoft.Graph.Beta.Models` types → normalized DTOs in `service/Api/Contracts.cs` (camelCase, mirrors the Rust types byte-for-byte over JSON). Graph reads run through Core services (`service/Core/Services/`), the hard-forked engine.
 
-`AddIntuneCommanderCore()` registers:
+**Two storage layers, don't conflate them.** (1) `service/Store/SnapshotStore.cs` is the **append-only audit/drift time-machine** — config snapshots + audit events in SQLite with a Lucene full-text index (deduped by content hash; delta watermarks in a `sync_state` table). (2) A **read-through blob cache** (M12.1) sits in front of every LIST/DETAIL Graph fetch: `Endpoints/CachedReader.cs` wraps each Core fetch as a delegate, backed by Core's LiteDB `ICacheService`, tenant-scoped by `{tenantId}|{dataType}` key; `Endpoints/CacheInvalidation.cs` evicts on writes. Both live under `%LocalAppData%\cmProjectX\`. See `docs/CACHE.md` / `docs/CACHE-M12.1.md`.
 
-- **Singleton:** `IAuthenticationProvider`, `IntuneGraphClientFactory`, `ProfileService`, `IProfileEncryptionService`, `ICacheService`
-- **Transient:** `IExportService`
+Status: a working skeleton, unevenly filled in. `service/Core/` is **not** a stub — it's a substantial hard-forked Intune Commander engine (~100 Graph service classes). Thinner/stubbed seams remain in `service/Sync/` and some UI screens. Ignore stubs unless the task is to flesh them out.
 
-**Graph API services are NOT registered in DI.** After authentication, the WPF host creates them using `new XxxService(graphClient)` and passes them to bridge services. Bridge services implement `IBridgeService` and handle messages from the React frontend via the `BridgeRouter`.
+## Commands
 
-### Authentication and multi-cloud
+Rust (workspace = `app` + `crates/api-types`; run from repo root):
 
-`IntuneGraphClientFactory.CreateClientAsync(profile)` creates a `GraphServiceClient` using `Azure.Identity` credentials and the correct endpoint from `CloudEndpoints.GetEndpoints(profile.Cloud)`.
+```powershell
+cargo build                 # whole workspace
+cargo build --workspace     # what CI runs
+cargo test --workspace      # what CI runs (few/no Rust tests yet)
+cargo run -p app            # launch the client (expects the sidecar already running)
+```
 
-Cloud endpoints in `CloudEndpoints.cs`:
+.NET (run from repo root; targets `net10.0`, SDK pinned by `service/global.json`):
 
-- Commercial & GCC → `https://graph.microsoft.com`
-- GCC-High → `https://graph.microsoft.us`
-- DoD → `https://dod-graph.microsoft.us`
+```powershell
+dotnet build service/CmProjectX.slnx --configuration Release   # what CI runs
+dotnet run --project service/Api/Api.csproj                    # start the sidecar on :5099
+dotnet test service/Api.Tests/Api.Tests.csproj                 # integration tests (xUnit) — see caveat
+```
 
-### Navigation and data flow
+Run a single .NET test (xUnit, filter on the fully-qualified name or method):
 
-The React frontend manages navigation via its shell component and Zustand stores. Each workspace (e.g., Settings Catalog, Detection & Remediation) has its own Zustand store that communicates with the .NET backend through the typed bridge client. The bridge client sends messages via `window.chrome.webview.postMessage` using the `ic/1` protocol, and the WPF host's `BridgeRouter` dispatches them to the appropriate `IBridgeService` implementation.
+```powershell
+dotnet test service/Api.Tests/Api.Tests.csproj --filter "FullyQualifiedName~ListEndpointTests"
+```
 
-Currently 3 workspaces are built in the desktop UI: Overview Dashboard, Settings Catalog, and Detection & Remediation. The Core library has 30+ services ready to be wired into additional workspaces.
+> **Test caveat:** `Api.Tests` are **black-box integration tests**, not hermetic unit tests. The fixture (`SidecarFixture.cs`) reuses a running sidecar on `127.0.0.1:5099` (or spawns `Api.dll`), signs in once, and hits live endpoints against a real tenant. They need a valid, non-expired Entra client secret and network — they will not pass offline.
 
-### Caching
+## Running the full stack
 
-`CacheService` uses LiteDB with an AES-encrypted database file at `%LocalAppData%\Intune.Commander\cache.db`. The DB password is generated once and stored encrypted via `Microsoft.AspNetCore.DataProtection` in `cache-key.bin`. Cache entries have a 24-hour default TTL and are keyed by tenant ID + data-type string.
+**The client owns the sidecar.** `app/src/sidecar.rs::ensure_running()` checks `127.0.0.1:5099/health` on launch: if a sidecar is already up it borrows it, otherwise it spawns one (bundled `Api.exe`, else `dotnet …/Api.dll` in dev) and kills it on exit. So `cargo run -p app` alone now boots the whole stack — there's no "start the sidecar first" step.
 
-### Profile storage
+For active service work, still run the two separately so you can see sidecar logs (the app routes the child's stdout/stderr to NULL):
 
-`ProfileService` persists `ProfileStore` (list of `TenantProfile`) to `%LocalAppData%\Intune.Commander\profiles.json`. When `IProfileEncryptionService` is injected (always the case in production), the file is prefixed with `INTUNEMANAGER_ENC:` and the payload is DataProtection-encrypted. Plaintext files are migrated to encrypted on next save. On first launch after upgrade from a pre-rename build, `ProfileService.LoadAsync` detects and auto-migrates data from the legacy `%LocalAppData%\IntuneManager\profiles.json` path.
+```powershell
+dotnet run --project service/Api/Api.csproj   # terminal 1 — wait for :5099, watch its logs
+cargo run -p app                              # terminal 2 — borrows the running sidecar
+```
 
-> **Legacy compatibility constants** (do not change without careful consideration): `INTUNEMANAGER_ENC:` marker, `IntuneManager.Profiles.v1` DataProtection purpose (fallback decryptor), `SetApplicationName("IntuneManager")` in `ServiceCollectionExtensions` (changing this makes all existing encrypted data unreadable), and MSI `UpgradeCode` GUID `29E042C7-F159-466C-9F23-D2695288319A` in `src/Intune.Commander.Installer/package.json` (`msi.upgradeCode`) (changing this breaks upgrade detection for all installed copies).
+`Program.cs` holds a **single-instance mutex** guarding port 5099 and the store — only one sidecar can run at a time. If a launch fails to bind, kill the stale sidecar / free 5099 before retrying (an app-spawned sidecar can outlive a crashed client). Smoke-test steps (health → sign-in → list populates → detail pane) are in [docs/RUNBOOK.md](./docs/RUNBOOK.md).
 
-### DebugLogService
+## Things that will bite you
 
-`DebugLogService.Instance` is a singleton with an `ObservableCollection<string> Entries` (capped at 2000). All logging dispatches to the UI thread. Use `DebugLog.Log(category, message)` / `DebugLog.LogError(...)` throughout the WPF host code.
+- **Windows ARM64 first.** The dev box and primary release target are `aarch64-pc-windows-msvc` / `win-arm64`; the codesign workflow also ships x64. Reactor/WinUI links against the installed Windows App SDK (framework-dependent, not bundled).
+- **`app/` is edition 2024**, deliberately not the workspace's 2021 — the Windows Reactor DSL is authored against 2024. Don't "fix" the mismatch.
+- **Windows Reactor is a pinned git dep with a local fork patch.** `[patch]` in the root `Cargo.toml` redirects `windows-reactor`/`windows-reactor-setup` to a sibling `../windows-rs/` checkout carrying a nested-dirty-reconcile fix. Without it, state-driven child components under a structurally-stable ancestor (e.g. under `NavigationView`) never re-render, and async-fetch results (`use_resource`/`use_mutation`) update state but don't repaint. If a Reactor child won't update on its own state, lift the state to the dispatched parent.
+- **Never run two `dotnet build` of the same project concurrently** — the second wedges on the build-server nodes (looks hung, empty output). Let one finish first.
 
-### Export/Import format
+## Where things live
 
-Each object type exports to its own subfolder under the chosen output directory (e.g., `DeviceConfigurations/`, `CompliancePolicies/`, etc.). Files are named `{DisplayName}.json` containing the serialized Graph Beta model. A `migration-table.json` at the root maps original IDs to new IDs after import.
-
-## Git Workflow
-
-- **Never commit directly to `main`.** All changes must go through a feature branch and pull request.
-- Branch naming: `feature/`, `fix/`, `docs/` prefixes (e.g. `feature/wave7-scripts`, `fix/lazy-load-guard`).
-- PRs should be created with `gh pr create` and submitted for Copilot / human review before merging.
-
-## Coding Conventions
-
-- **C# 12:** primary constructors, collection expressions (`[]`), required members, file-scoped namespaces
-- **Nullable reference types enabled** everywhere
-- **Private fields:** `_camelCase`; public: `PascalCase`
-- **Namespaces:** `Intune.Commander.Core.*`, `Intune.Commander.DesktopReact.*`
-- **React frontend:** TypeScript strict mode, Zustand for state, bridge client for .NET interop
-- **Graph client factory class name:** `IntuneGraphClientFactory` (not `GraphClientFactory`) to avoid collision with `Microsoft.Graph.GraphClientFactory`
-
-## Key Architecture Decisions
-
-- **Azure.Identity over raw MSAL** — `TokenCredential` abstraction, one code path for all clouds
-- **Microsoft.Graph.Beta SDK models directly** — no custom model layer; custom DTOs (`*Export` models) only where the Graph model needs augmenting for export
-- **Separate app registration per cloud** — GCC-High/DoD require isolated app registrations
-- **Graph services created post-auth, not in DI** — services that require a `GraphServiceClient` are instantiated in the WPF host after the user authenticates, not at startup
-- **LiteDB cache keyed by tenant ID** — multiple tenant profiles can share the same cache database; TTL is 24 hours
-- **Hobby project** — keep solutions pragmatic; avoid over-engineering
-
-## CI Workflows
-
-| Workflow | File | Trigger | Purpose |
-|----------|------|---------|---------|
-| CI — Test & Coverage | `.github/workflows/ci-test.yml` | All pushes + PRs to main | Unit tests with 40% line coverage threshold (coverlet.msbuild) |
-| CI — Integration Tests | `.github/workflows/ci-integration.yml` | Push/PR to main + manual | Graph API integration tests against live tenant |
-| Build Release Artifacts | `.github/workflows/build-release.yml` | Push, PR, and manual dispatch | Builds unsigned desktop/CLI artifacts and a test MSI |
-
-- Unit test CI uses `--filter "Category!=Integration"` to skip integration tests
-- Integration CI requires repository secrets: `AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET`
-- Coverage threshold is enforced via `/p:Threshold=40` — failing builds if line coverage drops below 40%
-
-## Testing Conventions
-
-**Unit tests are required for all new or changed code.** Every new service, model, or behavioral change in `Intune.Commander.Core` must include corresponding tests. PRs without adequate test coverage will not be merged.
-
-### Unit tests (`tests/Intune.Commander.Core.Tests/`)
-- xUnit with `[Fact]`/`[Theory]`, NSubstitute 5.x for mocking (`Substitute.For<IMyInterface>()`)
-- Service contract tests verify interface conformance, method signatures, return types, and `CancellationToken` parameters via reflection
-- File I/O tests use temp directories with `IDisposable` cleanup
-- **NSubstitute patterns**:
-  - Return values: `svc.MethodAsync(Arg.Any<T>(), Arg.Any<CancellationToken>()).Returns(Task.FromResult(result))`
-  - Argument capture: `svc.MethodAsync(Arg.Do<T>(x => captured = x), Arg.Any<CancellationToken>()).Returns(...)`
-  - Call verification: `await svc.Received(1).MethodAsync(expectedArg, Arg.Any<CancellationToken>())`
-  - No-call assertion: `svc.DidNotReceive().Method(Arg.Any<string>())`
-- **`GraphServiceClient` is NOT mockable** (sealed SDK) — services that directly call Graph keep their reflection-based contract tests; NSubstitute is used only for project-owned interfaces (`IXxxService`, `ICacheService`, etc.)
-
-### Integration tests (`tests/Intune.Commander.Core.Tests/Integration/`)
-
-- Tagged with `[Trait("Category", "Integration")]` — **always** use this trait for any test hitting Graph API
-- Base class `GraphIntegrationTestBase` provides `GraphServiceClient` from env vars and `ShouldSkip()` for graceful no-op when credentials are missing
-- Read-only tests (List + Get) are safe for any tenant
-- CRUD tests use `IntTest_AutoCleanup_` prefix and clean up in `finally` blocks
-- Setup script: `scripts/Setup-IntegrationTestApp.ps1` creates the app registration with all required Graph permissions (see `docs/GRAPH-PERMISSIONS.md`)
-
-## PowerShell Scripts
-
-- Scripts must use **ASCII-only characters** — no Unicode decorations (e.g., `━─→✓✗○—`) as they break PowerShell 5.1 parsing
-- Save `.ps1` files with ASCII encoding
-- Target PowerShell 5.1+ compatibility
+| Path | What |
+|---|---|
+| `app/src/main.rs` | NavigationView shell, root `/health` poll (auth + sync state), workspace dispatch |
+| `app/src/features.rs` | Feature registry — single source of truth for nav + routing |
+| `app/src/api_client.rs` | Blocking HTTP client → `127.0.0.1:5099` |
+| `app/src/sidecar.rs` | Spawns/borrows + owns the .NET sidecar process (`ensure_running()`) |
+| `app/src/signin.rs`, `assignments.rs`, `config_view.rs`, `bulk.rs`, `screen_*.rs`, `diag_*.rs` | Workspace implementations (`diag_*` are pure-Rust local diagnostics, no sidecar) |
+| `crates/api-types/src/lib.rs` | Shared DTOs mirroring the contract |
+| `service/Api/Program.cs` | DI, auth bootstrap, endpoint registration, single-instance guard |
+| `service/Api/Endpoints/`, `service/Api/Mappers/`, `service/Api/Contracts.cs` | Endpoint modules, Graph→DTO mappers, DTOs |
+| `service/Api/Endpoints/CachedReader.cs`, `CacheInvalidation.cs` | M12.1 read-through blob cache (LiteDB) + write-driven eviction |
+| `service/Api/AuthSession.cs` | Sign-in state machine + tenant-profile lifecycle |
+| `service/Core/Services/` | Hard-forked Graph engine (~100 `*Service.cs` + `I*` interfaces) — reuse, don't reimplement |
+| `service/Store/SnapshotStore.cs` | Append-only SQLite + Lucene time-machine (distinct from the blob cache) |
+| `contract/openapi.yaml` | Canonical API contract |
+| `docs/` | `MVP-PLAN.md` (thesis/decisions), `ROADMAP.md` (M1–M13 milestones), `RUNBOOK.md` (prereqs + smoke test), `CACHE*.md` (M12 cache), `PLUGINS-MCP.md` (M13 MCP/HITL track) |
+| `website/` | Astro + Starlight docs site (`npm run dev` / `build`); deployed by `cmprojectx-docs.yml` |

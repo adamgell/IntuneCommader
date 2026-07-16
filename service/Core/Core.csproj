@@ -1,0 +1,42 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <!-- Hard-fork of IntuneCommander Core. Keep the original namespace/assembly
+         name so hardcoded embedded-resource names ("Intune.Commander.Core.Assets.*")
+         still resolve even though the project file is now Core.csproj. -->
+    <RootNamespace>Intune.Commander.Core</RootNamespace>
+    <AssemblyName>Intune.Commander.Core</AssemblyName>
+    <Version>0.5.0.0</Version>
+    <AssemblyVersion>0.5.0.0</AssemblyVersion>
+    <FileVersion>0.5.0.0</FileVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Assets\PolicyTemplate.pptx" />
+    <EmbeddedResource Include="Assets\PolicyTemplateImage.pptx" />
+    <EmbeddedResource Include="Assets\MicrosoftApps.json" />
+    <EmbeddedResource Include="Assets\settings-catalog-definitions.json.gz" />
+    <EmbeddedResource Include="Assets\settings-catalog-categories.json.gz" />
+    <EmbeddedResource Include="Assets\benchmark-map.json" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Azure.Identity" Version="1.17.1" />
+    <PackageReference Include="LiteDB" Version="5.0.21" />
+    <PackageReference Include="Microsoft.AspNetCore.DataProtection" Version="8.0.12" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.3" />
+    <PackageReference Include="Microsoft.Graph.Beta" Version="5.130.0-preview" />
+    <PackageReference Include="Syncfusion.Presentation.Net.Core" Version="32.2.5" />
+    <!-- Security pins: force transitive deps above known-vulnerable versions (NU1903).
+         System.Security.Cryptography.Xml 8.0.2 (via DataProtection) -> 8.0.3
+           [GHSA-37gx-xxp4-5rgx, GHSA-w3x6-4m5h-cxqf]
+         Microsoft.Kiota.Abstractions 1.21.1 (via Graph.Beta) -> 1.22.2
+           [GHSA-7j59-v9qr-6fq9] -->
+    <PackageReference Include="System.Security.Cryptography.Xml" Version="8.0.3" />
+    <PackageReference Include="Microsoft.Kiota.Abstractions" Version="1.22.2" />
+  </ItemGroup>
+
+</Project>

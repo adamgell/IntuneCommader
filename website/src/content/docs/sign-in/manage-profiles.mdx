@@ -1,0 +1,46 @@
+---
+title: Manage tenant profiles
+description: Add, edit, and delete tenant profiles in IntuneCommander, and choose the cloud and authentication method for each.
+---
+
+import { Steps } from '@astrojs/starlight/components';
+
+From the **Sign in** card, click **Manage tenant profiles** to open the profile panel. There you
+can add a new tenant, edit an existing one, or remove one you no longer use.
+
+{/* TODO(screenshot): the Manage tenant profiles panel (redacted) */}
+
+## Add a profile
+
+<Steps>
+
+1. Click **Manage tenant profiles**, then **Add**.
+
+2. Fill in the profile:
+
+   - **Name** — a friendly label (e.g. `Contoso — Production`).
+   - **Tenant** and **Client (app) ID** — from your Entra app registration.
+   - **Authentication** — **Client secret** (paste the secret) or **Device code**.
+   - **Cloud** — **Commercial**, **GCC**, **GCC High**, or **DoD**.
+
+3. **Save.** The profile is written to `%LocalAppData%\Intune.Commander\` with its secret
+   protected by Windows DataProtection.
+
+</Steps>
+
+## Edit or delete
+
+Select a profile in the panel to **edit** its fields (rotate a secret, switch cloud, change auth
+method) or **delete** it. Deleting a profile only removes it from this machine — it doesn't touch
+the app registration in Entra.
+
+:::note[App registration setup]
+IntuneCommander uses an existing Entra **app registration**; it doesn't create one for you. The app's
+**application permissions** (consented in Entra) decide what you can read and write once signed in.
+:::
+
+:::caution[Rotating secrets]
+If sign-in starts failing with `authState: Failed`, the client secret has most likely **expired**.
+Create a new secret in Entra and update the profile here. See
+[Troubleshooting](/sign-in/troubleshooting/).
+:::

@@ -1,5 +1,11 @@
 {
-    "recommendations": [
-        "upstash.context7-mcp"
-    ]
+  // Extensions the launch/tasks configs rely on (plus a couple of quality-of-life ones).
+  "recommendations": [
+    "rust-lang.rust-analyzer", // Rust language support + cargo integration
+    "ms-vscode.cpptools", // provides the "cppvsdbg" debugger for the Rust client
+    "ms-dotnettools.csharp", // provides the "coreclr" debugger for the .NET sidecar
+    "ms-dotnettools.csdevkit", // optional: solution view / test runner for service/
+    "tamasfe.even-better-toml", // Cargo.toml editing
+    "redhat.vscode-yaml" // contract/openapi.yaml editing
+  ]
 }

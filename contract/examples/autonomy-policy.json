@@ -1,0 +1,16 @@
+{
+  "tenantId": "a17f0000-0000-0000-0000-000000000000",
+  "enabled": true,
+  "cadenceMinutes": 15,
+  "scope": {
+    "objectTypes": ["DeviceCompliancePolicy", "SettingsCatalogPolicy"],
+    "assignmentGroupAllowlist": ["All Windows Corporate Devices"]
+  },
+  "signals": {
+    "drift": { "enabled": true, "minSeverity": "Medium", "minScoreDrop": null },
+    "postureRegression": { "enabled": true, "minSeverity": null, "minScoreDrop": 3 },
+    "advisory": { "enabled": false, "minSeverity": "High", "minScoreDrop": null }
+  },
+  "throttle": { "maxProposalsPerRun": 5, "maxInflightPending": 20 },
+  "note": "Autonomy may only ENQUEUE proposals. No value here auto-applies a write."
+}

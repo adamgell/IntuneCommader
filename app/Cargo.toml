@@ -1,0 +1,38 @@
+[package]
+name = "app"
+version = "1.0.0-beta.1"
+# Pinned to 2024 (not the workspace 2021) to match the proven reactor-gate; the
+# Windows Reactor DSL + samples are authored against the 2024 edition.
+edition = "2024"
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+api-types = { path = "../crates/api-types" }
+serde_json.workspace = true
+# blocking client: Reactor's use_resource/use_mutation fetchers run on a
+# background thread and want a synchronous call, not a tokio runtime.
+reqwest = { version = "0.12", features = ["json", "blocking"] }
+
+# --- WinUI 3 UI (Windows Reactor) -------------------------------------------
+# Landed in microsoft/windows-rs (PR #4479, merged 2026-05-28); NOT on crates.io
+# (only a 0.0.0 name-reservation placeholder), so consume it as a git dep pinned
+# to a commit — the same rev the Phase 0 risk-gate validated.
+windows-reactor = { git = "https://github.com/microsoft/windows-rs", rev = "cf58d5cfe7deccb73a55aeb4aa6799dc1b06544c" }
+
+# --- CMTrace parser (upstream OSS seam) -------------------------------------
+# PATH dependency for fast local iteration against the sibling cmtraceopen
+# checkout. For CI, swap this for a pinned git dep (see crates/parser/README.md):
+#   cmtraceopen-parser = { git = "https://github.com/adamgell/cmtraceopen", rev = "<pin>" }
+# Consumed in Phase 2 (log viewer + correlation).
+cmtraceopen-parser = { path = "../../cmtraceopen/crates/cmtraceopen-parser" }
+
+# Client-side regex for the Log Explorer find bar (already in the tree via the parser).
+regex = "1"
+
+# Native OS file/folder/save dialogs (Windows IFileDialog under the hood). Sync API,
+# called from button handlers on the STA UI thread. Replaces paste-a-path inputs.
+rfd = "0.15"
+
+[build-dependencies]
+windows-reactor-setup = { git = "https://github.com/microsoft/windows-rs", rev = "cf58d5cfe7deccb73a55aeb4aa6799dc1b06544c" }

@@ -1,0 +1,28 @@
+---
+title: API reference
+description: The IntuneCommander sidecar exposes a local REST API defined by an OpenAPI contract — browse it interactively.
+---
+
+import { LinkButton } from '@astrojs/starlight/components';
+
+The sidecar exposes a **local REST API** on `http://127.0.0.1:5099`, defined by
+[`contract/openapi.yaml`](https://github.com/gellorg/intunecommander-src/blob/main/contract/openapi.yaml)
+(**OpenAPI 3.1**, ~90 endpoints). That contract is the **single source of truth** — both the C#
+sidecar and the Rust client's types are generated from it.
+
+<LinkButton href="/intunecommander-src/api.html" variant="primary" icon="external">
+	Open the interactive API reference
+</LinkButton>
+
+## What's in it
+
+- **Auth & health** — `/health`, `/auth/signin`, `/auth/signout`, tenant `/profiles`.
+- **Sync & time-machine** — `/sync`, `/audit`, `/drift`, `/snapshots`, `/objects`, `/preview-diff`.
+- **Bulk** — `/export`, `/import`, `/baselines`.
+- **Management surfaces** — list/get/create/update/delete for each resource type (`/apps`,
+  `/device-configs`, `/compliance-policies`, `/settings-catalog`, …).
+
+:::note[Local only]
+This API is served on loopback by your own sidecar — it isn't a hosted/public endpoint. The
+reference is here so you can see the exact request and response shapes.
+:::

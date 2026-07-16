@@ -1,0 +1,48 @@
+{
+  "$schema": "https://www.masterpackager.com/support-master-packager-dev/mpdev-schema.json",
+  "outputTypes": [ "msi", "msix" ],
+  "outputDirectory": "publish\\installer",
+  "outputFileName": "IntuneCommander-$.version-x64",
+  "packageName": "IntuneCommander",
+  "publisher": "gellorg",
+  "version": "0.0.0.0",
+  "platform": "x64",
+  "installDir": "%ProgramFiles%\\IntuneCommander",
+  "icon": "packaging/icon.ico",
+  "fileSystemEntries": [
+    {
+      "sourcePath": "%IC_BUNDLE_DIR%",
+      "targetPath": "$.installDir"
+    }
+  ],
+  "shortcuts": [
+    {
+      "target": "$.installDir\\IntuneCommander.exe",
+      "name": "IntuneCommander"
+    }
+  ],
+  "environmentVariables": [
+    {
+      "name": "SYNCFUSION_LICENSE_KEY",
+      "value": "%SYNCFUSION_LICENSE_KEY%"
+    }
+  ],
+  "msi": {
+    "upgradeCode": "{7F3A9C21-4B8E-4D6A-9E1F-2C5B8A0D3E64}",
+    "installDialog": {
+      "packageDescription": "Windows-native control plane for Microsoft Intune & Entra device management, with an audit/drift time-machine and diagnostics.",
+      "publisherUrl": "https://github.com/adamgell/IntuneCommander",
+      "eulaUrl": "https://github.com/adamgell/IntuneCommander/blob/main/LICENSE"
+    }
+  },
+  "msix": {
+    "publisher": "CN=Adam Gell"
+  },
+  "digitalSignature": {
+    "signWith": "AzureTrustedSigning",
+    "endpoint": "%SIGNING_ENDPOINT%",
+    "codeSigningAccountName": "%SIGNING_ACCOUNT_NAME%",
+    "certificateProfileName": "%SIGNING_PROFILE_NAME%",
+    "timestampServer": "http://timestamp.acs.microsoft.com"
+  }
+}

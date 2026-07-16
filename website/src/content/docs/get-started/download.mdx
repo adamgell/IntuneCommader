@@ -1,0 +1,58 @@
+---
+title: Download a release
+description: Download a prebuilt IntuneCommander release, check the prerequisites, and run it — no toolchain required.
+---
+
+import { LinkButton } from '@astrojs/starlight/components';
+
+Most people don't need to build from source. Grab a prebuilt release, unzip it, and run.
+
+<LinkButton href="https://github.com/gellorg/intunecommander-release/releases" variant="primary" icon="external">
+	Releases
+</LinkButton>
+
+## Pick a build
+
+Each release publishes one zip per architecture:
+
+| Architecture | Asset | Notes |
+| --- | --- | --- |
+| Windows x64 | `IntuneCommander-<version>-win-x64.zip` | Currently the only published target |
+| Windows on ARM64 | `IntuneCommander-<version>-win-arm64.zip` | Planned — the primary target long-term |
+
+:::note[Prereleases]
+Builds before `v1.0.0` are marked **prerelease** on GitHub. They move fast and may change or break
+between versions.
+:::
+
+## Prerequisites
+
+- **Windows 11.**
+- The **Windows App SDK runtime** — the client links against it framework-dependent. Install it from
+  Microsoft if it isn't already present.
+
+You do **not** need the .NET SDK: the sidecar in the bundle is self-contained.
+
+## Install & run
+
+1. Download the zip for your architecture and **extract** it.
+2. Run **`Start-IntuneCommander.cmd`** — it starts the sidecar, waits for it to bind `:5099`, then
+   launches the client.
+3. [Sign in](/sign-in/overview/) to your tenant; the live screens populate.
+
+The bundle's `docs\RUNBOOK.md` has the full prerequisites and the [smoke test](/get-started/smoke-test/).
+
+### What's in the bundle
+
+```text
+IntuneCommander.exe            the client (Rust + WinUI 3)
+sidecar\                       the .NET sidecar (Api.exe + runtime) → 127.0.0.1:5099
+docs\                          end-user docs
+Start-IntuneCommander.cmd      launcher (sidecar → client)
+VERSION                        the release version
+```
+
+## Prefer to build from source?
+
+If you're developing IntuneCommander or want the latest unreleased code, see
+[Install & build](/get-started/install/) and [Cutting a release](/develop/releasing/).

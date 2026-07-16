@@ -1,0 +1,35 @@
+{
+  "totalCount": 5,
+  "results": [
+    {
+      "id": "312",
+      "general": { "name": "FRONTDESK-MAC-01", "lastContactTime": "2026-06-21T09:14:00Z" },
+      "operatingSystem": { "name": "macOS", "version": "14.5" },
+      "hardware": { "model": "MacBook Air (M3)" }
+    },
+    {
+      "id": "318",
+      "general": { "name": "DESIGN-STUDIO-07", "lastContactTime": "2026-06-19T17:02:00Z" },
+      "operatingSystem": { "name": "macOS", "version": "15.0" },
+      "hardware": { "model": "Mac Studio (M2 Ultra)" }
+    },
+    {
+      "id": "401",
+      "general": { "name": "LOBBY-IPAD-02", "lastContactTime": "2026-06-12T08:41:00Z" },
+      "operatingSystem": { "name": "iPadOS", "version": "17.5" },
+      "hardware": { "model": "iPad Air (5th gen)" }
+    },
+    {
+      "id": "405",
+      "general": { "name": "CEO-MBP-16", "lastContactTime": "2026-06-25T21:33:00Z" },
+      "operatingSystem": { "name": "macOS", "version": "15.1" },
+      "hardware": { "model": "MacBook Pro 16\" (M4 Max)" }
+    },
+    {
+      "id": "422",
+      "general": { "name": "WAREHOUSE-IPAD-11", "lastContactTime": "2026-06-24T13:07:00Z" },
+      "operatingSystem": { "name": "iPadOS", "version": "18.0" },
+      "hardware": { "model": "iPad (10th gen)" }
+    }
+  ]
+}

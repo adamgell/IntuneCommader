@@ -1,0 +1,32 @@
+{
+  "schemaVersion": "1.0",
+  "id": "baseline-win-compliance",
+  "name": "Windows Compliance Baseline (sample)",
+  "version": "1.0.0",
+  "publisher": "cmprojectx-samples",
+  "description": "A minimal, adoptable Windows 10/11 device compliance policy. Ships with cmProjectX so /packs is non-empty out of the box: adopt it against your tenant (bind targetGroupId) to render an M15 plan and, on approval, create the policy with a snapshot + audit entry.",
+  "targetSurfaces": [
+    "compliance-policies"
+  ],
+  "minSidecar": "0.15.0",
+  "parameters": [
+    {
+      "name": "targetGroupId",
+      "type": "groupId",
+      "prompt": "Entra group to assign the baseline to",
+      "required": true,
+      "default": null,
+      "appliesTo": "deviceCompliancePolicies[*].assignments"
+    },
+    {
+      "name": "gracePeriodDays",
+      "type": "int",
+      "prompt": "Non-compliance grace period (days) before the action fires",
+      "required": false,
+      "default": "7",
+      "appliesTo": "deviceCompliancePolicies[*].scheduledActionsForRule"
+    }
+  ],
+  "objectCount": 1,
+  "signature": null
+}

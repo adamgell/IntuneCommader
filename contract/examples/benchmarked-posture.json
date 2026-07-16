@@ -1,0 +1,52 @@
+{
+  "benchmark": "cis",
+  "benchmarkVersion": "CIS Microsoft Intune for Windows 11 v3.0.1",
+  "score": 71,
+  "coverage": {
+    "controlsCovered": 4,
+    "controlsTotal": 6,
+    "percent": 67
+  },
+  "breakdown": [
+    {
+      "category": "Conditional Access",
+      "score": 25,
+      "maxScore": 30,
+      "items": ["4 enabled", "1 report-only"],
+      "controls": [
+        { "framework": "cis", "id": "1.1.1", "title": "Ensure MFA via CA is enforced" }
+      ]
+    },
+    {
+      "category": "Compliance",
+      "score": 18,
+      "maxScore": 25,
+      "items": ["3 policies", "2 platforms covered"],
+      "controls": [
+        { "framework": "cis", "id": "2.3.1", "title": "Device compliance policy assigned" }
+      ]
+    }
+  ],
+  "gaps": [
+    {
+      "severity": "high",
+      "category": "Conditional Access",
+      "description": "No CA policy targets all users",
+      "controls": [
+        { "framework": "cis", "id": "1.1.1", "title": "Ensure MFA via CA is enforced" }
+      ]
+    }
+  ],
+  "stats": {
+    "caTotal": 6,
+    "caEnabled": 4,
+    "caReportOnly": 1,
+    "caDisabled": 1,
+    "compliancePolicies": 3,
+    "compliancePlatforms": ["Windows", "iOS"],
+    "endpointSecurityIntents": 2,
+    "appProtectionPolicies": 1,
+    "authStrengthPolicies": 1,
+    "namedLocations": 2
+  }
+}

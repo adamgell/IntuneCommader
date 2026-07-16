@@ -1,0 +1,477 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>cmProjectX — brand color strategy (pick the 50/50 split)</title>
+<style>
+  /* ============================================================
+     cmProjectX — COLOR STRATEGY comparison
+     Three ways to express the 50/50 cmtrace ⟷ IntuneCommander
+     identity. Dark, Fluent, rooted in cmtraceopen teal.
+     Showpiece = the "enriched log row": a cmtrace log line that
+     reaches into Entra/Intune and pulls context down.
+     ============================================================ */
+
+  :root {
+    --font-display: "Bahnschrift", "DIN Next", "Segoe UI Variable Display", "Segoe UI", sans-serif;
+    --font-ui: "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+    --mono: Consolas, "Cascadia Code", "Courier New", ui-monospace, monospace;
+
+    /* cmtrace heritage — teal (anchor #007768 / #009688) */
+    --teal:        #009688;
+    --teal-strong: #007768;
+    --teal-bright: #00C6BC;
+    --teal-deep:   #00312A;
+    --teal-10:     #001F17;
+
+    /* IntuneCommander / Entra — azure (candidate; #0078D4 = official Intune) */
+    --blue:        #0A84FF;
+    --blue-strong: #0066CC;
+    --blue-bright: #4DA3FF;
+    --blue-deep:   #0B2A52;
+
+    /* neutrals — Fluent dark ramp */
+    --bg:        #121212;
+    --surface:   #1b1b1b;
+    --surface-2: #232323;
+    --surface-3: #2a2a2a;
+    --line:      #343434;
+    --line-2:    #4a4a4a;
+    --text:      #ffffff;
+    --text-2:    #d6d6d6;
+    --text-3:    #a6a6a6;
+    --text-4:    #7d7d7d;
+
+    /* cmtrace severity (heritage) */
+    --sev-error: #ff5a52;
+    --sev-warn:  #ffc83d;
+    --sev-info:  #d4d4d4;
+  }
+
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0; font-family: var(--font-ui); color: var(--text);
+    background:
+      radial-gradient(900px 600px at 12% -8%, rgba(0,150,136,0.10) 0%, transparent 58%),
+      radial-gradient(900px 700px at 100% 4%, rgba(10,132,255,0.10) 0%, transparent 58%),
+      var(--bg);
+    background-attachment: fixed;
+    -webkit-font-smoothing: antialiased;
+  }
+  /* faint grain */
+  body::before {
+    content: ""; position: fixed; inset: 0; z-index: 0; pointer-events: none; opacity: .035;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+  .wrap { position: relative; z-index: 1; max-width: 1080px; margin: 0 auto; padding: 56px 28px 90px; }
+
+  /* ── type ── */
+  .kicker { font-family: var(--mono); font-size: 12px; letter-spacing: 2px; text-transform: uppercase;
+    color: var(--teal-bright); display: flex; align-items: center; gap: 10px; }
+  .kicker::before { content: ""; width: 26px; height: 1px; background: var(--teal-bright); }
+  h1 { font-family: var(--font-display); font-weight: 600; font-size: clamp(34px, 5vw, 56px);
+    line-height: 1.02; letter-spacing: .5px; margin: 16px 0 0; }
+  h1 .x { color: var(--teal); }
+  .lead { color: var(--text-3); font-size: 16px; line-height: 1.6; max-width: 640px; margin: 18px 0 0; }
+  .lead b { color: var(--text); font-weight: 600; }
+
+  /* ── thesis strip: the merge ── */
+  .mergebar { margin: 36px 0 10px; height: 8px; border-radius: 6px; overflow: hidden;
+    background: linear-gradient(90deg, var(--teal) 0%, var(--teal) 22%, var(--blue) 78%, var(--blue) 100%); }
+  .mergelabels { display: flex; justify-content: space-between; font-family: var(--mono); font-size: 11.5px;
+    color: var(--text-4); letter-spacing: .5px; }
+  .mergelabels b { color: var(--text-2); font-weight: 600; }
+
+  /* ── strategy band ── */
+  .band {
+    margin-top: 30px; border: 1px solid var(--line); border-radius: 16px; overflow: hidden;
+    background: linear-gradient(180deg, var(--surface) 0%, #181818 100%);
+    box-shadow: 0 20px 60px -30px #000;
+  }
+  .band-head { display: flex; align-items: center; gap: 14px; padding: 18px 22px; border-bottom: 1px solid var(--line);
+    background: var(--surface-2); }
+  .band-head .num { font-family: var(--mono); font-size: 13px; color: var(--text-4); }
+  .band-head h2 { font-family: var(--font-display); font-weight: 600; font-size: 22px; letter-spacing: .4px; margin: 0; }
+  .band-head .desc { color: var(--text-3); font-size: 13px; margin-left: 4px; }
+  .tag { margin-left: auto; font-family: var(--mono); font-size: 11px; letter-spacing: 1px; text-transform: uppercase;
+    padding: 4px 10px; border-radius: 999px; border: 1px solid; }
+  .tag.rec { color: #001a16; background: var(--teal-bright); border-color: var(--teal-bright); }
+  .tag.alt { color: var(--text-3); border-color: var(--line-2); }
+
+  .band-body { display: grid; grid-template-columns: 320px 1fr; }
+  @media (max-width: 880px) { .band-body { grid-template-columns: 1fr; } }
+  .rail { padding: 22px; border-right: 1px solid var(--line); display: flex; flex-direction: column; gap: 20px; }
+  @media (max-width: 880px) { .rail { border-right: 0; border-bottom: 1px solid var(--line); } }
+  .stage { padding: 24px 22px; display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+
+  .sub { font-family: var(--mono); font-size: 11px; letter-spacing: 1.4px; text-transform: uppercase; color: var(--text-4); }
+
+  /* lockup */
+  .lockup { display: flex; align-items: center; gap: 13px; }
+  .lockup .wm { font-family: var(--font-display); font-weight: 600; font-size: 24px; letter-spacing: .3px; }
+  .lockup .wm .cm { color: var(--teal); }
+  .lockup .wm .pj { color: var(--text); }
+
+  /* palette */
+  .swatches { display: flex; flex-wrap: wrap; gap: 7px; }
+  .sw { width: 46px; height: 46px; border-radius: 8px; border: 1px solid rgba(255,255,255,.08);
+    position: relative; cursor: pointer; transition: transform .12s; }
+  .sw:hover { transform: translateY(-2px); }
+  .sw span { position: absolute; bottom: 3px; left: 4px; font-family: var(--mono); font-size: 8.5px;
+    color: rgba(255,255,255,.85); text-shadow: 0 1px 2px rgba(0,0,0,.6); }
+  .sw.lg { width: 100%; height: 30px; }
+
+  /* chips */
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; padding: 5px 10px; border-radius: 7px;
+    border: 1px solid var(--line-2); background: var(--surface-2); color: var(--text-2); font-family: var(--mono); }
+  .chip .d { width: 7px; height: 7px; border-radius: 50%; }
+  .chip.diag { border-color: color-mix(in srgb, var(--teal) 45%, transparent); color: var(--teal-bright);
+    background: color-mix(in srgb, var(--teal) 12%, transparent); }
+  .chip.diag .d { background: var(--teal); }
+  .chip.mgmt { border-color: color-mix(in srgb, var(--blue) 45%, transparent); color: var(--blue-bright);
+    background: color-mix(in srgb, var(--blue) 12%, transparent); }
+  .chip.mgmt .d { background: var(--blue); }
+
+  /* ── the enriched log row (showpiece) ── */
+  .logcard { border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: #0e0e0e; }
+  .logcard .cap { font-family: var(--mono); font-size: 11px; color: var(--text-4); padding: 9px 14px;
+    border-bottom: 1px solid var(--line); background: var(--surface-2); letter-spacing: .5px; }
+  .row { display: grid; grid-template-columns: 4px 1fr; }
+  .row .gut { background: var(--sev-warn); }
+  .row.err .gut { background: var(--sev-error); }
+  .row .content { padding: 12px 14px; min-width: 0; }
+
+  .logline { font-family: var(--mono); font-size: 12.5px; line-height: 1.5; display: flex; flex-wrap: wrap; gap: 8px;
+    align-items: baseline; color: var(--text-2); }
+  .logline .ts { color: var(--text-4); }
+  .logline .sev { font-weight: 700; padding: 0 6px; border-radius: 4px; font-size: 11px; }
+  .logline .sev.warn { color: #2a1d00; background: var(--sev-warn); }
+  .logline .sev.error { color: #2a0000; background: var(--sev-error); }
+  .logline .src { color: var(--src, var(--teal-bright)); }    /* diagnostics source */
+  .logline .msg { color: var(--text); }
+  .logline .code { color: var(--text-4); }
+
+  /* enrichment lane — the cmProjectX "feeler" pulling cloud context down */
+  .enrich { margin-top: 10px; padding-left: 18px; position: relative; display: flex; flex-wrap: wrap; gap: 7px; align-items: center; }
+  .enrich::before { content: ""; position: absolute; left: 4px; top: -6px; bottom: 9px; width: 9px;
+    border-left: 1.5px solid var(--feel, var(--blue)); border-bottom: 1.5px solid var(--feel, var(--blue));
+    border-bottom-left-radius: 6px; }
+  .enrich .lbl { font-family: var(--mono); font-size: 10.5px; letter-spacing: .6px; text-transform: uppercase;
+    color: var(--feel, var(--blue-bright)); margin-right: 2px; }
+  .ec { display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; padding: 4px 9px; border-radius: 6px;
+    font-family: var(--mono); border: 1px solid var(--ecborder, var(--line-2));
+    background: var(--ecbg, var(--surface-2)); color: var(--ectext, var(--text-2)); }
+  .ec .g { width: 6px; height: 6px; border-radius: 50%; background: var(--ecdot, var(--blue)); }
+  .ec.ok .g { background: #51cf66; }
+  .ec.warn-d .g { background: var(--sev-warn); }
+  .caption { color: var(--text-4); font-size: 12px; line-height: 1.5; }
+  .caption b { color: var(--text-3); }
+
+  /* ── per-strategy theming via data-strat ── */
+  /* A: duotone merge → diagnostics teal, enrichment blue */
+  [data-strat="duo"]  { --src: var(--teal-bright); --feel: var(--blue-bright);
+    --ecbg: color-mix(in srgb, var(--blue) 12%, transparent); --ecborder: color-mix(in srgb, var(--blue) 45%, transparent);
+    --ectext: var(--blue-bright); --ecdot: var(--blue); }
+  /* B: mono-teal → everything teal, duality by FORM not hue */
+  [data-strat="mono"] { --src: var(--teal-bright); --feel: var(--teal-bright);
+    --ecbg: color-mix(in srgb, var(--teal) 12%, transparent); --ecborder: color-mix(in srgb, var(--teal) 45%, transparent);
+    --ectext: var(--teal-bright); --ecdot: var(--teal); }
+  /* C: teal lead + blue accent → same as duo for mgmt chips, but mark/palette teal-dominant */
+  [data-strat="acc"]  { --src: var(--teal-bright); --feel: var(--blue-bright);
+    --ecbg: color-mix(in srgb, var(--blue) 10%, transparent); --ecborder: color-mix(in srgb, var(--blue) 38%, transparent);
+    --ectext: var(--blue-bright); --ecdot: var(--blue); }
+
+  .toast { position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%) translateY(20px);
+    background: var(--teal); color: #00150f; font-family: var(--mono); font-size: 12px; padding: 8px 14px;
+    border-radius: 8px; opacity: 0; transition: all .2s; pointer-events: none; z-index: 50; font-weight: 600; }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  .footnote { margin-top: 40px; padding: 22px; border: 1px dashed var(--line-2); border-radius: 14px; color: var(--text-3);
+    font-size: 13.5px; line-height: 1.6; }
+  .footnote h3 { font-family: var(--font-display); margin: 0 0 8px; font-size: 18px; color: var(--text); font-weight: 600; }
+  .bluepick { display: flex; gap: 10px; margin-top: 12px; flex-wrap: wrap; }
+  .bluepick .opt { display: flex; align-items: center; gap: 9px; padding: 8px 12px; border: 1px solid var(--line);
+    border-radius: 10px; background: var(--surface-2); font-family: var(--mono); font-size: 12px; color: var(--text-2); }
+  .bluepick .opt i { width: 18px; height: 18px; border-radius: 5px; display: inline-block; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="kicker">Brand · color strategy</div>
+  <h1>Two heritages,<br>one signal<span class="x">.</span></h1>
+  <p class="lead">
+    cmProjectX is <b>50/50 cmtrace + IntuneCommander</b>. The local log viewer extends feelers
+    through the core into Entra/Intune and pulls cloud context <b>down onto the endpoint</b> — a
+    raw log line becomes an <b>enriched, correlated</b> one. Below: three ways to color that idea.
+    The showpiece in each is the same enriched log row. <b>Pick the one that feels right.</b>
+  </p>
+
+  <div class="mergebar"></div>
+  <div class="mergelabels">
+    <span><b>cmtrace</b> · local logs · #009688</span>
+    <span>the merge = enrichment</span>
+    <span>#0A84FF · cloud mgmt · <b>Intune/Entra</b></span>
+  </div>
+
+  <!-- ============ A · DUOTONE MERGE ============ -->
+  <section class="band" data-strat="duo">
+    <div class="band-head">
+      <span class="num">01</span>
+      <h2>Duotone merge</h2>
+      <span class="desc">teal × azure, blending at the seam</span>
+      <span class="tag rec">Recommended</span>
+    </div>
+    <div class="band-body">
+      <div class="rail">
+        <div>
+          <div class="sub">Lockup</div>
+          <div class="lockup" style="margin-top:10px">
+            <!-- mark: log lines (teal) → feelers → tenant node cluster (blue) -->
+            <svg width="50" height="32" viewBox="0 0 50 32" fill="none">
+              <rect x="1" y="5"  width="14" height="3.2" rx="1.6" fill="#009688"/>
+              <rect x="1" y="13" width="18" height="3.2" rx="1.6" fill="#009688"/>
+              <rect x="1" y="21" width="11" height="3.2" rx="1.6" fill="#00C6BC"/>
+              <path d="M19 14.6 C30 14.6, 32 8, 40 8" stroke="#4DA3FF" stroke-width="1.4" opacity=".85"/>
+              <path d="M19 14.6 C32 14.6, 34 16, 44 16" stroke="#4DA3FF" stroke-width="1.4" opacity=".85"/>
+              <path d="M19 14.6 C30 14.6, 32 23, 39 23" stroke="#4DA3FF" stroke-width="1.4" opacity=".7"/>
+              <line x1="40" y1="8" x2="44" y2="16" stroke="#0A84FF" stroke-width="1.2" opacity=".6"/>
+              <line x1="44" y1="16" x2="39" y2="23" stroke="#0A84FF" stroke-width="1.2" opacity=".6"/>
+              <circle cx="40" cy="8"  r="3" fill="#0A84FF"/>
+              <circle cx="44" cy="16" r="3.4" fill="#4DA3FF"/>
+              <circle cx="39" cy="23" r="2.6" fill="#0A84FF"/>
+            </svg>
+            <div class="wm"><span class="cm">cm</span><span class="pj">ProjectX</span></div>
+          </div>
+        </div>
+        <div>
+          <div class="sub">Palette</div>
+          <div class="swatches" style="margin-top:10px">
+            <div class="sw" style="background:#009688"><span>009688</span></div>
+            <div class="sw" style="background:#00C6BC"><span>00C6BC</span></div>
+            <div class="sw" style="background:#0A84FF"><span>0A84FF</span></div>
+            <div class="sw" style="background:#4DA3FF"><span>4DA3FF</span></div>
+          </div>
+          <div class="sw lg" style="margin-top:7px;background:linear-gradient(90deg,#009688,#0A84FF)"><span>merge</span></div>
+        </div>
+        <div>
+          <div class="sub">Roles</div>
+          <div class="chips" style="margin-top:10px">
+            <span class="chip diag"><span class="d"></span>diagnostics</span>
+            <span class="chip mgmt"><span class="d"></span>management</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="stage">
+        <div class="logcard">
+          <div class="cap">Win32 app · IntuneManagementExtension.log</div>
+          <div class="row err">
+            <div class="gut"></div>
+            <div class="content">
+              <div class="logline">
+                <span class="ts">2026-06-10 12:04:31.882</span>
+                <span class="sev error">ERROR</span>
+                <span class="src">IME</span>
+                <span class="msg">Win32App install failed</span>
+                <span class="code">(0x87D1041C — content download timeout)</span>
+              </div>
+              <div class="enrich">
+                <span class="lbl">enriched ↓</span>
+                <span class="ec ok"><span class="g"></span>DESKTOP-AG1 · compliant</span>
+                <span class="ec"><span class="g"></span>App: Company Portal · Required</span>
+                <span class="ec warn-d"><span class="g"></span>Assigned 2d ago</span>
+                <span class="ec"><span class="g"></span>user: adam@contoso.com</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <p class="caption"><b>Teal owns the log/diagnostic source; azure owns the cloud context.</b>
+          The color shift down the "feeler" literally shows enrichment crossing from endpoint to tenant.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ B · MONO-TEAL ============ -->
+  <section class="band" data-strat="mono">
+    <div class="band-head">
+      <span class="num">02</span>
+      <h2>Mono-teal, dual form</h2>
+      <span class="desc">one color; the 50/50 lives in shape & texture</span>
+      <span class="tag alt">Purest to cmtraceopen</span>
+    </div>
+    <div class="band-body">
+      <div class="rail">
+        <div>
+          <div class="sub">Lockup</div>
+          <div class="lockup" style="margin-top:10px">
+            <svg width="50" height="32" viewBox="0 0 50 32" fill="none">
+              <rect x="1" y="5"  width="14" height="3.2" rx="1.6" fill="#009688"/>
+              <rect x="1" y="13" width="18" height="3.2" rx="1.6" fill="#009688"/>
+              <rect x="1" y="21" width="11" height="3.2" rx="1.6" fill="#00C6BC"/>
+              <path d="M19 14.6 C30 14.6, 32 8, 40 8" stroke="#00C6BC" stroke-width="1.4" opacity=".8"/>
+              <path d="M19 14.6 C32 14.6, 34 16, 44 16" stroke="#00C6BC" stroke-width="1.4" opacity=".8"/>
+              <path d="M19 14.6 C30 14.6, 32 23, 39 23" stroke="#00C6BC" stroke-width="1.4" opacity=".65"/>
+              <line x1="40" y1="8" x2="44" y2="16" stroke="#009688" stroke-width="1.2" opacity=".6"/>
+              <line x1="44" y1="16" x2="39" y2="23" stroke="#009688" stroke-width="1.2" opacity=".6"/>
+              <circle cx="40" cy="8"  r="3" fill="#009688"/>
+              <circle cx="44" cy="16" r="3.4" fill="#00C6BC"/>
+              <circle cx="39" cy="23" r="2.6" fill="#009688"/>
+            </svg>
+            <div class="wm"><span class="cm">cm</span><span class="pj" style="color:var(--text)">ProjectX</span></div>
+          </div>
+        </div>
+        <div>
+          <div class="sub">Palette</div>
+          <div class="swatches" style="margin-top:10px">
+            <div class="sw" style="background:#00312A"><span>00312A</span></div>
+            <div class="sw" style="background:#007768"><span>007768</span></div>
+            <div class="sw" style="background:#009688"><span>009688</span></div>
+            <div class="sw" style="background:#00C6BC"><span>00C6BC</span></div>
+          </div>
+        </div>
+        <div>
+          <div class="sub">Roles — by form, not hue</div>
+          <div class="chips" style="margin-top:10px">
+            <span class="chip diag"><span class="d"></span>≣ logs</span>
+            <span class="chip diag" style="border-style:dashed"><span class="d" style="border-radius:1px"></span>▣ mgmt</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="stage">
+        <div class="logcard">
+          <div class="cap">Win32 app · IntuneManagementExtension.log</div>
+          <div class="row err">
+            <div class="gut"></div>
+            <div class="content">
+              <div class="logline">
+                <span class="ts">2026-06-10 12:04:31.882</span>
+                <span class="sev error">ERROR</span>
+                <span class="src">IME</span>
+                <span class="msg">Win32App install failed</span>
+                <span class="code">(0x87D1041C — content download timeout)</span>
+              </div>
+              <div class="enrich">
+                <span class="lbl">enriched ↓</span>
+                <span class="ec ok"><span class="g"></span>DESKTOP-AG1 · compliant</span>
+                <span class="ec"><span class="g"></span>▣ App: Company Portal · Required</span>
+                <span class="ec warn-d"><span class="g"></span>⟳ Assigned 2d ago</span>
+                <span class="ec"><span class="g"></span>⦿ user: adam@contoso.com</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <p class="caption"><b>Everything stays cmtrace teal.</b> Management vs diagnostics is signalled by
+          iconography and shape (square = managed object, line = log), not a second color. Calmest, most cohesive.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ C · TEAL LEAD + BLUE ACCENT ============ -->
+  <section class="band" data-strat="acc">
+    <div class="band-head">
+      <span class="num">03</span>
+      <h2>Teal lead + blue accent</h2>
+      <span class="desc">teal everywhere; blue is a wayfinding signal for "cloud"</span>
+      <span class="tag alt">Safest middle path</span>
+    </div>
+    <div class="band-body">
+      <div class="rail">
+        <div>
+          <div class="sub">Lockup</div>
+          <div class="lockup" style="margin-top:10px">
+            <svg width="50" height="32" viewBox="0 0 50 32" fill="none">
+              <rect x="1" y="5"  width="14" height="3.2" rx="1.6" fill="#009688"/>
+              <rect x="1" y="13" width="18" height="3.2" rx="1.6" fill="#009688"/>
+              <rect x="1" y="21" width="11" height="3.2" rx="1.6" fill="#00C6BC"/>
+              <path d="M19 14.6 C30 14.6, 32 8, 40 8" stroke="#009688" stroke-width="1.4" opacity=".7"/>
+              <path d="M19 14.6 C32 14.6, 34 16, 44 16" stroke="#009688" stroke-width="1.4" opacity=".7"/>
+              <path d="M19 14.6 C30 14.6, 32 23, 39 23" stroke="#009688" stroke-width="1.4" opacity=".6"/>
+              <circle cx="40" cy="8"  r="2.7" fill="#0A84FF"/>
+              <circle cx="44" cy="16" r="3.2" fill="#0A84FF"/>
+              <circle cx="39" cy="23" r="2.4" fill="#0A84FF"/>
+            </svg>
+            <div class="wm"><span class="cm">cm</span><span class="pj">ProjectX</span></div>
+          </div>
+        </div>
+        <div>
+          <div class="sub">Palette</div>
+          <div class="swatches" style="margin-top:10px">
+            <div class="sw" style="background:#007768"><span>007768</span></div>
+            <div class="sw" style="background:#009688"><span>009688</span></div>
+            <div class="sw" style="background:#00C6BC"><span>00C6BC</span></div>
+            <div class="sw" style="background:#0A84FF;outline:2px dashed rgba(255,255,255,.25);outline-offset:-5px"><span>accent</span></div>
+          </div>
+        </div>
+        <div>
+          <div class="sub">Roles</div>
+          <div class="chips" style="margin-top:10px">
+            <span class="chip diag"><span class="d"></span>base / diagnostics</span>
+            <span class="chip mgmt"><span class="d"></span>cloud only</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="stage">
+        <div class="logcard">
+          <div class="cap">Win32 app · IntuneManagementExtension.log</div>
+          <div class="row err">
+            <div class="gut"></div>
+            <div class="content">
+              <div class="logline">
+                <span class="ts">2026-06-10 12:04:31.882</span>
+                <span class="sev error">ERROR</span>
+                <span class="src">IME</span>
+                <span class="msg">Win32App install failed</span>
+                <span class="code">(0x87D1041C — content download timeout)</span>
+              </div>
+              <div class="enrich">
+                <span class="lbl">cloud ↓</span>
+                <span class="ec ok"><span class="g"></span>DESKTOP-AG1 · compliant</span>
+                <span class="ec"><span class="g"></span>App: Company Portal · Required</span>
+                <span class="ec warn-d"><span class="g"></span>Assigned 2d ago</span>
+                <span class="ec"><span class="g"></span>user: adam@contoso.com</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <p class="caption"><b>Teal carries the brand; blue only marks cloud-sourced facts.</b>
+          Reads as ~70/30 rather than a true 50/50 — coherent and low-risk, but less of a statement.</p>
+      </div>
+    </div>
+  </section>
+
+  <div class="footnote">
+    <h3>If we go duotone: which blue?</h3>
+    The teal is fixed (cmtraceopen). The management hue is the open variable — vivid azure pops on dark;
+    official Intune blue buys instant "this is Microsoft management" recognition; indigo sits furthest from teal.
+    <div class="bluepick">
+      <span class="opt"><i style="background:#0A84FF"></i>#0A84FF · azure (vivid)</span>
+      <span class="opt"><i style="background:#0078D4"></i>#0078D4 · Intune official</span>
+      <span class="opt"><i style="background:#4F6BED"></i>#4F6BED · indigo</span>
+    </div>
+    <p style="margin:14px 0 0">Tip: click any swatch to copy its hex. Tell me a strategy number + a blue, and I'll build the full identity around it.</p>
+  </div>
+
+</div>
+
+<div class="toast" id="toast">copied</div>
+<script>
+  const toast = document.getElementById('toast');
+  document.querySelectorAll('.sw, .bluepick .opt').forEach(el => {
+    el.addEventListener('click', () => {
+      const m = el.textContent.match(/#?[0-9A-Fa-f]{6}/);
+      const hex = m ? (m[0][0] === '#' ? m[0] : '#' + m[0]) : el.textContent.trim();
+      navigator.clipboard?.writeText(hex);
+      toast.textContent = 'copied ' + hex;
+      toast.classList.add('show');
+      clearTimeout(window._t); window._t = setTimeout(() => toast.classList.remove('show'), 1100);
+    });
+  });
+</script>
+</body>
+</html>

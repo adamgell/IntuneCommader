@@ -1,0 +1,9 @@
+{
+  "id": "evt-1",
+  "timestamp": "2026-06-21T08:00:00Z",
+  "actor": "alice@contoso.com",
+  "action": "update",
+  "objectType": "deviceConfiguration",
+  "objectId": "obj-1",
+  "objectName": "Kiosk"
+}

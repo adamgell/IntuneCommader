@@ -1,0 +1,47 @@
+---
+title: Install & build
+description: Clone IntuneCommander and its parser dependency, then build the .NET sidecar and the Rust client.
+---
+
+import { Steps } from '@astrojs/starlight/components';
+
+Make sure you've installed everything on the [prerequisites](/get-started/prerequisites/) page first.
+
+<Steps>
+
+1. **Clone the repo and its parser dependency.**
+
+   The Rust client depends on a **sibling `cmtraceopen` checkout** (a path dependency), so clone
+   both repositories next to each other in the same parent folder:
+
+   ```powershell
+   git clone https://github.com/gellorg/intunecommander-src
+   git clone https://github.com/adamgell/cmtraceopen
+   cd intunecommander-src
+   ```
+
+2. **Build the .NET sidecar.**
+
+   ```powershell
+   dotnet build service/Api/Api.csproj
+   ```
+
+3. **Build the Rust client** from the workspace root.
+
+   ```powershell
+   cargo build -p app
+   ```
+
+</Steps>
+
+:::tip[Both builds are green]
+On a clean checkout, both the sidecar and the client compile without changes. The first
+`cargo build` pulls and compiles a lot of crates — give it a few minutes.
+:::
+
+:::note[Why two clones?]
+`app/` references the CMTrace Open parser through a local path that expects `cmtraceopen` to sit
+beside `intunecommander-src`. Keep them as siblings and the workspace build resolves it automatically.
+:::
+
+Next: [First run](/get-started/first-run/) →

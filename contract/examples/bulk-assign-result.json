@@ -1,0 +1,14 @@
+{
+  "results": [
+    {
+      "appId": "a1111111-0000-0000-0000-000000000001",
+      "ok": true,
+      "error": null
+    },
+    {
+      "appId": "a2222222-0000-0000-0000-000000000002",
+      "ok": false,
+      "error": "Request_ResourceNotFound: application not found"
+    }
+  ]
+}

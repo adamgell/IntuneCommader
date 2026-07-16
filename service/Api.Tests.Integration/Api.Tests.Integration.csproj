@@ -1,0 +1,35 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Tier-2 RECORDED-GRAPH integration tests (RT2; docs/REGRESSION-TESTING.md).
+    The mechanism records real Graph payloads once, then replays them
+    deterministically OFFLINE — no sidecar, tenant, network, or Entra secret.
+
+    This first slice is the record/replay infrastructure plus its hermetic
+    round-trip test. Later slices inject the handler into the Graph SDK pipeline
+    and record real cassettes against the tenant.
+
+    Run: dotnet test service/Api.Tests.Integration/Api.Tests.Integration.csproj
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
+    <PackageReference Include="xunit" Version="2.9.2" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Recording\Recording.csproj" />
+    <!-- Core brings Microsoft.Graph.Beta (+ Kiota) so tests can drive a real
+         GraphServiceClient over the replay handler. -->
+    <ProjectReference Include="..\Core\Core.csproj" />
+  </ItemGroup>
+
+</Project>

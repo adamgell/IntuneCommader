@@ -1,0 +1,21 @@
+{
+  "node": {
+    "id": "grp-7a3",
+    "type": "Group",
+    "name": "All Sales Laptops",
+    "props": { "groupType": "assigned", "memberCount": "0" }
+  },
+  "inbound": [
+    {
+      "from": "pol-c19",
+      "to": "grp-7a3",
+      "type": "includes",
+      "otherNode": { "id": "pol-c19", "type": "Policy", "name": "Win11 BitLocker Baseline", "props": {} }
+    }
+  ],
+  "outbound": [],
+  "members": [],
+  "warnings": [
+    "Group has 0 members; 1 policy targets it exclusively (see orphaned-policies)."
+  ]
+}

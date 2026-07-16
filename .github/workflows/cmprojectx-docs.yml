@@ -1,0 +1,51 @@
+name: "CMProjectX: Docs"
+
+# Build the Astro Starlight site in website/ and publish it to GitHub Pages.
+# One-time setup: repo Settings → Pages → Source = "GitHub Actions".
+
+on:
+  # Auto-deploy is intentionally OFF while the docs are kept hidden.
+  # Publish manually from the Actions tab → "Run workflow" (workflow_dispatch),
+  # or un-comment the push trigger below to resume automatic publishing on merge.
+  # push:
+  #   branches: [main]
+  #   paths:
+  #     - "website/**"
+  #     - ".github/workflows/cmprojectx-docs.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Allow one Pages deployment at a time; don't cancel an in-flight deploy.
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build docs
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Build with Astro
+        uses: withastro/action@b7d53628f8b666036b0238aadb0b984a2a489f26 # v6.1.1
+        with:
+          path: ./website
+          node-version: 22
+
+  deploy:
+    name: Deploy to GitHub Pages
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@cd2ce8fcbc39b97be8ca5fce6e763baed58fa128 # v5.0.0

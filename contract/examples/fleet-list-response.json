@@ -1,0 +1,38 @@
+{
+  "surface": "compliance-policies",
+  "group": "grp-northwest-msp",
+  "tenants": [
+    { "tenantId": "9f1c3a52-7b44-4e2d-8f10-2c6b9d5a1e80", "tenantName": "Fabrikam HQ", "status": "ok" },
+    { "tenantId": "3d8e7f04-1a92-4c6b-9e55-77b0c2f4a3d1", "tenantName": "Contoso Retail", "status": "ok" },
+    { "tenantId": "a14b6c98-2f0d-4781-bb3e-5e9c0a7d2f44", "tenantName": "Tailwind Labs", "status": "throttled" }
+  ],
+  "items": [
+    {
+      "id": "b2c1-001",
+      "title": "Win10 Baseline",
+      "subtitle": "Compliance",
+      "badge": null,
+      "platform": "Windows",
+      "modified": "2026-05-30",
+      "tenantId": "9f1c3a52-7b44-4e2d-8f10-2c6b9d5a1e80",
+      "tenantName": "Fabrikam HQ"
+    },
+    {
+      "id": "c7d2-210",
+      "title": "Win10 Baseline",
+      "subtitle": "Compliance",
+      "badge": null,
+      "platform": "Windows",
+      "modified": "2026-04-18",
+      "tenantId": "3d8e7f04-1a92-4c6b-9e55-77b0c2f4a3d1",
+      "tenantName": "Contoso Retail"
+    }
+  ],
+  "errors": [
+    {
+      "tenantId": "a14b6c98-2f0d-4781-bb3e-5e9c0a7d2f44",
+      "code": "throttled",
+      "message": "Graph 429 — retry after 38s; tenant rows omitted"
+    }
+  ]
+}

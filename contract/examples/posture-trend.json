@@ -1,0 +1,35 @@
+{
+  "benchmark": "cis",
+  "points": [
+    {
+      "capturedUtc": "2026-05-01T09:02:00Z",
+      "score": 58,
+      "categoryScores": {
+        "App Protection": 10,
+        "Auth & Locations": 9,
+        "Compliance": 14,
+        "Conditional Access": 15,
+        "Endpoint Security": 10
+      }
+    },
+    {
+      "capturedUtc": "2026-06-24T09:00:00Z",
+      "score": 71,
+      "categoryScores": {
+        "App Protection": 5,
+        "Auth & Locations": 8,
+        "Compliance": 18,
+        "Conditional Access": 25,
+        "Endpoint Security": 15
+      }
+    }
+  ],
+  "delta": {
+    "since": "2026-05-01T09:02:00Z",
+    "scoreChange": 13,
+    "regressions": ["App Protection -5"],
+    "remediationCandidates": [
+      { "category": "App Protection", "scoreChange": -5, "remediationCandidateRef": "m18:app-protection-policy" }
+    ]
+  }
+}

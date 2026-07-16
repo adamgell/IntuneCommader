@@ -1,0 +1,7 @@
+<Solution>
+  <Project Path="Api/Api.csproj" />
+  <Project Path="Core/Core.csproj" />
+  <Project Path="Recording/Recording.csproj" />
+  <Project Path="Store/Store.csproj" />
+  <Project Path="Sync/Sync.csproj" />
+</Solution>

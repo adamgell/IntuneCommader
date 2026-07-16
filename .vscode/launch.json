@@ -1,19 +1,103 @@
 {
+  // Debug configs for cmProjectX. Two debuggees:
+  //   • Service: .NET sidecar  → coreclr  (needs C# extension, ms-dotnettools.csharp)
+  //   • Client:  Rust app      → cppvsdbg (needs C/C++ extension, ms-vscode.cpptools;
+  //                              cppvsdbg reads the MSVC PDBs from the
+  //                              aarch64-pc-windows-msvc toolchain)
+  //
+  // The sidecar takes ~6s to warm up (DI + opening SQLite/Lucene/LiteDB) while the
+  // app launches instantly, so ORDER MATTERS. Pick a config by what you want:
+  //   • Just run the app          → "App + sidecar (run)"   ← starts the sidecar first
+  //   • Debug the C# service too  → "Full stack" compound
+  //   • Debug one side in isolation → the "… only" configs
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Debug React Host + Vite",
+      // EVERYDAY CONFIG. Frees port 5099, builds the client, starts the sidecar
+      // (undebugged), waits until it logs "Application started.", THEN launches the
+      // app — so it connects on the first poll instead of showing "no sidecar".
+      "name": "App + sidecar (run)",
+      "type": "cppvsdbg",
+      "request": "launch",
+      "preLaunchTask": "serve: sidecar (background)",
+      "program": "${workspaceFolder}/target/debug/app.exe",
+      "args": [],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "environment": [{ "name": "RUST_BACKTRACE", "value": "1" }],
+      "presentation": { "group": "0_run", "order": 1 }
+    },
+    {
+      // Debug the C# service in isolation (no client). Frees the port, then builds.
+      "name": "Service: .NET sidecar (debug)",
       "type": "coreclr",
       "request": "launch",
-      "preLaunchTask": "prepare-react-host-debug",
-      "program": "${workspaceFolder}/src/Intune.Commander.DesktopReact/bin/Debug/net10.0-windows/IntuneCommander.dll",
+      "preLaunchTask": "prep: service",
+      // Assembly name defaults to the csproj name → Api.dll.
+      "program": "${workspaceFolder}/service/Api/bin/Debug/net10.0/Api.dll",
       "args": [],
-      "cwd": "${workspaceFolder}/src/Intune.Commander.DesktopReact",
-      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}/service/Api",
       "stopAtEntry": false,
-      "env": {
-        "DOTNET_ENVIRONMENT": "Development"
-      }
+      // The host calls app.Run("http://127.0.0.1:5099") directly (no launchSettings,
+      // no browser), so no serverReadyAction / ASPNETCORE_URLS is needed.
+      "console": "integratedTerminal",
+      "env": { "DOTNET_ENVIRONMENT": "Development" },
+      "presentation": { "group": "1_solo", "order": 2 }
+    },
+    {
+      // Debug the Rust client in isolation. Assumes a sidecar is ALREADY running
+      // (use "App + sidecar (run)" or start the "serve: sidecar (background)" task
+      // first) — otherwise the UI just shows "Couldn't reach the service…".
+      "name": "Client: Rust app (debug — needs sidecar)",
+      "type": "cppvsdbg",
+      "request": "launch",
+      "preLaunchTask": "rust: build app (debug)",
+      "program": "${workspaceFolder}/target/debug/app.exe",
+      "args": [],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "environment": [{ "name": "RUST_BACKTRACE", "value": "1" }],
+      "presentation": { "group": "1_solo", "order": 3 }
+    },
+
+    // ─── Hidden members of the "Full stack" compound ─────────────────────────
+    // No preLaunchTask: the compound's "prep: full-stack" task already frees the
+    // port and builds both halves, so these just attach the debuggers. The app
+    // tolerates the sidecar's ~6s warm-up and retries until /health answers.
+    {
+      "name": "Service (no prelaunch)",
+      "type": "coreclr",
+      "request": "launch",
+      "program": "${workspaceFolder}/service/Api/bin/Debug/net10.0/Api.dll",
+      "args": [],
+      "cwd": "${workspaceFolder}/service/Api",
+      "stopAtEntry": false,
+      "console": "integratedTerminal",
+      "env": { "DOTNET_ENVIRONMENT": "Development" },
+      "presentation": { "hidden": true }
+    },
+    {
+      "name": "Client (no prelaunch)",
+      "type": "cppvsdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/target/debug/app.exe",
+      "args": [],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "environment": [{ "name": "RUST_BACKTRACE", "value": "1" }],
+      "presentation": { "hidden": true }
+    }
+  ],
+  "compounds": [
+    {
+      // Debug BOTH sides at once. "prep: full-stack" runs once first (free port →
+      // build both); then both sessions start together. Expect a ~6s window where
+      // the app shows "connecting" until the sidecar finishes warming up.
+      "name": "Full stack: service + client",
+      "preLaunchTask": "prep: full-stack",
+      "configurations": ["Service (no prelaunch)", "Client (no prelaunch)"],
+      "stopAll": true,
+      "presentation": { "group": "0_run", "order": 4 }
     }
   ]
 }

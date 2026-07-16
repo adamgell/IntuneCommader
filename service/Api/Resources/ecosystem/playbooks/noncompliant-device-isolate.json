@@ -1,0 +1,54 @@
+{
+  "schemaVersion": "1.0",
+  "id": "noncompliant-device-isolate",
+  "name": "Isolate + ticket a non-compliant device (sample)",
+  "version": "1.0.0",
+  "description": "Sample remediation playbook shipped with the cmProjectX M21 ecosystem. Opens a ticket through the curated servicenow-itsm plugin (pass-through), then tags the device with a governed propose_update that lands in the M13 approval inbox. Bind deviceId (and optionally reason) before running.",
+  "parameters": [
+    {
+      "name": "deviceId",
+      "type": "deviceId",
+      "prompt": "Managed device id to isolate",
+      "required": true,
+      "default": null,
+      "appliesTo": null
+    },
+    {
+      "name": "reason",
+      "type": "string",
+      "prompt": "Why the device is being isolated",
+      "required": false,
+      "default": "Compliance baseline drift",
+      "appliesTo": null
+    }
+  ],
+  "steps": [
+    {
+      "id": "open-ticket",
+      "tool": "plugin_servicenow-itsm_create_incident",
+      "path": null,
+      "objectId": null,
+      "body": null,
+      "args": {
+        "title": "Device {{deviceId}} non-compliant",
+        "body": "{{reason}}"
+      },
+      "gated": false,
+      "dependsOn": null
+    },
+    {
+      "id": "tag-device",
+      "tool": "propose_update",
+      "path": "managed-devices",
+      "objectId": "{{deviceId}}",
+      "body": {
+        "notes": "Quarantined by playbook noncompliant-device-isolate: {{reason}}"
+      },
+      "args": null,
+      "gated": true,
+      "dependsOn": [
+        "open-ticket"
+      ]
+    }
+  ]
+}
