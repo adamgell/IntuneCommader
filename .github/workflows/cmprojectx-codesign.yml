@@ -140,12 +140,14 @@ jobs:
       # the MSI + MSIX (see packaging/installer.mpdev.json). SYNCFUSION_LICENSE_KEY licenses the
       # CA->PPTX export (mpdev bakes it into the installer's env var); empty => trial watermark.
       SYNCFUSION_LICENSE_KEY: ${{ secrets.SYNCFUSION_LICENSE_KEY }}
-      AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
-      AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+      # Non-secret signing identifiers as environment VARIABLES (verifiable). Only the client
+      # secret is a real credential. All live in the `codesigning` environment.
+      AZURE_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+      AZURE_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
       AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
-      SIGNING_ENDPOINT: ${{ secrets.SIGNING_ENDPOINT }}
-      SIGNING_ACCOUNT_NAME: ${{ secrets.SIGNING_ACCOUNT_NAME }}
-      SIGNING_PROFILE_NAME: ${{ secrets.SIGNING_PROFILE_NAME }}
+      SIGNING_ENDPOINT: ${{ vars.SIGNING_ENDPOINT }}
+      SIGNING_ACCOUNT_NAME: ${{ vars.SIGNING_ACCOUNT_NAME }}
+      SIGNING_PROFILE_NAME: ${{ vars.SIGNING_PROFILE_NAME }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
