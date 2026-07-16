@@ -4,14 +4,13 @@ name: "CMProjectX: Docs"
 # One-time setup: repo Settings → Pages → Source = "GitHub Actions".
 
 on:
-  # Auto-deploy is intentionally OFF while the docs are kept hidden.
-  # Publish manually from the Actions tab → "Run workflow" (workflow_dispatch),
-  # or un-comment the push trigger below to resume automatic publishing on merge.
-  # push:
-  #   branches: [main]
-  #   paths:
-  #     - "website/**"
-  #     - ".github/workflows/cmprojectx-docs.yml"
+  # Publishes intunecommander.com on every push to main that touches the site.
+  # (Manual runs are still available from the Actions tab via workflow_dispatch.)
+  push:
+    branches: [main]
+    paths:
+      - "website/**"
+      - ".github/workflows/cmprojectx-docs.yml"
   workflow_dispatch:
 
 permissions:

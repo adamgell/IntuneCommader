@@ -8,18 +8,14 @@ workflow; the logic lives in one place a CI runner could also call.
 
 ## Repo layout
 
-IntuneCommander lives in two repositories:
-
-| Repo | Visibility | Holds |
-| --- | --- | --- |
-| `gellorg/intunecommander-src` | private | the source (this repo + these docs) |
-| `gellorg/intunecommander-release` | private | published binaries + end-user docs (the [release channel](/get-started/download/)) |
-
-The build happens in the source repo; the artifacts are published to the release repo.
+IntuneCommander is a single public repository —
+[`adamgell/IntuneCommander`](https://github.com/adamgell/IntuneCommander) — holding the source, these
+docs, and the published binaries on its [Releases](https://github.com/adamgell/IntuneCommander/releases)
+page (the [release channel](/get-started/download/)).
 
 ## The release script
 
-[`scripts/release.ps1`](https://github.com/gellorg/intunecommander-src/blob/main/scripts/release.ps1)
+[`scripts/release.ps1`](https://github.com/adamgell/IntuneCommander/blob/main/scripts/release.ps1)
 (PowerShell 7+) is the "go script".
 
 ```powershell
@@ -37,9 +33,8 @@ For each architecture it:
 
 1. builds the Rust/WinUI client + `dotnet publish`es the sidecar (self-contained, no `.pdb`);
 2. stages a runnable bundle (`IntuneCommander.exe`, `sidecar\`, `docs\`, `Start-IntuneCommander.cmd`, `VERSION`) and zips it;
-3. publishes a GitHub Release `v<Version>` to the release repo with the zips attached
-   (`--prerelease` unless `-Stable`);
-4. syncs curated docs into the release repo.
+3. publishes a GitHub Release `v<Version>` on this repo with the zips attached
+   (`--prerelease` unless `-Stable`).
 
 ## Prerequisites
 
@@ -56,5 +51,4 @@ Builds currently target **win-x64**. ARM64 is the long-term primary target but n
 `aarch64-pc-windows-msvc` Rust target and the ARM64 VC tools installed first.
 :::
 
-Key flags: `-Arch x64`, `-SelfContained`, `-Notes <text|file>`, `-Stable`, `-DryRun`, `-Force`,
-`-SkipDocsSync`, `-ReleaseRepoPath <path>`.
+Key flags: `-Arch x64`, `-SelfContained`, `-Notes <text|file>`, `-Stable`, `-DryRun`, `-Force`.
