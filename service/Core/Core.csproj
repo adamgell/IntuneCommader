@@ -35,7 +35,7 @@
            [GHSA-37gx-xxp4-5rgx, GHSA-w3x6-4m5h-cxqf]
          Microsoft.Kiota.Abstractions 1.21.1 (via Graph.Beta) -> 1.22.2
            [GHSA-7j59-v9qr-6fq9] -->
-    <PackageReference Include="System.Security.Cryptography.Xml" Version="8.0.3" />
+    <PackageReference Include="System.Security.Cryptography.Xml" Version="9.0.18" />
     <PackageReference Include="Microsoft.Kiota.Abstractions" Version="1.22.2" />
   </ItemGroup>
 
